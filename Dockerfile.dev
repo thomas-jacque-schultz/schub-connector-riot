@@ -4,6 +4,9 @@ WORKDIR /usr/src/app
 
 # Cache des dépendances : ne se réinvalide qu'au changement de pom.xml
 COPY pom.xml .
+# lombok.config doit suivre le pom : sans lui, Lombok ne recopie pas les @Qualifier
+# sur les constructeurs générés, et toute injection ambiguë casse au démarrage.
+COPY lombok.config .
 RUN mvn dependency:go-offline -B
 
 COPY src ./src
