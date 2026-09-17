@@ -33,6 +33,19 @@ public class InternalSecretFilter extends OncePerRequestFilter {
     @Value("${schub.internal-secret}")
     private String internalSecret;
 
+    /**
+     * La sonde de santé reste joignable sans secret.
+     *
+     * <p>Sans cette exemption, le filtre rejette {@code /actuator/health} avant que le
+     * {@code permitAll} de la configuration de sécurité ne s'applique : Docker ne peut alors
+     * jamais déclarer le service sain, et tout ce qui l'attend reste à quai. La sonde n'expose
+     * que le statut — le détail est masqué par défaut.</p>
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/actuator/health");
+    }
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
