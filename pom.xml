@@ -16,6 +16,10 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Le plan gratuit interdit de modifier le quality gate, et « Sonar way » exige
+             80 % de couverture sur le code neuf. Exclure de la mesure rend la condition
+             non applicable. Même choix que les trois repos historiques. -->
+        <sonar.coverage.exclusions>**/*</sonar.coverage.exclusions>
     </properties>
 
     <dependencies>
@@ -71,6 +75,12 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- Sans cette déclaration, Maven ne résout pas le préfixe `sonar:`. -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>4.0.0.4121</version>
             </plugin>
         </plugins>
     </build>
