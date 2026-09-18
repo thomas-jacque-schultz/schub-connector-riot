@@ -1,0 +1,455 @@
+{
+  "metadata": {
+    "dataVersion": "2",
+    "matchId": "EUW1_7987650481",
+    "participants": [
+      "WXlEt6t1zjTRCbXU9Dj1x2Y8AVyDvGfvzlKy1aEDxIGjXIfjysAF9-wczHKxgS2dicSdDzkZV7221g",
+      "yWWnvEXb1AcFU2T1QmJ3NZx3HenprjXQnzG6gAggPi-PWOGiEtpnOJj7qYVR6Dk_aBVPkZXiy8ZT2A",
+      "c7E2IrpJgQxASKVyvRTWUJaJnmTwna7y1aIbc_C2aWwvO2KcC0nvLKCHkxrda6qCLWUCBovcaqa76w",
+      "9se29Y-jvixnwD0DY2x6jkJP5At_pbDTHzOjK09K-F9hb17ZJQ26WL-RcnOLJBUGaPmzqC3KI3wOAw",
+      "FBZzS7GOjPWZZsBljEWOB9IP53scVc8Jl17bfWe5oWZrZOHO6pNd_LZviSzFC-RhkqmCdHVPLYVK2A",
+      "yVI0urZPJnI3HQH-dTSBSY9yy7eQKtj3pkBDJaslLd-q8eOPIt8T-Sm32FnVbGm2VLC-74fFFd96-g",
+      "sEYi0XzMHJzEQRHoZOyii-gqk0AQLIS42tWGN2PW0aW4N4tk4s3GaByDuNDi_kWYey_fjDIw8qpgRg",
+      "nPgoDOALnX7COQXdbvs5EN0xucLjQyWBTQs-4Z0Qrljz8CkSxfXpuWK8FcPdtOhnFd4iFHtpM9tcLQ",
+      "DBt6mdZRQj-WEPtVNL6lYRpdGeUQf2_C3F54RSVlgvQSO0lyHJL1emqpAVkttnx_D_hmKxp-DKU9_A",
+      "rpREwEagGdCcW4CnwYK9ZFwfCz5XNxTaORbKk-7mwhnb9q10erX7chCOah4WF26NjRbKCTB8nCf8aA"
+    ]
+  },
+  "info": {
+    "gameId": 7987650481,
+    "queueId": 420,
+    "gameMode": "CLASSIC",
+    "gameType": "MATCHED_GAME",
+    "gameVersion": "16.18.817.5716",
+    "platformId": "EUW1",
+    "gameCreation": 1789748200148,
+    "gameStartTimestamp": 1789748212995,
+    "gameEndTimestamp": 1789749782805,
+    "gameDuration": 1570,
+    "endOfGameResult": "GameComplete",
+    "participants": [
+      {
+        "puuid": "WXlEt6t1zjTRCbXU9Dj1x2Y8AVyDvGfvzlKy1aEDxIGjXIfjysAF9-wczHKxgS2dicSdDzkZV7221g",
+        "riotIdGameName": "HOMEOFFICEABUSER",
+        "riotIdTagline": "69420",
+        "championId": 79,
+        "championName": "Gragas",
+        "teamId": 100,
+        "teamPosition": "TOP",
+        "individualPosition": "TOP",
+        "win": false,
+        "kills": 3,
+        "deaths": 8,
+        "assists": 4,
+        "champLevel": 15,
+        "totalMinionsKilled": 162,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 8457,
+        "totalDamageDealtToChampions": 15272,
+        "visionScore": 17,
+        "summoner1Id": 4,
+        "summoner2Id": 12,
+        "item0": 3068,
+        "item1": 2031,
+        "item2": 1028,
+        "item3": 3121,
+        "item4": 3158,
+        "item5": 3076,
+        "item6": 3364,
+        "wasAfk": false
+      },
+      {
+        "puuid": "yWWnvEXb1AcFU2T1QmJ3NZx3HenprjXQnzG6gAggPi-PWOGiEtpnOJj7qYVR6Dk_aBVPkZXiy8ZT2A",
+        "riotIdGameName": "Call me Izo",
+        "riotIdTagline": "igi",
+        "championId": 799,
+        "championName": "Ambessa",
+        "teamId": 100,
+        "teamPosition": "JUNGLE",
+        "individualPosition": "JUNGLE",
+        "win": false,
+        "kills": 7,
+        "deaths": 6,
+        "assists": 5,
+        "champLevel": 14,
+        "totalMinionsKilled": 39,
+        "neutralMinionsKilled": 157,
+        "goldEarned": 12842,
+        "totalDamageDealtToChampions": 22035,
+        "visionScore": 32,
+        "summoner1Id": 4,
+        "summoner2Id": 11,
+        "item0": 2520,
+        "item1": 3047,
+        "item2": 6698,
+        "item3": 6333,
+        "item4": 3123,
+        "item5": 1036,
+        "item6": 3364,
+        "wasAfk": false
+      },
+      {
+        "puuid": "c7E2IrpJgQxASKVyvRTWUJaJnmTwna7y1aIbc_C2aWwvO2KcC0nvLKCHkxrda6qCLWUCBovcaqa76w",
+        "riotIdGameName": "J1HUIV",
+        "riotIdTagline": "000",
+        "championId": 134,
+        "championName": "Syndra",
+        "teamId": 100,
+        "teamPosition": "MIDDLE",
+        "individualPosition": "MIDDLE",
+        "win": false,
+        "kills": 6,
+        "deaths": 6,
+        "assists": 5,
+        "champLevel": 14,
+        "totalMinionsKilled": 217,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 10627,
+        "totalDamageDealtToChampions": 20062,
+        "visionScore": 24,
+        "summoner1Id": 4,
+        "summoner2Id": 12,
+        "item0": 4005,
+        "item1": 1082,
+        "item2": 3157,
+        "item3": 4646,
+        "item4": 3175,
+        "item5": 0,
+        "item6": 3363,
+        "wasAfk": false
+      },
+      {
+        "puuid": "9se29Y-jvixnwD0DY2x6jkJP5At_pbDTHzOjK09K-F9hb17ZJQ26WL-RcnOLJBUGaPmzqC3KI3wOAw",
+        "riotIdGameName": "TTV HYBRADGE",
+        "riotIdTagline": "ADL",
+        "championId": 110,
+        "championName": "Varus",
+        "teamId": 100,
+        "teamPosition": "BOTTOM",
+        "individualPosition": "BOTTOM",
+        "win": false,
+        "kills": 4,
+        "deaths": 7,
+        "assists": 9,
+        "champLevel": 13,
+        "totalMinionsKilled": 164,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 10292,
+        "totalDamageDealtToChampions": 15985,
+        "visionScore": 16,
+        "summoner1Id": 4,
+        "summoner2Id": 21,
+        "item0": 2421,
+        "item1": 1036,
+        "item2": 0,
+        "item3": 1086,
+        "item4": 3087,
+        "item5": 3124,
+        "item6": 3363,
+        "wasAfk": false
+      },
+      {
+        "puuid": "FBZzS7GOjPWZZsBljEWOB9IP53scVc8Jl17bfWe5oWZrZOHO6pNd_LZviSzFC-RhkqmCdHVPLYVK2A",
+        "riotIdGameName": "INFLATEDPawełek",
+        "riotIdTagline": "INFL",
+        "championId": 432,
+        "championName": "Bard",
+        "teamId": 100,
+        "teamPosition": "UTILITY",
+        "individualPosition": "UTILITY",
+        "win": false,
+        "kills": 5,
+        "deaths": 5,
+        "assists": 10,
+        "champLevel": 11,
+        "totalMinionsKilled": 27,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 8646,
+        "totalDamageDealtToChampions": 12754,
+        "visionScore": 78,
+        "summoner1Id": 4,
+        "summoner2Id": 3,
+        "item0": 3109,
+        "item1": 3877,
+        "item2": 3047,
+        "item3": 3742,
+        "item4": 2508,
+        "item5": 1052,
+        "item6": 3364,
+        "wasAfk": false
+      },
+      {
+        "puuid": "yVI0urZPJnI3HQH-dTSBSY9yy7eQKtj3pkBDJaslLd-q8eOPIt8T-Sm32FnVbGm2VLC-74fFFd96-g",
+        "riotIdGameName": "Shourdy",
+        "riotIdTagline": "EUW",
+        "championId": 897,
+        "championName": "KSante",
+        "teamId": 200,
+        "teamPosition": "TOP",
+        "individualPosition": "TOP",
+        "win": true,
+        "kills": 8,
+        "deaths": 4,
+        "assists": 6,
+        "champLevel": 17,
+        "totalMinionsKilled": 211,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 13062,
+        "totalDamageDealtToChampions": 27624,
+        "visionScore": 32,
+        "summoner1Id": 4,
+        "summoner2Id": 12,
+        "item0": 3111,
+        "item1": 2504,
+        "item2": 3065,
+        "item3": 6662,
+        "item4": 1031,
+        "item5": 1029,
+        "item6": 3340,
+        "wasAfk": false
+      },
+      {
+        "puuid": "sEYi0XzMHJzEQRHoZOyii-gqk0AQLIS42tWGN2PW0aW4N4tk4s3GaByDuNDi_kWYey_fjDIw8qpgRg",
+        "riotIdGameName": "G2 SkewMond",
+        "riotIdTagline": "3327",
+        "championId": 254,
+        "championName": "Vi",
+        "teamId": 200,
+        "teamPosition": "JUNGLE",
+        "individualPosition": "JUNGLE",
+        "win": true,
+        "kills": 3,
+        "deaths": 2,
+        "assists": 10,
+        "champLevel": 16,
+        "totalMinionsKilled": 11,
+        "neutralMinionsKilled": 181,
+        "goldEarned": 11643,
+        "totalDamageDealtToChampions": 9985,
+        "visionScore": 36,
+        "summoner1Id": 4,
+        "summoner2Id": 11,
+        "item0": 6610,
+        "item1": 3071,
+        "item2": 1038,
+        "item3": 3111,
+        "item4": 1029,
+        "item5": 1036,
+        "item6": 3364,
+        "wasAfk": false
+      },
+      {
+        "puuid": "nPgoDOALnX7COQXdbvs5EN0xucLjQyWBTQs-4Z0Qrljz8CkSxfXpuWK8FcPdtOhnFd4iFHtpM9tcLQ",
+        "riotIdGameName": "TwTv BZ EUW",
+        "riotIdTagline": "INSHL",
+        "championId": 238,
+        "championName": "Zed",
+        "teamId": 200,
+        "teamPosition": "MIDDLE",
+        "individualPosition": "MIDDLE",
+        "win": true,
+        "kills": 6,
+        "deaths": 4,
+        "assists": 4,
+        "champLevel": 15,
+        "totalMinionsKilled": 199,
+        "neutralMinionsKilled": 2,
+        "goldEarned": 12876,
+        "totalDamageDealtToChampions": 23036,
+        "visionScore": 20,
+        "summoner1Id": 4,
+        "summoner2Id": 12,
+        "item0": 6699,
+        "item1": 2520,
+        "item2": 6694,
+        "item3": 1036,
+        "item4": 3173,
+        "item5": 0,
+        "item6": 3364,
+        "wasAfk": false
+      },
+      {
+        "puuid": "DBt6mdZRQj-WEPtVNL6lYRpdGeUQf2_C3F54RSVlgvQSO0lyHJL1emqpAVkttnx_D_hmKxp-DKU9_A",
+        "riotIdGameName": "Potent",
+        "riotIdTagline": "Focus",
+        "championId": 114,
+        "championName": "Fiora",
+        "teamId": 200,
+        "teamPosition": "BOTTOM",
+        "individualPosition": "BOTTOM",
+        "win": true,
+        "kills": 11,
+        "deaths": 6,
+        "assists": 3,
+        "champLevel": 16,
+        "totalMinionsKilled": 211,
+        "neutralMinionsKilled": 4,
+        "goldEarned": 17156,
+        "totalDamageDealtToChampions": 33655,
+        "visionScore": 22,
+        "summoner1Id": 21,
+        "summoner2Id": 4,
+        "item0": 3074,
+        "item1": 3161,
+        "item2": 6697,
+        "item3": 1055,
+        "item4": 2517,
+        "item5": 3155,
+        "item6": 3340,
+        "wasAfk": false
+      },
+      {
+        "puuid": "rpREwEagGdCcW4CnwYK9ZFwfCz5XNxTaORbKk-7mwhnb9q10erX7chCOah4WF26NjRbKCTB8nCf8aA",
+        "riotIdGameName": "Dekap",
+        "riotIdTagline": "EUW",
+        "championId": 164,
+        "championName": "Camille",
+        "teamId": 200,
+        "teamPosition": "UTILITY",
+        "individualPosition": "UTILITY",
+        "win": true,
+        "kills": 4,
+        "deaths": 9,
+        "assists": 13,
+        "champLevel": 12,
+        "totalMinionsKilled": 25,
+        "neutralMinionsKilled": 0,
+        "goldEarned": 9648,
+        "totalDamageDealtToChampions": 15705,
+        "visionScore": 90,
+        "summoner1Id": 4,
+        "summoner2Id": 14,
+        "item0": 3877,
+        "item1": 3053,
+        "item2": 6692,
+        "item3": 3111,
+        "item4": 1036,
+        "item5": 1028,
+        "item6": 3364,
+        "wasAfk": false
+      }
+    ],
+    "teams": [
+      {
+        "bans": [
+          {
+            "championId": 35,
+            "pickTurn": 1
+          },
+          {
+            "championId": 40,
+            "pickTurn": 2
+          },
+          {
+            "championId": 91,
+            "pickTurn": 3
+          },
+          {
+            "championId": -1,
+            "pickTurn": 4
+          },
+          {
+            "championId": 122,
+            "pickTurn": 5
+          }
+        ],
+        "objectives": {
+          "atakhan": {
+            "first": false,
+            "kills": 0
+          },
+          "baron": {
+            "first": false,
+            "kills": 0
+          },
+          "champion": {
+            "first": true,
+            "kills": 25
+          },
+          "dragon": {
+            "first": true,
+            "kills": 1
+          },
+          "horde": {
+            "first": false,
+            "kills": 0
+          },
+          "inhibitor": {
+            "first": false,
+            "kills": 0
+          },
+          "riftHerald": {
+            "first": false,
+            "kills": 0
+          },
+          "tower": {
+            "first": false,
+            "kills": 1
+          }
+        },
+        "teamId": 100,
+        "win": false
+      },
+      {
+        "bans": [
+          {
+            "championId": 126,
+            "pickTurn": 6
+          },
+          {
+            "championId": 91,
+            "pickTurn": 7
+          },
+          {
+            "championId": 246,
+            "pickTurn": 8
+          },
+          {
+            "championId": -1,
+            "pickTurn": 9
+          },
+          {
+            "championId": 7,
+            "pickTurn": 10
+          }
+        ],
+        "objectives": {
+          "atakhan": {
+            "first": false,
+            "kills": 0
+          },
+          "baron": {
+            "first": true,
+            "kills": 1
+          },
+          "champion": {
+            "first": false,
+            "kills": 32
+          },
+          "dragon": {
+            "first": false,
+            "kills": 2
+          },
+          "horde": {
+            "first": true,
+            "kills": 3
+          },
+          "inhibitor": {
+            "first": true,
+            "kills": 2
+          },
+          "riftHerald": {
+            "first": false,
+            "kills": 0
+          },
+          "tower": {
+            "first": true,
+            "kills": 11
+          }
+        },
+        "teamId": 200,
+        "win": true
+      }
+    ]
+  }
+}
