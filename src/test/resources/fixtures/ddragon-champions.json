@@ -1,0 +1,155 @@
+{
+  "type": "champion",
+  "format": "standAloneComplex",
+  "version": "16.18.1",
+  "data": {
+    "Jax": {
+      "version": "16.18.1",
+      "id": "Jax",
+      "key": "24",
+      "name": "Jax",
+      "title": "Maître d'armes",
+      "blurb": "Jax, dont nul ne peut égaler l'art du sarcasme et des armements inhabituels, est connu comme le dernier maître d'armes d'Icathia. Après la chute de sa terre natale, ravagée par le Néant qu'elle avait eu l'orgueil de déchaîner, Jax et ses compagnons...",
+      "info": {
+        "attack": 7,
+        "defense": 5,
+        "magic": 7,
+        "difficulty": 5
+      },
+      "image": {
+        "full": "Jax.png",
+        "sprite": "champion1.png",
+        "group": "champion",
+        "x": 48,
+        "y": 96,
+        "w": 48,
+        "h": 48
+      },
+      "tags": [
+        "Fighter"
+      ],
+      "partype": "Mana",
+      "stats": {
+        "hp": 650,
+        "hpperlevel": 103,
+        "mp": 339,
+        "mpperlevel": 52,
+        "movespeed": 350,
+        "armor": 36,
+        "armorperlevel": 4.2,
+        "spellblock": 32,
+        "spellblockperlevel": 2.05,
+        "attackrange": 125,
+        "hpregen": 8.5,
+        "hpregenperlevel": 0.55,
+        "mpregen": 8.2,
+        "mpregenperlevel": 0.7,
+        "crit": 0,
+        "critperlevel": 0,
+        "attackdamage": 68,
+        "attackdamageperlevel": 0,
+        "attackspeedperlevel": 3.4,
+        "attackspeed": 0.638
+      }
+    },
+    "MonkeyKing": {
+      "version": "16.18.1",
+      "id": "MonkeyKing",
+      "key": "62",
+      "name": "Wukong",
+      "title": "Roi des singes",
+      "blurb": "Wukong est un Vastaya qui utilise sa force, son agilité et son intelligence pour semer la confusion parmi ses adversaires et prendre sur eux l'avantage. Après s'être fait un ami en la personne d'un guerrier nommé Maître Yi, Wukong est devenu le dernier...",
+      "info": {
+        "attack": 8,
+        "defense": 5,
+        "magic": 2,
+        "difficulty": 3
+      },
+      "image": {
+        "full": "MonkeyKing.png",
+        "sprite": "champion2.png",
+        "group": "champion",
+        "x": 240,
+        "y": 96,
+        "w": 48,
+        "h": 48
+      },
+      "tags": [
+        "Fighter",
+        "Tank"
+      ],
+      "partype": "Mana",
+      "stats": {
+        "hp": 610,
+        "hpperlevel": 99,
+        "mp": 330,
+        "mpperlevel": 65,
+        "movespeed": 340,
+        "armor": 31,
+        "armorperlevel": 4.7,
+        "spellblock": 28,
+        "spellblockperlevel": 2.05,
+        "attackrange": 175,
+        "hpregen": 3.5,
+        "hpregenperlevel": 0.65,
+        "mpregen": 8,
+        "mpregenperlevel": 0.8,
+        "crit": 0,
+        "critperlevel": 0,
+        "attackdamage": 66,
+        "attackdamageperlevel": 0,
+        "attackspeedperlevel": 3,
+        "attackspeed": 0.69
+      }
+    },
+    "Aatrox": {
+      "version": "16.18.1",
+      "id": "Aatrox",
+      "key": "266",
+      "name": "Aatrox",
+      "title": "Épée des Darkin",
+      "blurb": "Autrefois, Aatrox et ses frères étaient honorés pour avoir défendu Shurima contre le Néant. Mais ils finirent par devenir une menace plus grande encore pour Runeterra : la ruse et la sorcellerie furent employées pour les battre. Cependant, après des...",
+      "info": {
+        "attack": 8,
+        "defense": 4,
+        "magic": 3,
+        "difficulty": 4
+      },
+      "image": {
+        "full": "Aatrox.png",
+        "sprite": "champion0.png",
+        "group": "champion",
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "tags": [
+        "Fighter"
+      ],
+      "partype": "Puits de sang",
+      "stats": {
+        "hp": 650,
+        "hpperlevel": 114,
+        "mp": 0,
+        "mpperlevel": 0,
+        "movespeed": 345,
+        "armor": 38,
+        "armorperlevel": 4.8,
+        "spellblock": 32,
+        "spellblockperlevel": 2.05,
+        "attackrange": 175,
+        "hpregen": 3,
+        "hpregenperlevel": 0.5,
+        "mpregen": 0,
+        "mpregenperlevel": 0,
+        "crit": 0,
+        "critperlevel": 0,
+        "attackdamage": 60,
+        "attackdamageperlevel": 0,
+        "attackspeedperlevel": 2.5,
+        "attackspeed": 0.651
+      }
+    }
+  }
+}
