@@ -31,6 +31,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <!-- Base `riot` : le connecteur possède son cache. C'est ce qui donne corps à
+             l'exigence « ce qui a été pull un jour ne doit pas l'être une deuxième fois »
+             (docs/evolutions-2026-09.md, D.2 ter). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>

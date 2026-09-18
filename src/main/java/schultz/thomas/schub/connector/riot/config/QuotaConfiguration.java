@@ -1,0 +1,33 @@
+package schultz.thomas.schub.connector.riot.config;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
+import schultz.thomas.schub.connector.riot.business.quota.Sleeper;
+
+import java.time.Clock;
+
+/** Câblage de l'étalement des appels. L'horloge et l'attente sont injectées pour être testables. */
+@RequiredArgsConstructor
+@Configuration
+public class QuotaConfiguration {
+
+    private final RiotProperties properties;
+
+    @Bean
+    public Clock riotClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    public Sleeper riotSleeper() {
+        return duration -> Thread.sleep(duration.toMillis());
+    }
+
+    @Bean
+    public RiotRateLimiter riotRateLimiter(Clock riotClock, Sleeper riotSleeper) {
+        return new RiotRateLimiter(properties.getQuota(), riotClock, riotSleeper);
+    }
+}
