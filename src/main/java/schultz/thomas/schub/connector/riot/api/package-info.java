@@ -1,11 +1,15 @@
 /**
  * Couche exposée : contrôleurs HTTP et formes transportées sur le fil.
  *
- * <p>Ce que contient {@code api/dto} est le contrat du connecteur — ce qu'un consommateur a
- * besoin de connaître, et rien de plus. Un connecteur n'expose que du vocabulaire de domaine,
- * jamais celui du système externe qu'il enveloppe.</p>
+ * <p>C'est la seule surface publiable. Un consommateur qui parle à ce connecteur n'a besoin de
+ * connaître que ce paquet — et n'y trouve, volontairement, aucun vocabulaire Riot : ni
+ * {@code match-v5}, ni {@code summonerId}, ni routage régional. Il demande les
+ * <em>parties</em> d'un <em>joueur</em>.</p>
  *
- * <p>Vide tant que la phase 5 n'a pas rempli ce squelette. Les trois paquets existent d'emblée
- * pour que le découpage soit le même que dans les autres services.</p>
+ * <h2>Ce qui n'est pas ici, et ne le sera pas</h2>
+ *
+ * <p>Aucune notion d'équipe, aucun seuil « 4 des 5 », aucun pool jouable par poste. Ce sont des
+ * jugements de domaine ; ils vivent dans {@code schub-core}, paquet {@code team}. Le jour où
+ * l'un d'eux apparaît ici, le connecteur a commencé un travail qu'il ne peut pas finir.</p>
  */
 package schultz.thomas.schub.connector.riot.api;

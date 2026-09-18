@@ -3,6 +3,16 @@ spring:
     import: "optional:configtree:/run/secrets/"
   application:
     name: connector.riot
+  data:
+    mongodb:
+      # Base `riot`, prévue dès la découpe en microservices. Ce connecteur est, avec Discord,
+      # l'un des deux seuls à posséder une base : il détient un état propre à sa plateforme —
+      # le cache — et non du domaine. « Ce qui a été pull un jour ne doit pas l'être une
+      # deuxième fois » est une exigence d'architecture, et c'est elle qui justifie cette base.
+      #
+      # Utilisateur propre à sa base, à créer par `task db:init` : aucun service applicatif
+      # n'a les identifiants root depuis le 17-09.
+      uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST:schub-mongo}:27017/${MONGO_DB:riot}?authSource=${MONGO_DB:riot}
 
 server:
   port: 8080
@@ -10,6 +20,64 @@ server:
 # Secret partagé par tous les services Schub. Aucun appel entre services sans lui.
 schub:
   internal-secret: ${SCHUB_INTERNAL_SECRET:change-me-internal-secret}
+
+# Comment joindre l'API Riot. La clé vient du secret Docker RIOT_API_KEY, monté sous
+# /run/secrets/ et repris par le configtree déclaré plus haut. Elle n'est jamais dans le dépôt.
+#
+# Clé vide = connecteur en veille : aucune requête sortante, mais le cache déjà constitué
+# reste servi — une partie terminée reste vraie sans clé.
+#
+# ATTENTION AU ROUTAGE. Riot expose deux familles d'hôtes :
+#   - `region` (europe)   -> account-v1 et match-v5
+#   - `platform` (euw1)   -> league-v4 et champion-mastery-v4
+# Les confondre donne des 403/404 qui ressemblent à des bugs de code. Vérifié le 18-09 :
+# account-v1 et match-v5 appelés sur euw1 répondent 403.
+riot:
+  api-key: ${RIOT_API_KEY:}
+  region: ${RIOT_REGION:europe}
+  platform: ${RIOT_PLATFORM:euw1}
+  data-dragon-base-url: https://ddragon.leagueoflegends.com
+  data-dragon-locale: fr_FR
+  connect-timeout: 3s
+  read-timeout: 10s
+
+  # Les deux fenêtres d'une clé de développement, relevées dans l'en-tête X-App-Rate-Limit
+  # de l'API réelle : `100:120,20:1`. Les tenir ensemble EST l'étalement du premier
+  # remplissage — la fenêtre longue impose d'elle-même un appel toutes les 1,2 s en moyenne.
+  # Une clé de production aura d'autres bornes : ces valeurs sont faites pour être changées
+  # sans toucher au code.
+  quota:
+    burst-requests: 20
+    burst-window: 1s
+    sustained-requests: 100
+    sustained-window: 2m
+    # Riot compte à sa façon et son horloge n'est pas la nôtre : viser exactement la limite,
+    # c'est la dépasser.
+    safety-margin: 2
+    max-retries-on429: 3
+    max-retry-after: 3m
+    acquire-timeout: 5m
+
+  # Quatre natures de données, quatre politiques. Les confondre donne soit du gaspillage de
+  # quota, soit des chiffres faux.
+  cache:
+    # Une partie peut apparaître dans l'historique avec du retard : on repart du dernier
+    # relevé MOINS cette durée, et on dédoublonne sur le matchId. Le recouvrement coûte une
+    # lecture Mongo ; son absence coûte des parties manquantes, qu'on ne voit jamais puisqu'on
+    # ignore qu'elles existent.
+    history-overlap: 1h
+    # En deçà, une lecture se sert du cache sans rappeler Riot : sans cela, afficher une page
+    # d'équipe déclencherait cinq synchronisations à chaque rechargement.
+    history-freshness: 15m
+    history-depth: 365d
+    ranking-ttl: 1h
+    mastery-ttl: 6h
+    game-version-ttl: 6h
+    id-page-size: 100
+    max-id-pages: 50
+    # Sans cette borne, une première synchronisation à mille parties ferait pendre la requête
+    # du cœur vingt minutes, le temps que le quota s'écoule.
+    max-details-per-call: 60
 
 management:
   endpoints:
