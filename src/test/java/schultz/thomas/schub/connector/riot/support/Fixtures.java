@@ -36,6 +36,10 @@ public final class Fixtures {
         }
     }
 
+    public static org.bson.Document document(String name) {
+        return org.bson.Document.parse(raw(name));
+    }
+
     public static String raw(String name) {
         try (InputStream stream = Fixtures.class.getResourceAsStream("/fixtures/" + name)) {
             if (stream == null) {

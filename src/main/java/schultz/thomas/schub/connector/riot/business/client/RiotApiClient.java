@@ -1,6 +1,7 @@
 package schultz.thomas.schub.connector.riot.business.client;
 
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -16,12 +17,12 @@ import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotChampionMasteryResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueEntryResponse;
-import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -46,7 +47,7 @@ public class RiotApiClient {
             new ParameterizedTypeReference<>() { };
     private static final ParameterizedTypeReference<List<String>> MATCH_IDS =
             new ParameterizedTypeReference<>() { };
-    private static final ParameterizedTypeReference<RiotMatchResponse> MATCH =
+    private static final ParameterizedTypeReference<Map<String, Object>> MATCH =
             new ParameterizedTypeReference<>() { };
     private static final ParameterizedTypeReference<List<RiotLeagueEntryResponse>> LEAGUE_ENTRIES =
             new ParameterizedTypeReference<>() { };
@@ -101,11 +102,17 @@ public class RiotApiClient {
         }).orElseGet(List::of);
     }
 
-    /** {@code match-v5} — régional. Le détail d'une partie. */
-    public Optional<RiotMatchResponse> match(String matchId) {
+    /**
+     * {@code match-v5} — régional. Le JSON <strong>intégral</strong> d'une partie.
+     *
+     * <p>Non typé volontairement : ce qui n'est pas déclaré ne serait pas stocké, et Riot ne
+     * garde pas l'historique indéfiniment. La lecture typée se fait à la relecture, depuis le
+     * stocké — ce qui rend tout changement de modèle rejouable sans un seul appel.</p>
+     */
+    public Optional<Document> match(String matchId) {
         return call(regional, "match-v5 match", MATCH, uri -> uri
                 .path("/lol/match/v5/matches/{matchId}")
-                .build(matchId));
+                .build(matchId)).map(Document::new);
     }
 
     /** {@code league-v4} — plateforme. Une entrée par file classée jouée. */
