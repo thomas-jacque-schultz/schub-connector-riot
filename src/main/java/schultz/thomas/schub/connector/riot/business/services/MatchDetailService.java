@@ -9,6 +9,7 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
@@ -43,6 +44,7 @@ public class MatchDetailService {
     private final PlayerMatchRefRepository playerMatches;
     private final RiotApiClient riotApiClient;
     private final RawMatchDecoder decoder;
+    private final ParticipationProjector projector;
     private final RiotProperties properties;
     private final Clock clock;
 
@@ -111,6 +113,7 @@ public class MatchDetailService {
         return riotApiClient.match(matchId).map(raw -> {
             MatchDetail detail = decoder.toDetail(raw);
             matches.save(new CachedMatch(detail.matchId(), raw, clock.instant()));
+            projector.project(detail);
             stampReferences(detail);
             return detail;
         });
