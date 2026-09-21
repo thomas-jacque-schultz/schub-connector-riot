@@ -18,6 +18,7 @@ import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
@@ -49,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Le contrat exposé : des routes en vocabulaire de domaine, et quatre échecs distincts.
+ * Le contrat exposé : des routes en vocabulaire de domaine, et cinq échecs distincts.
  *
  * <p>Monté hors contexte Spring : ces tests vérifient le contrat HTTP, pas le câblage — et
  * surtout pas Mongo, qu'il faudrait sinon démarrer pour vérifier un code de statut.</p>
@@ -163,6 +164,21 @@ class RiotConnectorApiTest {
         mockMvc.perform(get("/players/{puuid}/rankings", PUUID))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "2"));
+    }
+
+    @Test
+    @DisplayName("un connecteur occupé se distingue d'une panne : 429 titré, jamais 502 ni 503")
+    void unConnecteurOccupeSeDistingueDUnePanne() throws Exception {
+        when(identityService.resolve("Pikachu", "STORM"))
+                .thenThrow(new RiotConnectorBusyException("Connecteur occupé : pas de créneau",
+                        Duration.ofSeconds(3)));
+
+        // Le chemin exact du défaut : l'appelant concluait « connecteur indisponible » sur une
+        // expiration réseau, et conservait un lien non résolu.
+        mockMvc.perform(get("/players").param("gameName", "Pikachu").param("tagLine", "STORM"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "3"))
+                .andExpect(jsonPath("$.title").value("Connecteur Riot occupé"));
     }
 
     @Test

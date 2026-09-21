@@ -19,9 +19,10 @@ import java.time.Duration;
 /**
  * Traduit un échec de dialogue avec Riot en réponse HTTP honnête.
  *
- * <p>Quatre statuts distincts et non un 500 général : l'appelant doit pouvoir distinguer
- * « ce joueur n'existe pas » de « le quota est épuisé » et de « Riot est en panne ». Les trois
- * appellent des conduites différentes, et les confondre ferait réessayer là où il ne faut pas.</p>
+ * <p>Des statuts distincts et non un 500 général : l'appelant doit pouvoir distinguer « ce
+ * joueur n'existe pas » de « le connecteur est occupé », de « le quota est épuisé » et de
+ * « Riot est en panne ». Ces cas appellent des conduites différentes, et les confondre ferait
+ * réessayer là où il ne faut pas — ou renoncer là où il suffisait d'attendre trois secondes.</p>
  */
 @Slf4j
 @RestControllerAdvice
