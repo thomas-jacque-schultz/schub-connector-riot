@@ -123,6 +123,22 @@ public class RiotProperties {
          * soutenu : elle garantit au moins un créneau par {@code bulk-yield}.
          */
         private Duration bulkYield = Duration.ofSeconds(10);
+
+        /**
+         * Créneaux de la fenêtre soutenue que la collecte ne prend jamais.
+         *
+         * <p>Céder du temps ne suffit pas : la collecte consomme les 98 créneaux en une vingtaine
+         * de secondes, et pendant les cent suivantes il n'y a plus rien à céder. La réserve est
+         * une part du même compteur, jamais un supplément.</p>
+         */
+        private int interactiveReserve = 10;
+
+        /**
+         * Sans demande interactive depuis ce délai, la collecte reprend la réserve — à un créneau
+         * près, celui qui garantit que la demande suivante soit servie tout de suite et réarme
+         * le reste.
+         */
+        private Duration interactiveReserveIdle = Duration.ofMinutes(1);
     }
 
     /**

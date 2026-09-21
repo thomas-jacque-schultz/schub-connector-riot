@@ -114,6 +114,7 @@ class RiotRateLimiterLanesTest {
     private RiotProperties.Quota quota(int parFenetre, Duration fenetre) {
         RiotProperties.Quota quota = new RiotProperties.Quota();
         quota.setSafetyMargin(0);
+        quota.setInteractiveReserve(0);
         quota.setBurstRequests(parFenetre);
         quota.setBurstWindow(fenetre);
         // La fenêtre longue est mise hors jeu : ce qu'on mesure ici est l'arbitrage, pas l'étalement.
