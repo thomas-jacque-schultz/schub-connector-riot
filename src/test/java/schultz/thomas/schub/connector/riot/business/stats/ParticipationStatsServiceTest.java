@@ -113,6 +113,34 @@ class ParticipationStatsServiceTest {
     }
 
     @Test
+    @DisplayName("Les files sont rendues par mode de jeu, et les identifiants d'un même mode s'additionnent")
+    void filesReplieesParMode() {
+        rows(groupe("p1", "1700", 3, 2), groupe("p1", "1710", 2, 1), groupe("p1", "420", 10, 5));
+        List<ParticipationBucket> buckets = service().aggregate(List.of("p1"),
+                StatsGrouping.QUEUE, null);
+
+        assertThat(buckets).extracting(ParticipationBucket::key)
+                .containsExactly("RANKED_SOLO", "ARENA");
+        assertThat(buckets).filteredOn(bucket -> "ARENA".equals(bucket.key()))
+                .singleElement()
+                .satisfies(arene -> {
+                    assertThat(arene.games()).isEqualTo(5);
+                    assertThat(arene.wins()).isEqualTo(3);
+                    assertThat(arene.secondsPlayed()).isEqualTo(3600);
+                });
+    }
+
+    @Test
+    @DisplayName("Une file que Riot vient d'ajouter reste lisible au lieu de porter son numéro")
+    void fileInconnueLisible() {
+        rows(groupe("p1", "9999", 4, 2));
+
+        assertThat(service().aggregate(List.of("p1"), StatsGrouping.QUEUE, null))
+                .singleElement()
+                .satisfies(bucket -> assertThat(bucket.key()).isEqualTo("OTHER"));
+    }
+
+    @Test
     @DisplayName("Un effectif plus petit que le seuil ne peut produire aucune partie commune")
     void seuilInatteignable() {
         SharedMatches communes = service().sharedMatches(List.of("p1", "p2"), 4, null, null);

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
+import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchPlayer;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
@@ -103,9 +104,74 @@ public class ParticipationStatsService {
                     instant(row, "firstPlayedAt"),
                     instant(row, "lastPlayedAt")));
         }
-        buckets.sort(Comparator.comparingLong(ParticipationBucket::games).reversed()
+        List<ParticipationBucket> rendus = groupBy == StatsGrouping.QUEUE ? parMode(buckets) : buckets;
+        rendus.sort(Comparator.comparingLong(ParticipationBucket::games).reversed()
                 .thenComparing(ParticipationBucket::key));
-        return buckets;
+        return rendus;
+    }
+
+    /**
+     * Les files, repliées sur le mode de jeu qu'elles désignent.
+     *
+     * <p>Le regroupement Mongo porte sur le {@code queueId} et non sur le {@code queue} stocké :
+     * l'identifiant est la donnée brute, il ne change jamais, alors que le nom est une lecture —
+     * compléter {@link QueueKind} corrige donc aussi les participations déjà projetées, sans
+     * rejouer l'analyse. Le repli se fait ici parce que plusieurs identifiants donnent le même
+     * mode : 1700 et 1710 sont tous deux l'arène, et les compter à part n'apprend rien.</p>
+     */
+    private static List<ParticipationBucket> parMode(List<ParticipationBucket> buckets) {
+        Map<String, ParticipationBucket> parCle = new LinkedHashMap<>();
+        for (ParticipationBucket bucket : buckets) {
+            String mode = QueueKind.fromQueueId(queueId(bucket.key())).name();
+            parCle.merge(bucket.puuid() + "#" + mode,
+                    new ParticipationBucket(bucket.puuid(), bucket.groupedBy(), mode, null,
+                            bucket.games(), bucket.wins(), bucket.kills(), bucket.deaths(),
+                            bucket.assists(), bucket.minionsKilled(), bucket.goldEarned(),
+                            bucket.damageToChampions(), bucket.visionScore(), bucket.afkGames(),
+                            bucket.secondsPlayed(), bucket.firstPlayedAt(), bucket.lastPlayedAt()),
+                    ParticipationStatsService::additionne);
+        }
+        return new ArrayList<>(parCle.values());
+    }
+
+    private static ParticipationBucket additionne(ParticipationBucket a, ParticipationBucket b) {
+        return new ParticipationBucket(a.puuid(), a.groupedBy(), a.key(), null,
+                a.games() + b.games(),
+                a.wins() + b.wins(),
+                a.kills() + b.kills(),
+                a.deaths() + b.deaths(),
+                a.assists() + b.assists(),
+                a.minionsKilled() + b.minionsKilled(),
+                a.goldEarned() + b.goldEarned(),
+                a.damageToChampions() + b.damageToChampions(),
+                a.visionScore() + b.visionScore(),
+                a.afkGames() + b.afkGames(),
+                a.secondsPlayed() + b.secondsPlayed(),
+                plusTot(a.firstPlayedAt(), b.firstPlayedAt()),
+                plusTard(a.lastPlayedAt(), b.lastPlayedAt()));
+    }
+
+    private static Instant plusTot(Instant a, Instant b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+        return a.isBefore(b) ? a : b;
+    }
+
+    private static Instant plusTard(Instant a, Instant b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+        return a.isAfter(b) ? a : b;
+    }
+
+    /** Une clé qui n'est pas un nombre ne peut venir que d'un document abîmé : file inconnue. */
+    private static int queueId(String key) {
+        try {
+            return Integer.parseInt(key);
+        } catch (NumberFormatException exception) {
+            return -1;
+        }
     }
 
     public List<PlayerCoverage> coverage(List<String> puuids) {
