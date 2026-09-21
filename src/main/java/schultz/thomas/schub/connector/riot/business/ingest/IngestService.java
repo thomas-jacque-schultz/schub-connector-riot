@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
@@ -74,6 +75,36 @@ public class IngestService {
             }
         }
         return queued;
+    }
+
+    /**
+     * L'avancement de la collecte d'un seul joueur.
+     *
+     * <p>La date de fin ne se déduit pas de ses propres tâches : l'ouvrier est unique et sert
+     * la file par priorité décroissante, donc ce qui le sépare de la dernière tâche de ce joueur
+     * est tout ce qui la précède, les tâches des autres comprises. Diviser ses seules tâches par
+     * le débit donnerait une promesse qu'une file chargée ne tiendrait jamais.</p>
+     */
+    public PlayerIngestStatus statusOf(String puuid) {
+        long pending = tasks.countByPuuidAndState(puuid, IngestTaskState.PENDING);
+        long running = tasks.countByPuuidAndState(puuid, IngestTaskState.RUNNING);
+        long failed = tasks.countByPuuidAndState(puuid, IngestTaskState.FAILED);
+        double perMinute = rateLimiter.allowedPerMinute();
+
+        if (pending + running == 0 || perMinute <= 0) {
+            return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null);
+        }
+
+        long ahead = tasks.findFirstByPuuidAndStateOrderByPriorityAsc(puuid, IngestTaskState.PENDING)
+                .map(derniere -> tasks.countByStateAndPriorityGreaterThanEqual(
+                        IngestTaskState.PENDING, derniere.priority()))
+                .orElse(0L)
+                + tasks.countByState(IngestTaskState.RUNNING);
+
+        Duration throttled = rateLimiter.throttledFor();
+        Duration remaining = Duration.ofSeconds(Math.round(ahead / perMinute * 60.0)).plus(throttled);
+        return new PlayerIngestStatus(puuid, pending, running, failed, ahead, perMinute,
+                remaining, clock.instant().plus(remaining));
     }
 
     public IngestStatus status() {
