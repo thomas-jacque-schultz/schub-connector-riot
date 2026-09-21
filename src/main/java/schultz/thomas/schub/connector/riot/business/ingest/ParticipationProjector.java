@@ -11,6 +11,7 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
+import schultz.thomas.schub.connector.riot.business.search.SearchName;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
@@ -98,6 +99,9 @@ public class ParticipationProjector {
                 MatchParticipation.idOf(participant.puuid(), detail.matchId()),
                 participant.puuid(),
                 detail.matchId(),
+                participant.gameName(),
+                participant.tagLine(),
+                SearchName.fold(participant.gameName()),
                 participant.championId(),
                 participant.championName(),
                 participant.position(),

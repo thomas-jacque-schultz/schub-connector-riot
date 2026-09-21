@@ -14,12 +14,16 @@ import schultz.thomas.schub.connector.riot.api.dto.ChampionCatalog;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
@@ -61,6 +65,7 @@ class RiotConnectorApiTest {
     @Mock private ChampionCatalogService catalogService;
     @Mock private IngestService ingestService;
     @Mock private ParticipationProjector projector;
+    @Mock private PlayerSearchService playerSearchService;
 
     private MockMvc mockMvc;
 
@@ -68,7 +73,7 @@ class RiotConnectorApiTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
-                                masteryService, ingestService),
+                                masteryService, ingestService, playerSearchService),
                         new IngestController(ingestService, projector),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
@@ -184,5 +189,44 @@ class RiotConnectorApiTest {
 
         mockMvc.perform(get("/players").param("gameName", "Personne").param("tagLine", "ZZZ"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /players/search propose des comptes connus de nos participations")
+    void chercheDansNosParticipations() throws Exception {
+        when(playerSearchService.search("thom", 10)).thenReturn(List.of(
+                new PlayerSuggestion(PUUID, "Thomas", "EUW", "Thomas#EUW", 42,
+                        List.of(new PlayerSuggestion.PositionPlayed(TeamPosition.MIDDLE, 30)),
+                        Instant.parse("2026-09-20T18:00:00Z"))));
+
+        mockMvc.perform(get("/players/search").param("q", "thom"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].riotId").value("Thomas#EUW"))
+                .andExpect(jsonPath("$[0].matchCount").value(42))
+                .andExpect(jsonPath("$[0].positions[0].position").value("MIDDLE"));
+    }
+
+    @Test
+    @DisplayName("GET /players/search sans résultat rend une liste vide, pas une erreur")
+    void rendUneListeVideSansResultat() throws Exception {
+        when(playerSearchService.search("zzz", 10)).thenReturn(List.of());
+
+        mockMvc.perform(get("/players/search").param("q", "zzz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /ingest/players/{puuid} donne l'avancement de ce joueur seul")
+    void rendLAvancementDUnJoueur() throws Exception {
+        when(ingestService.statusOf(PUUID)).thenReturn(new PlayerIngestStatus(
+                PUUID, 200, 1, 0, 980, 49.0, Duration.ofMinutes(20),
+                Instant.parse("2026-09-21T10:20:00Z")));
+
+        mockMvc.perform(get("/ingest/players/{puuid}", PUUID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pending").value(200))
+                .andExpect(jsonPath("$.queuedAhead").value(980))
+                .andExpect(jsonPath("$.estimatedReadyAt").exists());
     }
 }
