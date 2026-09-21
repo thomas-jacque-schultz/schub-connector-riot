@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
@@ -29,7 +30,12 @@ public class IngestWorker {
     private final MatchDetailService matchDetailService;
     private final RiotProperties properties;
 
+    /** Tout ce qui part d'ici emprunte la voie de collecte, qui cède le pas à l'interactif. */
     public void drain() {
+        QuotaLaneContext.runAsBulk(this::drainTasks);
+    }
+
+    private void drainTasks() {
         RiotProperties.Ingest config = properties.getIngest();
         if (!config.isEnabled()) {
             return;

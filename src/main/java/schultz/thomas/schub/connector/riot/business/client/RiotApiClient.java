@@ -12,6 +12,7 @@ import org.springframework.web.util.UriBuilder;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
@@ -141,7 +142,7 @@ public class RiotApiClient {
         requireKey(label);
 
         for (int attempt = 0; attempt <= properties.getQuota().getMaxRetriesOn429(); attempt++) {
-            rateLimiter.acquire();
+            rateLimiter.acquire(QuotaLaneContext.current());
             Attempt<T> result = exchange(client, label, type, uriFunction);
 
             switch (result.outcome()) {
