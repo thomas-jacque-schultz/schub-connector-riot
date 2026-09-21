@@ -23,6 +23,8 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceeded
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
@@ -66,6 +68,7 @@ class RiotConnectorApiTest {
     @Mock private IngestService ingestService;
     @Mock private ParticipationProjector projector;
     @Mock private PlayerSearchService playerSearchService;
+    @Mock private KnownAccountIndex knownAccounts;
 
     private MockMvc mockMvc;
 
@@ -74,7 +77,7 @@ class RiotConnectorApiTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
                                 masteryService, ingestService, playerSearchService),
-                        new IngestController(ingestService, projector),
+                        new IngestController(ingestService, projector, knownAccounts),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
                 .setControllerAdvice(new RiotExceptionHandler())
@@ -197,7 +200,8 @@ class RiotConnectorApiTest {
         when(playerSearchService.search("thom", 10)).thenReturn(List.of(
                 new PlayerSuggestion(PUUID, "Thomas", "EUW", "Thomas#EUW", 42,
                         List.of(new PlayerSuggestion.PositionPlayed(TeamPosition.MIDDLE, 30)),
-                        Instant.parse("2026-09-20T18:00:00Z"))));
+                        Instant.parse("2026-09-20T18:00:00Z"),
+                        Instant.parse("2026-09-20T18:00:00Z"), KnownAccountSource.PARTICIPATION)));
 
         mockMvc.perform(get("/players/search").param("q", "thom"))
                 .andExpect(status().isOk())

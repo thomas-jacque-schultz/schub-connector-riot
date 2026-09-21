@@ -11,6 +11,8 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
+import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.SearchName;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
@@ -34,6 +36,7 @@ public class ParticipationProjector {
 
     private final CachedMatchRepository matches;
     private final MatchParticipationRepository participations;
+    private final KnownAccountIndex knownAccounts;
     private final RawMatchDecoder decoder;
     private final Clock clock;
 
@@ -50,6 +53,7 @@ public class ParticipationProjector {
                 .toList();
         if (!rows.isEmpty()) {
             participations.saveAll(rows);
+            knownAccounts.observeAll(rows.stream().map(ParticipationProjector::toObservation).toList());
         }
         return rows.size();
     }
@@ -91,6 +95,11 @@ public class ParticipationProjector {
         log.info("Couche d'analyse reconstruite : {} parties lues, {} participations écrites.",
                 matchesRead, rowsWritten);
         return new RebuildReport(matchesRead, rowsWritten, unusable, startedAt, clock.instant());
+    }
+
+    private static KnownAccountIndex.Observation toObservation(MatchParticipation row) {
+        return new KnownAccountIndex.Observation(row.puuid(), row.gameName(), row.tagLine(),
+                row.startedAt(), KnownAccountSource.PARTICIPATION);
     }
 
     private MatchParticipation toParticipation(MatchDetail detail, MatchParticipant participant,

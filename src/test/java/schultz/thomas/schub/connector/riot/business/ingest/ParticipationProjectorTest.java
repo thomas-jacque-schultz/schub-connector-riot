@@ -17,6 +17,7 @@ import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
 import schultz.thomas.schub.connector.riot.support.TestClock;
@@ -39,12 +40,13 @@ class ParticipationProjectorTest {
 
     @Mock private CachedMatchRepository matches;
     @Mock private MatchParticipationRepository participations;
+    @Mock private KnownAccountIndex knownAccounts;
 
     private ParticipationProjector projector;
 
     @BeforeEach
     void setUp() {
-        projector = new ParticipationProjector(matches, participations,
+        projector = new ParticipationProjector(matches, participations, knownAccounts,
                 new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT));
     }
 
