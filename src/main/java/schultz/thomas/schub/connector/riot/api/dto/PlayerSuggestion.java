@@ -6,17 +6,17 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Un compte que nos parties collectées font connaître.
+ * Un compte que notre index fait connaître.
  *
- * <p>Les chiffres portent sur <strong>nos</strong> données, pas sur la carrière du joueur :
- * {@code matchCount} est le nombre de parties où on l'a croisé, {@code lastPlayedAt} la plus
- * récente d'entre elles. C'est ce qui permet à quelqu'un de reconnaître son propre compte dans
- * une liste d'homonymes, et rien de plus ne doit y être lu.</p>
+ * <p>Deux dates, et elles ne disent pas la même chose. {@code lastPlayedAt} est la dernière
+ * partie où on a croisé ce joueur — nulle pour un compte confirmé par Riot et jamais rencontré.
+ * {@code observedAt} date l'identité elle-même : c'est elle qui dit si le Riot ID affiché est
+ * frais ou s'il mérite d'être revérifié.</p>
  *
- * @param gameName le Riot ID tel qu'il était lors de la partie la plus récente qu'on connaisse.
- *                 Il peut avoir changé depuis : le {@code puuid} est la seule clé stable.
+ * @param gameName le Riot ID tel qu'il était à {@code observedAt}. Il peut avoir changé depuis :
+ *                 le {@code puuid} est la seule clé stable.
  */
-@Schema(description = "Un compte connu de nos participations, avec de quoi le reconnaître.")
+@Schema(description = "Un compte connu de notre index, avec de quoi le reconnaître et le dater.")
 public record PlayerSuggestion(
         String puuid,
         String gameName,
@@ -24,7 +24,9 @@ public record PlayerSuggestion(
         String riotId,
         long matchCount,
         List<PositionPlayed> positions,
-        Instant lastPlayedAt
+        Instant lastPlayedAt,
+        Instant observedAt,
+        KnownAccountSource source
 ) {
 
     @Schema(description = "Un poste et le nombre de parties qu'on y a vu ce joueur.")

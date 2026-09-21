@@ -10,10 +10,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.List;
@@ -27,6 +29,7 @@ public class IngestController {
 
     private final IngestService ingestService;
     private final ParticipationProjector projector;
+    private final KnownAccountIndex knownAccounts;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -81,5 +84,20 @@ public class IngestController {
     @PostMapping("/participations/rebuild")
     public RebuildReport rebuild() {
         return projector.rebuildAll();
+    }
+
+    @Operation(summary = "Reprojeter les participations dans l'index des comptes connus",
+            description = """
+                    Rejoue `riot_participation` dans `riot_known_account`, **sans aucun appel à
+                    Riot** — les participations sont elles-mêmes reconstructibles depuis
+                    `riot_match`.
+
+                    **Ne purge pas.** Un compte confirmé par Riot et jamais croisé en partie
+                    n'existe nulle part ailleurs : l'effacer pour le reconstruire le perdrait.
+                    Une entrée n'est réécrite que si l'observation rejouée est plus récente que
+                    celle en place, donc rejouer deux fois ne change rien.""")
+    @PostMapping("/known-accounts/rebuild")
+    public KnownAccountRebuildReport rebuildKnownAccounts() {
+        return knownAccounts.rebuildFromParticipations();
     }
 }

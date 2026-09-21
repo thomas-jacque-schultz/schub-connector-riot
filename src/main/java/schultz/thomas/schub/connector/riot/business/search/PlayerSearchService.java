@@ -2,34 +2,45 @@ package schultz.thomas.schub.connector.riot.business.search;
 
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Chercher un compte <strong>dans nos participations</strong>, pas chez Riot.
+ * Chercher un compte <strong>dans notre index</strong>, pas chez Riot.
  *
- * <h2>Pourquoi ce service existe</h2>
+ * <h2>Ce qu'elle lit, et pourquoi elle ne lit que ça</h2>
  *
- * <p>L'API Riot ne sait pas chercher par pseudo partiel : {@code account-v1} ne résout qu'un
- * {@code gameName#tagLine} exact et {@code summoner-v4/by-name} n'existe plus. Mais le brut de
- * {@code match-v5} porte le Riot ID de <em>chacun</em> des dix participants : un seul compte
- * collecté fait connaître environ 2 150 joueurs, et c'est là-dessus qu'on cherche.</p>
+ * <p>Elle interroge {@code riot_known_account} seule, jamais l'union de l'index et des
+ * participations. Un compte peut être connu de deux façons — croisé en partie, ou confirmé par
+ * Riot à la demande de quelqu'un — et l'union obligerait à fusionner deux formes, à dédoublonner
+ * sur le {@code puuid} et à concilier deux bornes de résultats à chaque frappe. C'est le genre de
+ * recouvrement où un compte finit par tomber entre les deux requêtes, ce qui est précisément le
+ * défaut qu'on corrige. Une seule collection, un seul index, un seul classement.</p>
+ *
+ * <p>Les chiffres, eux, ne sont pas dans l'index : {@code matchCount}, postes et dernière partie
+ * sont relus dans {@code riot_participation}, qui en est la seule vérité, et seulement pour les
+ * comptes retenus. L'index porte l'identité, les participations portent les faits.</p>
  *
  * <h2>Ce que « approximatif » veut dire ici, exactement</h2>
  *
@@ -41,8 +52,7 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p>Le second critère est ancré ({@code ^abc}), donc il se sert de l'index sur
- * {@code searchName} ; c'est ce qui permet de ne pas balayer la collection à chaque frappe. Une
- * saisie de moins de trois caractères n'ouvre que le premier critère.</p>
+ * {@code searchName}. Une saisie de moins de trois caractères n'ouvre que le premier critère.</p>
  */
 @RequiredArgsConstructor
 @Service
@@ -51,7 +61,7 @@ public class PlayerSearchService {
     /** En deçà, un préfixe ne discrimine plus rien et la tolérance aux fautes n'a pas de sens. */
     private static final int LONGUEUR_PREFIXE = 3;
 
-    /** Les candidats les plus vus, avant classement par ressemblance. Borne le travail en mémoire. */
+    /** Les comptes observés le plus récemment, avant classement par ressemblance. */
     private static final int CANDIDATS_MAX = 50;
 
     private static final int POSTES_RENDUS = 3;
@@ -64,50 +74,84 @@ public class PlayerSearchService {
             return List.of();
         }
 
-        return candidats(recherche).stream()
+        Collection<KnownAccount> retenus = unParRiotId(candidats(recherche).stream()
                 .filter(recherche::retient)
-                .sorted(Comparator.comparingInt(recherche::rang)
-                        .thenComparing(Comparator.comparingLong(PlayerSuggestion::matchCount).reversed()))
+                .toList());
+        Map<String, Compteurs> compteurs = compteurs(retenus.stream().map(KnownAccount::puuid).toList());
+
+        return retenus.stream()
+                .map(compte -> toSuggestion(compte, compteurs.get(compte.puuid())))
+                .sorted(Comparator.comparingInt((PlayerSuggestion trouve) -> recherche.rang(trouve.gameName()))
+                        .thenComparing(Comparator.comparingLong(PlayerSuggestion::matchCount).reversed())
+                        .thenComparing(PlayerSuggestion::observedAt, Comparator.reverseOrder()))
                 .limit(Math.max(1, limit))
                 .toList();
     }
 
-    private List<PlayerSuggestion> candidats(Recherche recherche) {
+    private List<KnownAccount> candidats(Recherche recherche) {
         Criteria sousChaine = Criteria.where("searchName").regex(Pattern.quote(recherche.pseudo()));
         Criteria critere = recherche.pseudo().length() < LONGUEUR_PREFIXE
                 ? sousChaine
                 : new Criteria().orOperator(sousChaine, Criteria.where("searchName")
                         .regex("^" + Pattern.quote(recherche.pseudo().substring(0, LONGUEUR_PREFIXE))));
 
-        Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(critere),
-                Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "startedAt"),
-                Aggregation.group("puuid")
-                        .first("gameName").as("gameName")
-                        .first("tagLine").as("tagLine")
-                        .first("searchName").as("searchName")
-                        .max("startedAt").as("lastPlayedAt")
-                        .count().as("matchCount")
-                        .push("position").as("positions"),
-                Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "matchCount"),
-                Aggregation.limit(CANDIDATS_MAX));
-
-        AggregationResults<Document> results =
-                mongo.aggregate(aggregation, MatchParticipation.class, Document.class);
-        return results.getMappedResults().stream().map(this::toSuggestion).toList();
+        return mongo.find(Query.query(critere)
+                .with(Sort.by(Sort.Direction.DESC, "observedAt"))
+                .limit(CANDIDATS_MAX), KnownAccount.class);
     }
 
-    private PlayerSuggestion toSuggestion(Document row) {
-        String gameName = row.getString("gameName");
-        String tagLine = row.getString("tagLine");
+    /**
+     * Un Riot ID ne désigne qu'un compte à la fois : quand deux entrées le portent, la plus
+     * anciennement observée est périmée et l'afficher serait proposer un compte qui n'est plus.
+     */
+    private static Collection<KnownAccount> unParRiotId(List<KnownAccount> comptes) {
+        Map<String, KnownAccount> parRiotId = new LinkedHashMap<>();
+        for (KnownAccount compte : comptes) {
+            String cle = compte.riotId() == null ? compte.puuid()
+                    : compte.riotId().toLowerCase(Locale.ROOT);
+            parRiotId.merge(cle, compte,
+                    (enPlace, autre) -> autre.observedAt().isAfter(enPlace.observedAt()) ? autre : enPlace);
+        }
+        return parRiotId.values();
+    }
+
+    private Map<String, Compteurs> compteurs(Collection<String> puuids) {
+        if (puuids.isEmpty()) {
+            return Map.of();
+        }
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("puuid").in(puuids)),
+                Aggregation.group("puuid")
+                        .max("startedAt").as("lastPlayedAt")
+                        .count().as("matchCount")
+                        .push("position").as("positions"));
+
+        Map<String, Compteurs> parPuuid = new LinkedHashMap<>();
+        for (Document row : mongo.aggregate(aggregation, MatchParticipation.class, Document.class)) {
+            parPuuid.put(row.getString("_id"), new Compteurs(
+                    ((Number) row.getOrDefault("matchCount", 0)).longValue(),
+                    postes(row.getList("positions", String.class, List.of())),
+                    instant(row.get("lastPlayedAt"))));
+        }
+        return parPuuid;
+    }
+
+    /**
+     * Un compte confirmé par Riot et jamais croisé en partie n'a aucun compteur. Zéro partie est
+     * la vérité de nos données, pas une absence de réponse : il s'affiche comme les autres.
+     */
+    private PlayerSuggestion toSuggestion(KnownAccount compte, Compteurs compteurs) {
+        Compteurs mesures = compteurs == null ? Compteurs.AUCUNE : compteurs;
         return new PlayerSuggestion(
-                row.getString("_id"),
-                gameName,
-                tagLine,
-                riotId(gameName, tagLine),
-                ((Number) row.getOrDefault("matchCount", 0)).longValue(),
-                postes(row.getList("positions", String.class, List.of())),
-                instant(row.get("lastPlayedAt")));
+                compte.puuid(),
+                compte.gameName(),
+                compte.tagLine(),
+                compte.riotId(),
+                mesures.matchCount(),
+                mesures.positions(),
+                mesures.lastPlayedAt(),
+                compte.observedAt(),
+                compte.source());
     }
 
     private List<PlayerSuggestion.PositionPlayed> postes(List<String> positions) {
@@ -131,11 +175,10 @@ public class PlayerSearchService {
         return value instanceof Instant instant ? instant : null;
     }
 
-    private static String riotId(String gameName, String tagLine) {
-        if (gameName == null || gameName.isBlank()) {
-            return null;
-        }
-        return tagLine == null || tagLine.isBlank() ? gameName : gameName + "#" + tagLine;
+    private record Compteurs(long matchCount, List<PlayerSuggestion.PositionPlayed> positions,
+                             Instant lastPlayedAt) {
+
+        static final Compteurs AUCUNE = new Compteurs(0, List.of(), null);
     }
 
     /**
@@ -157,18 +200,18 @@ public class PlayerSearchService {
             return pseudo == null ? null : new Recherche(pseudo, tag);
         }
 
-        boolean retient(PlayerSuggestion suggestion) {
+        boolean retient(KnownAccount compte) {
             if (tag != null && !tag.isBlank()) {
-                String tagCandidat = SearchName.fold(suggestion.tagLine());
+                String tagCandidat = SearchName.fold(compte.tagLine());
                 if (tagCandidat == null || !tagCandidat.startsWith(tag)) {
                     return false;
                 }
             }
-            return rang(suggestion) < RANG_ECARTE;
+            return rang(compte.gameName()) < RANG_ECARTE;
         }
 
-        int rang(PlayerSuggestion suggestion) {
-            String candidat = SearchName.fold(suggestion.gameName());
+        int rang(String gameName) {
+            String candidat = SearchName.fold(gameName);
             if (candidat == null) {
                 return RANG_ECARTE;
             }
