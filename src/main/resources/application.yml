@@ -13,6 +13,10 @@ spring:
       # Utilisateur propre à sa base, à créer par `task db:init` : aucun service applicatif
       # n'a les identifiants root depuis le 17-09.
       uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST:schub-mongo}:27017/${MONGO_DB:riot}?authSource=${MONGO_DB:riot}
+      # Spring Boot laisse la création des index à false par défaut : sans cette ligne, les
+      # @Indexed et @CompoundIndex des modèles ne sont que de la documentation, et la recherche
+      # balaie la collection à chaque frappe.
+      auto-index-creation: true
 
 server:
   port: 8080

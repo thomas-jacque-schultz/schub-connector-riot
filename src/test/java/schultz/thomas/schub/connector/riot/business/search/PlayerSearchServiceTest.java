@@ -4,6 +4,7 @@ import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -194,5 +195,18 @@ class PlayerSearchServiceTest {
 
         assertThat(service.search("thomas", 10)).extracting(PlayerSuggestion::puuid)
                 .containsExactly("p-frais", "p-vieux");
+    }
+
+    @Test
+    @DisplayName("sous trois caractères, seule la sous-chaîne est ouverte — pas la tolérance aux fautes")
+    void neTolerePasLesFautesSousTroisCaracteres() {
+        index(vuEnPartie("p1", "Th", "EUW", HIER));
+        participations(compteurs("p1", 3));
+
+        service.search("th", 10);
+
+        ArgumentCaptor<Query> requete = ArgumentCaptor.forClass(Query.class);
+        verify(mongo).find(requete.capture(), eq(KnownAccount.class));
+        assertThat(requete.getValue().getQueryObject().toJson()).doesNotContain("$or");
     }
 }
