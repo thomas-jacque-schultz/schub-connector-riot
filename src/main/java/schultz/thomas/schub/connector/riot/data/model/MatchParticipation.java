@@ -22,6 +22,12 @@ import java.time.Instant;
  * @param patch les deux premiers segments de {@code gameVersion}. Grouper sur la version
  *              complète ({@code 16.18.817.5716}) ne regrouperait rien : elle change à chaque
  *              build, pas à chaque patch.
+ * @param gameName partie gauche du Riot ID <strong>au moment de cette partie</strong>. C'est une
+ *              donnée d'époque, pas l'état courant du compte : un joueur change de Riot ID quand
+ *              il veut, et le {@code puuid} reste la seule clé.
+ * @param searchName {@code gameName} replié — minuscules, sans diacritiques, sans espaces. Mongo
+ *              n'ignore pas les accents dans une {@code $regex} ; le repli est fait à la
+ *              projection pour que la recherche porte sur un index.
  */
 @Document("riot_participation")
 @CompoundIndex(name = "puuid_startedAt", def = "{'puuid': 1, 'startedAt': -1}")
@@ -31,6 +37,9 @@ public record MatchParticipation(
         @Id String id,
         @Indexed String puuid,
         @Indexed String matchId,
+        String gameName,
+        String tagLine,
+        @Indexed String searchName,
         int championId,
         String championName,
         TeamPosition position,
@@ -57,5 +66,12 @@ public record MatchParticipation(
 
     public static String idOf(String puuid, String matchId) {
         return puuid + "#" + matchId;
+    }
+
+    public String riotId() {
+        if (gameName == null || gameName.isBlank()) {
+            return null;
+        }
+        return tagLine == null || tagLine.isBlank() ? gameName : gameName + "#" + tagLine;
     }
 }
