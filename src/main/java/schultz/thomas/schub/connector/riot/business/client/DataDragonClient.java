@@ -28,7 +28,7 @@ public class DataDragonClient {
 
     private final RestClient client;
 
-    public DataDragonClient(@Qualifier("dataDragonClient") RestClient client) {
+    public DataDragonClient(@Qualifier("dataDragonRestClient") RestClient client) {
         this.client = client;
     }
 
