@@ -21,11 +21,13 @@ import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
 import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.business.services.PlayerIdentityService;
+import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 
 import java.time.Instant;
@@ -53,6 +55,7 @@ public class PlayerController {
     private final RankingService rankingService;
     private final ChampionMasteryService masteryService;
     private final IngestService ingestService;
+    private final PlayerSearchService playerSearchService;
 
     @Operation(summary = "Résoudre un Riot ID en joueur",
             description = """
@@ -70,6 +73,33 @@ public class PlayerController {
             @Parameter(description = "Partie droite du Riot ID, sans le #.", example = "000")
             @RequestParam @NotBlank String tagLine) {
         return identityService.resolve(gameName, tagLine);
+    }
+
+    @Operation(summary = "Chercher un compte parmi nos participations",
+            description = """
+                    **L'API Riot ne sait pas chercher par pseudo partiel** : `account-v1` ne
+                    résout qu'un `gameName#tagLine` exact, `summoner-v4/by-name` n'existe plus.
+                    Cette route ne l'appelle donc pas : elle cherche dans les Riot ID que le brut
+                    de `match-v5` porte pour chacun des dix participants de chaque partie
+                    collectée — un seul compte ingéré en fait connaître environ 2 150.
+
+                    Casse et accents ignorés, sous-chaîne acceptée, et une faute de frappe tolérée
+                    tous les quatre caractères à condition que les trois premiers soient bons.
+                    `Pseudo#TAG` collé entier est compris : le tag filtre alors les homonymes.
+
+                    Les chiffres rendus portent sur **nos** données — parties où on a croisé ce
+                    joueur, postes qu'on l'y a vu tenir, dernière d'entre elles. Ils servent à
+                    reconnaître son propre compte, pas à décrire une carrière.
+
+                    Liste vide si rien ne ressemble. Ce n'est pas une erreur : la résolution
+                    exacte d'un Riot ID reste le chemin toujours disponible.""")
+    @GetMapping("/search")
+    public List<PlayerSuggestion> search(
+            @Parameter(description = "Pseudo, même partiel. `Pseudo#TAG` accepté.", example = "J1HUIV")
+            @RequestParam @NotBlank String q,
+            @Parameter(description = "Nombre de propositions rendues.", example = "10")
+            @RequestParam(defaultValue = "10") int limit) {
+        return playerSearchService.search(q, limit);
     }
 
     @Operation(summary = "Le Riot ID courant d'un joueur",

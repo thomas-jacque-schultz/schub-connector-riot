@@ -58,6 +58,18 @@ class ParticipationProjectorTest {
     }
 
     @Test
+    @DisplayName("le Riot ID de chaque participant est projeté, replié pour la recherche")
+    void projetteLesRiotIdDesParticipants() {
+        projector.project(new CachedMatch("EUW1_7987650481",
+                Fixtures.document("match-ranked-solo.json"), MAINTENANT));
+
+        assertThat(capture()).extracting(MatchParticipation::riotId)
+                .contains("Call me Izo#igi", "J1HUIV#000");
+        assertThat(capture()).extracting(MatchParticipation::searchName)
+                .contains("callmeizo", "j1huiv");
+    }
+
+    @Test
     @DisplayName("le côté, la file et le patch sont aplatis : ce sont les axes des statistiques")
     void aplatitLesAxesDeStatistiques() {
         projector.project(new CachedMatch("EUW1_7987650481",
