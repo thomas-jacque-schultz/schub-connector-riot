@@ -21,10 +21,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Construit la couche d'analyse depuis {@code riot_match}, en local.
- *
- * <p>Aucun appel sortant n'est possible depuis ce service, et c'est la garantie recherchée :
- * changer le modèle d'analyse ne coûte qu'une reconstruction.</p>
+ * Construit la couche d'analyse depuis {@code riot_match}. Aucun appel sortant n'est possible
+ * d'ici, et c'est la garantie recherchée : changer le modèle ne coûte qu'une reconstruction.
  */
 @Slf4j
 @RequiredArgsConstructor
