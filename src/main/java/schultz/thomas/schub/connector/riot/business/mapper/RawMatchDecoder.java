@@ -10,11 +10,11 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 
 /**
- * Relit une partie stockée. Tout ce qui en dérive passe par ici, donc se recalcule sans appel.
+ * Relit une partie stockée : tout ce qui en dérive se recalcule ainsi, sans appel.
  *
- * <p>Mapper propre, et non le bean de Boot : le stocké porte bien plus de champs que
- * {@link RiotMatchResponse} n'en déclare, donc l'inconnu doit être ignoré ici quoi qu'il arrive
- * à la configuration Jackson de l'application.</p>
+ * <p>Mapper propre plutôt que le bean de Boot : le stocké porte bien plus de champs que
+ * {@link RiotMatchResponse} n'en déclare, et l'inconnu doit être ignoré quoi qu'il arrive à la
+ * configuration Jackson de l'application.</p>
  */
 @RequiredArgsConstructor
 @Component

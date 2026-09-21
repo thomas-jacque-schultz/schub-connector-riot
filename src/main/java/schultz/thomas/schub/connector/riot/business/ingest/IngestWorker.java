@@ -15,12 +15,8 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import java.util.Optional;
 
 /**
- * L'ouvrier — <strong>un seul</strong>.
- *
- * <p>Le limiteur est le goulot par construction : paralléliser n'accélérerait rien et ne ferait
- * que compliquer la comptabilité du quota. Le pool du planificateur est fixé à un thread
- * (voir {@code IngestConfiguration}), ce qui rend cette propriété vraie et pas seulement
- * espérée.</p>
+ * L'ouvrier — un seul : le limiteur est le goulot par construction, paralléliser ne ferait que
+ * compliquer la comptabilité du quota. Le pool est fixé à un thread dans IngestConfiguration.
  */
 @Slf4j
 @RequiredArgsConstructor
