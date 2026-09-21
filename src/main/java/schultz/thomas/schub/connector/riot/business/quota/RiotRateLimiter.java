@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -36,9 +37,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * suspend les deux. Ce qui les sépare est la place dans la file et le délai d'abandon.</p>
  *
  * <p>Une voie {@link QuotaLane#BULK} ne réserve un créneau qu'en <em>supposant déjà servis</em>
- * les interactifs en attente : elle ne prend donc que ce qui reste après eux. La cession est
- * bornée par {@code quota.bulk-yield} — passé ce délai, une tâche de collecte reprend sa place
- * au premier créneau libre, sans quoi un flux interactif soutenu l'affamerait.</p>
+ * les interactifs en attente : elle ne prend donc que ce qui reste après eux.</p>
+ *
+ * <p>La cession est bornée par {@code quota.bulk-yield}, et la règle s'inverse alors : la tâche
+ * de collecte cesse de compter les interactifs devant elle, et ce sont eux qui la comptent. Ne
+ * faire que la première moitié ne suffit pas — mesuré : un ouvrier seul face à huit appelants
+ * interactifs perd la course au créneau libéré et n'obtient qu'un créneau en 1,5 s là où la
+ * borne lui en promet cinq. Les deux états s'excluent, aucun blocage mutuel n'est possible.</p>
  *
  * <p><strong>L'attente a lieu hors du verrou.</strong> Le point du défaut corrigé le 21-09 :
  * tant que l'ingestion dormait sous le verrou, un appel interactif ne pouvait même pas
@@ -59,8 +64,14 @@ public class RiotRateLimiter {
     /** Fin de la pénalité en cours, en millisecondes depuis l'époque. 0 = aucune. */
     private long penalisedUntil;
 
+    /** Créneaux accordés par voie, depuis le démarrage. Le partage réel ne se déduit pas d'ailleurs. */
+    private final EnumMap<QuotaLane, Long> granted = new EnumMap<>(QuotaLane.class);
+
     /** Appels interactifs en attente d'un créneau. La collecte les compte devant elle. */
     private int waitingInteractive;
+
+    /** Tâches de collecte ayant cédé au-delà de {@code bulk-yield}. L'interactif les laisse passer. */
+    private int starvedBulk;
 
     public RiotRateLimiter(RiotProperties.Quota quota, Clock clock, Sleeper sleeper) {
         this.quota = quota;
@@ -80,17 +91,27 @@ public class RiotRateLimiter {
         long deadline = start + lane.timeout(quota).toMillis();
         boolean interactive = lane == QuotaLane.INTERACTIVE;
 
+        boolean claimedPriority = false;
         if (interactive) {
-            enterInteractiveQueue();
+            enqueue(true);
         }
         try {
-            long wait;
-            while ((wait = reserveOrWait(lane, start, deadline)) > 0) {
+            while (true) {
+                if (!interactive && !claimedPriority && yieldElapsed(clock.millis(), start)) {
+                    enqueue(false);
+                    claimedPriority = true;
+                }
+                long wait = reserveOrWait(lane, start, deadline);
+                if (wait <= 0) {
+                    return;
+                }
                 pause(wait);
             }
         } finally {
             if (interactive) {
-                leaveInteractiveQueue();
+                dequeue(true);
+            } else if (claimedPriority) {
+                dequeue(false);
             }
         }
     }
@@ -108,6 +129,7 @@ public class RiotRateLimiter {
             if (wait <= 0) {
                 burstWindow.addLast(now);
                 sustainedWindow.addLast(now);
+                granted.merge(lane, 1L, Long::sum);
                 return 0;
             }
 
@@ -116,9 +138,13 @@ public class RiotRateLimiter {
                 throw refusal(lane, Duration.ofMillis(incompressible));
             }
 
-            // Céder ne doit jamais faire dormir au-delà de la borne de cession, sinon la
-            // garantie anti-famine se perdrait dans un sommeil calculé trop long.
-            return ahead == 0 ? wait : Math.min(wait, quota.getBulkYield().toMillis() - (now - start));
+            long capped = Math.min(wait, deadline - now);
+            if (lane == QuotaLane.BULK && ahead > 0) {
+                // Céder ne doit jamais faire dormir au-delà de la borne de cession, sinon la
+                // garantie anti-famine se perdrait dans un sommeil calculé trop long.
+                capped = Math.min(capped, quota.getBulkYield().toMillis() - (now - start));
+            }
+            return Math.max(1, capped);
         } finally {
             lock.unlock();
         }
@@ -127,15 +153,21 @@ public class RiotRateLimiter {
     /**
      * Créneaux que l'appelant laisse devant lui.
      *
-     * <p>Zéro pour l'interactif — il ne cède à personne. Pour la collecte, les interactifs en
-     * attente, jusqu'à ce qu'elle cède depuis {@code bulk-yield} : au-delà elle reprend sa
-     * place, et c'est cette borne qui l'empêche d'être affamée.</p>
+     * <p>La collecte compte les interactifs en attente — c'est la priorité. Passé
+     * {@code bulk-yield} de cession, elle cesse de les compter et devient à son tour comptée par
+     * eux : sans cette réciprocité, un seul ouvrier face à un flux interactif soutenu perdrait
+     * indéfiniment la course au créneau libéré. Les deux états s'excluent, donc aucun blocage
+     * mutuel n'est possible.</p>
      */
     private int reservedAhead(QuotaLane lane, long now, long start) {
-        if (lane == QuotaLane.INTERACTIVE || now - start >= quota.getBulkYield().toMillis()) {
-            return 0;
+        if (lane == QuotaLane.INTERACTIVE) {
+            return starvedBulk;
         }
-        return waitingInteractive;
+        return yieldElapsed(now, start) ? 0 : waitingInteractive;
+    }
+
+    private boolean yieldElapsed(long now, long start) {
+        return now - start >= quota.getBulkYield().toMillis();
     }
 
     /** Millisecondes à attendre avant qu'un créneau soit libre, {@code ahead} déjà réservés. */
@@ -226,11 +258,11 @@ public class RiotRateLimiter {
         }
     }
 
-    /** Appels interactifs en attente d'un créneau, pour la supervision. */
-    public int interactiveWaiting() {
+    /** Créneaux accordés à une voie depuis le démarrage : c'est là que se lit le partage réel. */
+    public long granted(QuotaLane lane) {
         lock.lock();
         try {
-            return waitingInteractive;
+            return granted.getOrDefault(lane, 0L);
         } finally {
             lock.unlock();
         }
@@ -241,19 +273,27 @@ public class RiotRateLimiter {
         return Math.max(1, limit - quota.getSafetyMargin());
     }
 
-    private void enterInteractiveQueue() {
+    private void enqueue(boolean interactive) {
         lock.lock();
         try {
-            waitingInteractive++;
+            if (interactive) {
+                waitingInteractive++;
+            } else {
+                starvedBulk++;
+            }
         } finally {
             lock.unlock();
         }
     }
 
-    private void leaveInteractiveQueue() {
+    private void dequeue(boolean interactive) {
         lock.lock();
         try {
-            waitingInteractive--;
+            if (interactive) {
+                waitingInteractive--;
+            } else {
+                starvedBulk--;
+            }
         } finally {
             lock.unlock();
         }
