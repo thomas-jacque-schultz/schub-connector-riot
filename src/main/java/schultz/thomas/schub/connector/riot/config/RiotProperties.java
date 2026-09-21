@@ -58,6 +58,8 @@ public class RiotProperties {
 
     private final Cache cache = new Cache();
 
+    private final Ingest ingest = new Ingest();
+
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
     }
@@ -104,6 +106,38 @@ public class RiotProperties {
 
         /** Temps maximal d'attente d'un jeton de quota avant d'abandonner l'appel. */
         private Duration acquireTimeout = Duration.ofMinutes(5);
+    }
+
+    /**
+     * La file d'ingestion. Elle existe parce qu'un premier remplissage dure des heures :
+     * mille parties par joueur au plus (mesuré), un appel chacune, environ 49 par minute.
+     */
+    @Data
+    public static class Ingest {
+
+        private boolean enabled = true;
+
+        private Duration pollInterval = Duration.ofSeconds(2);
+
+        /** Tâches traitées au plus par tour, pour que la boucle rende la main régulièrement. */
+        private int batchSize = 25;
+
+        /**
+         * Bail d'une tâche réclamée. <strong>Doit dépasser {@code quota.acquireTimeout}</strong> :
+         * une tâche qui attend légitimement son tour de quota se ferait sinon voler par le
+         * rattrapage des tâches orphelines.
+         */
+        private Duration lease = Duration.ofMinutes(15);
+
+        private int maxAttempts = 5;
+
+        private Duration retryBackoff = Duration.ofMinutes(1);
+
+        /** Repos après un quota saturé, avant de rendre la main à la file. */
+        private Duration quotaBackoff = Duration.ofSeconds(30);
+
+        /** Repos quand aucune clé n'est configurée : inutile de tourner à vide. */
+        private Duration idleBackoff = Duration.ofMinutes(5);
     }
 
     /**

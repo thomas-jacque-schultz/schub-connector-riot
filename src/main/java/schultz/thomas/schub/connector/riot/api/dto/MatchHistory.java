@@ -14,7 +14,9 @@ import java.util.List;
  * @param matchIds  dédoublonnés, du plus récent au plus ancien.
  * @param syncedAt  date du dernier relevé auprès de Riot. Sert à l'appelant pour savoir s'il
  *                  regarde une donnée fraîche, et au connecteur comme point de reprise.
- * @param refreshed vrai si ce même appel a interrogé Riot, faux s'il a été servi du cache.
+ * @param ingestQueued vrai si cette lecture a <em>demandé</em> une collecte, faux si le relevé
+ *                     était assez frais. Une lecture ne collecte jamais elle-même : deux
+ *                     collecteurs concurrents se disputeraient le curseur et le quota.
  */
 @Schema(description = "Ids de parties d'un joueur depuis une date, servis du cache du connecteur.")
 public record MatchHistory(
@@ -22,6 +24,6 @@ public record MatchHistory(
         Instant since,
         List<String> matchIds,
         Instant syncedAt,
-        boolean refreshed
+        boolean ingestQueued
 ) {
 }

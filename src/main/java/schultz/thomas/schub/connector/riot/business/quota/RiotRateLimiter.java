@@ -124,6 +124,25 @@ public class RiotRateLimiter {
         log.warn("429 de Riot : toutes les requêtes sont suspendues pendant {}", capped);
     }
 
+    /**
+     * Le débit soutenable, marge déduite : le minimum des deux fenêtres.
+     *
+     * <p>Exposé parce que c'est lui, et rien d'autre, qui donne le temps d'écoulement d'une
+     * file d'ingestion. Le calculer ailleurs dupliquerait la règle de marge.</p>
+     */
+    public double allowedPerMinute() {
+        double burst = effective(quota.getBurstRequests()) * 60_000.0 / quota.getBurstWindow().toMillis();
+        double sustained = effective(quota.getSustainedRequests()) * 60_000.0
+                / quota.getSustainedWindow().toMillis();
+        return Math.min(burst, sustained);
+    }
+
+    /** Ce qui reste à purger d'une pénalité 429, {@link Duration#ZERO} si aucune. */
+    public synchronized Duration throttledFor() {
+        long remaining = penalisedUntil - clock.millis();
+        return remaining > 0 ? Duration.ofMillis(remaining) : Duration.ZERO;
+    }
+
     /** Marge retirée de chaque fenêtre : viser exactement la limite, c'est la dépasser. */
     private int effective(int limit) {
         return Math.max(1, limit - quota.getSafetyMargin());
