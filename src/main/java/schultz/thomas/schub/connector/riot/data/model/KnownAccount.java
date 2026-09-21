@@ -1,6 +1,7 @@
 package schultz.thomas.schub.connector.riot.data.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -33,6 +34,7 @@ import java.time.Instant;
  *                   porte sur un index.
  */
 @Document("riot_known_account")
+@CompoundIndex(name = "searchName_observedAt", def = "{'searchName': 1, 'observedAt': -1}")
 public record KnownAccount(
         @Id String puuid,
         String gameName,
