@@ -104,8 +104,25 @@ public class RiotProperties {
         /** Plafond de ce qu'on accepte d'attendre sur un {@code Retry-After} aberrant. */
         private Duration maxRetryAfter = Duration.ofMinutes(3);
 
-        /** Temps maximal d'attente d'un jeton de quota avant d'abandonner l'appel. */
+        /** Attente maximale d'un créneau sur la voie de collecte, qui a tout son temps. */
         private Duration acquireTimeout = Duration.ofMinutes(5);
+
+        /**
+         * Attente maximale d'un créneau sur la voie interactive.
+         *
+         * <p><strong>Doit rester nettement sous le {@code read-timeout} du cœur</strong>
+         * ({@code connector.riot.read-timeout}, 5 s) : le budget restant paie l'appel à Riot
+         * lui-même. Au-delà, le cœur voit une expiration réseau et conclut « connecteur
+         * indisponible » là où il est seulement occupé.</p>
+         */
+        private Duration interactiveTimeout = Duration.ofSeconds(2);
+
+        /**
+         * Durée au-delà de laquelle une tâche de collecte cesse de céder le passage aux appels
+         * interactifs. C'est la borne qui l'empêche d'être affamée par un flux interactif
+         * soutenu : elle garantit au moins un créneau par {@code bulk-yield}.
+         */
+        private Duration bulkYield = Duration.ofSeconds(10);
     }
 
     /**

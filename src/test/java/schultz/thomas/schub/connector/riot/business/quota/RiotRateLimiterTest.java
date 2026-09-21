@@ -53,11 +53,11 @@ class RiotRateLimiterTest {
         RiotRateLimiter limiteur = limiteur();
 
         for (int i = 0; i < 5; i++) {
-            limiteur.acquire();
+            limiteur.acquire(QuotaLane.BULK);
         }
         assertThat(attentes).isEmpty();
 
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
         assertThat(attentes).containsExactly(Duration.ofSeconds(1));
     }
 
@@ -70,11 +70,11 @@ class RiotRateLimiterTest {
         // fenêtre courte les espace ; au 21e, c'est la fenêtre LONGUE qui prend le relais et
         // l'attente devient de l'ordre de la minute.
         for (int i = 0; i < 20; i++) {
-            limiteur.acquire();
+            limiteur.acquire(QuotaLane.BULK);
         }
         attentes.clear();
 
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
 
         assertThat(attentes).isNotEmpty();
         assertThat(attentes.get(attentes.size() - 1)).isGreaterThan(Duration.ofSeconds(30));
@@ -87,12 +87,12 @@ class RiotRateLimiterTest {
         RiotRateLimiter limiteur = limiteur();
 
         for (int i = 0; i < 3; i++) {
-            limiteur.acquire();
+            limiteur.acquire(QuotaLane.BULK);
         }
         assertThat(attentes).isEmpty();
 
         // 5 - 2 = 3 : le quatrième attend, là où sans marge il serait passé.
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
         assertThat(attentes).containsExactly(Duration.ofSeconds(1));
     }
 
@@ -103,7 +103,7 @@ class RiotRateLimiterTest {
 
         // Valeur relevée sur un vrai 429 provoqué le 18-09 : « retry-after: 2 ».
         limiteur.penalise(Duration.ofSeconds(2));
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
 
         assertThat(attentes).containsExactly(Duration.ofSeconds(2));
     }
@@ -115,7 +115,7 @@ class RiotRateLimiterTest {
         RiotRateLimiter limiteur = limiteur();
 
         limiteur.penalise(Duration.ofHours(1));
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
 
         assertThat(attentes).containsExactly(Duration.ofMinutes(3));
     }
@@ -128,7 +128,7 @@ class RiotRateLimiterTest {
 
         limiteur.penalise(Duration.ofMinutes(2));
 
-        assertThatThrownBy(limiteur::acquire)
+        assertThatThrownBy(() -> limiteur.acquire(QuotaLane.BULK))
                 .isInstanceOf(RiotQuotaExceededException.class)
                 .hasMessageContaining("Quota Riot saturé");
         assertThat(attentes).isEmpty();
@@ -140,11 +140,11 @@ class RiotRateLimiterTest {
         RiotRateLimiter limiteur = limiteur();
 
         for (int i = 0; i < 5; i++) {
-            limiteur.acquire();
+            limiteur.acquire(QuotaLane.BULK);
         }
         clock.advance(Duration.ofSeconds(2));
 
-        limiteur.acquire();
+        limiteur.acquire(QuotaLane.BULK);
         assertThat(attentes).isEmpty();
     }
 }

@@ -60,7 +60,14 @@ riot:
     safety-margin: 2
     max-retries-on429: 3
     max-retry-after: 3m
+    # Deux voies, deux délais. La collecte a tout son temps ; un appel interactif a pour budget
+    # le read-timeout du cœur (5 s) moins l'appel à Riot lui-même — au-delà, le cœur voit une
+    # expiration réseau et croit le connecteur en panne alors qu'il est occupé.
     acquire-timeout: 5m
+    interactive-timeout: 2s
+    # Passé ce délai de cession, une tâche de collecte reprend sa place dans la file même si des
+    # appels interactifs attendent : c'est ce qui l'empêche d'être affamée.
+    bulk-yield: 10s
 
   # Quatre natures de données, quatre politiques. Les confondre donne soit du gaspillage de
   # quota, soit des chiffres faux.

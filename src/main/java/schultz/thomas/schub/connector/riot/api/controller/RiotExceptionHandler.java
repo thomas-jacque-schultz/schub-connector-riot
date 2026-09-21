@@ -9,9 +9,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
+
+import java.time.Duration;
 
 /**
  * Traduit un échec de dialogue avec Riot en réponse HTTP honnête.
@@ -32,6 +35,23 @@ public class RiotExceptionHandler {
     }
 
     /**
+     * Occupé, pas en panne.
+     *
+     * <p>429 et non 503 : le connecteur répond, sa clé est valide, et le créneau manquant est
+     * affaire de secondes. Le taire derrière une expiration réseau était la moitié du défaut
+     * corrigé le 21-09 — l'appelant concluait « indisponible » et conservait un lien non
+     * résolu.</p>
+     */
+    @ExceptionHandler(RiotConnectorBusyException.class)
+    public ResponseEntity<ProblemDetail> handleBusy(RiotConnectorBusyException exception) {
+        log.info("Appel interactif renoncé, connecteur occupé : {}", exception.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+                exception.getMessage());
+        detail.setTitle("Connecteur Riot occupé");
+        return new ResponseEntity<>(detail, retryAfter(exception.getRetryAfter()), HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    /**
      * Le {@code Retry-After} est répercuté tel que Riot l'a donné.
      *
      * <p>Le taire ferait réessayer immédiatement, ce qui empire la situation : les requêtes
@@ -43,13 +63,7 @@ public class RiotExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
                 exception.getMessage());
         detail.setTitle("Quota de l'API Riot épuisé");
-
-        HttpHeaders headers = new HttpHeaders();
-        if (exception.getRetryAfter() != null && !exception.getRetryAfter().isZero()) {
-            headers.add(HttpHeaders.RETRY_AFTER,
-                    String.valueOf(Math.max(1, exception.getRetryAfter().toSeconds())));
-        }
-        return new ResponseEntity<>(detail, headers, HttpStatus.TOO_MANY_REQUESTS);
+        return new ResponseEntity<>(detail, retryAfter(exception.getRetryAfter()), HttpStatus.TOO_MANY_REQUESTS);
     }
 
     /** Pas une panne : une configuration absente. 503 le dit, 500 le cacherait. */
@@ -70,5 +84,13 @@ public class RiotExceptionHandler {
                 exception.getMessage());
         detail.setTitle("L'API Riot n'a pas pu être jointe");
         return detail;
+    }
+
+    private HttpHeaders retryAfter(Duration delay) {
+        HttpHeaders headers = new HttpHeaders();
+        if (delay != null && !delay.isZero()) {
+            headers.add(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(1, delay.toSeconds())));
+        }
+        return headers;
     }
 }
