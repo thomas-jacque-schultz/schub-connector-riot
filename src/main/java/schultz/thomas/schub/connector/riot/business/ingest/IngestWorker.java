@@ -2,7 +2,6 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
@@ -34,7 +33,6 @@ public class IngestWorker {
     private final MatchDetailService matchDetailService;
     private final RiotProperties properties;
 
-    @Scheduled(fixedDelayString = "${riot.ingest.poll-interval:2s}")
     public void drain() {
         RiotProperties.Ingest config = properties.getIngest();
         if (!config.isEnabled()) {
