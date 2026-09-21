@@ -45,6 +45,16 @@ import java.util.concurrent.locks.ReentrantLock;
  * interactifs perd la course au créneau libéré et n'obtient qu'un créneau en 1,5 s là où la
  * borne lui en promet cinq. Les deux états s'excluent, aucun blocage mutuel n'est possible.</p>
  *
+ * <h2>Une réserve, et pas seulement une cession</h2>
+ *
+ * <p>Céder ne sert qu'à qui attend déjà. Mesuré le 22-09 sous 2 277 tâches en file : aucun des
+ * vingt appels interactifs n'est servi, la collecte ayant consommé la fenêtre soutenue entière
+ * avant qu'ils n'arrivent — il ne restait plus rien à céder. La collecte s'arrête donc
+ * {@code quota.interactive-reserve} créneaux avant la limite, et espace les siens tant que la
+ * réserve est armée : une fenêtre prise d'un bloc ne libère plus rien pendant cent secondes.
+ * Sans demande interactive depuis {@code quota.interactive-reserve-idle}, la collecte reprend
+ * la réserve, à un créneau près.</p>
+ *
  * <p><strong>L'attente a lieu hors du verrou.</strong> Le point du défaut corrigé le 21-09 :
  * tant que l'ingestion dormait sous le verrou, un appel interactif ne pouvait même pas
  * <em>entrer</em> dans {@code acquire}. La consommation d'un créneau, elle, reste atomique :
@@ -72,6 +82,12 @@ public class RiotRateLimiter {
 
     /** Tâches de collecte ayant cédé au-delà de {@code bulk-yield}. L'interactif les laisse passer. */
     private int starvedBulk;
+
+    /** Dernière demande interactive, servie ou non. 0 = aucune depuis le démarrage. */
+    private long lastInteractiveDemand;
+
+    /** Dernier créneau accordé à la collecte, pour l'espacement de sa voie. */
+    private long lastBulkGrant;
 
     public RiotRateLimiter(RiotProperties.Quota quota, Clock clock, Sleeper sleeper) {
         this.quota = quota;
@@ -125,15 +141,18 @@ public class RiotRateLimiter {
             prune(sustainedWindow, now, quota.getSustainedWindow());
 
             int ahead = reservedAhead(lane, now, start);
-            long wait = waitNeeded(now, ahead);
+            long wait = waitNeeded(now, lane, ahead);
             if (wait <= 0) {
                 burstWindow.addLast(now);
                 sustainedWindow.addLast(now);
                 granted.merge(lane, 1L, Long::sum);
+                if (lane == QuotaLane.BULK) {
+                    lastBulkGrant = now;
+                }
                 return 0;
             }
 
-            long incompressible = ahead == 0 ? wait : waitNeeded(now, 0);
+            long incompressible = ahead == 0 ? wait : waitNeeded(now, lane, 0);
             if (now + incompressible > deadline) {
                 throw refusal(lane, Duration.ofMillis(incompressible));
             }
@@ -171,15 +190,61 @@ public class RiotRateLimiter {
     }
 
     /** Millisecondes à attendre avant qu'un créneau soit libre, {@code ahead} déjà réservés. */
-    private long waitNeeded(long now, int ahead) {
+    private long waitNeeded(long now, QuotaLane lane, int ahead) {
         if (penalisedUntil > now) {
             return penalisedUntil - now;
         }
         long burstWait = windowWait(burstWindow, now, effective(quota.getBurstRequests()),
                 quota.getBurstWindow(), ahead);
-        long sustainedWait = windowWait(sustainedWindow, now, effective(quota.getSustainedRequests()),
+        long sustainedWait = windowWait(sustainedWindow, now, sustainedLimit(lane, now),
                 quota.getSustainedWindow(), ahead);
-        return Math.max(burstWait, sustainedWait);
+        return Math.max(Math.max(burstWait, sustainedWait), spacingWait(lane, now));
+    }
+
+    /** La collecte s'arrête avant les derniers créneaux de la fenêtre soutenue ; l'interactif, non. */
+    private int sustainedLimit(QuotaLane lane, long now) {
+        int limit = effective(quota.getSustainedRequests());
+        return lane == QuotaLane.INTERACTIVE ? limit : Math.max(1, limit - reserve(now));
+    }
+
+    /**
+     * La réserve en vigueur.
+     *
+     * <p>Rendre le dernier créneau ferait attendre la fenêtre entière à la demande qui revient :
+     * la collecte aurait rempli les deux minutes, et l'armement n'a pas d'effet rétroactif. Ce
+     * créneau est le prix du réarmement immédiat.</p>
+     */
+    private int reserve(long now) {
+        int configured = configuredReserve();
+        if (configured == 0) {
+            return 0;
+        }
+        boolean demanded = lastInteractiveDemand > 0
+                && now - lastInteractiveDemand <= quota.getInteractiveReserveIdle().toMillis();
+        return demanded ? configured : 1;
+    }
+
+    private int configuredReserve() {
+        return Math.max(0, Math.min(quota.getInteractiveReserve(),
+                effective(quota.getSustainedRequests()) - 1));
+    }
+
+    /**
+     * Espacement des créneaux de collecte, tant que la réserve est armée.
+     *
+     * <p>Une réserve seule ne suffit pas : la collecte prendrait sa part d'un bloc, et la fenêtre
+     * ne libérerait plus rien pendant cent secondes — la réserve une fois consommée, l'interactif
+     * attendrait ce bloc. Espacée, la collecte tient le même débit et la fenêtre libère en
+     * continu.</p>
+     */
+    private long spacingWait(QuotaLane lane, long now) {
+        int reserve = reserve(now);
+        if (lane == QuotaLane.INTERACTIVE || reserve <= 1 || lastBulkGrant == 0) {
+            return 0;
+        }
+        long spacing = quota.getSustainedWindow().toMillis()
+                / Math.max(1, effective(quota.getSustainedRequests()) - reserve);
+        return Math.max(0, lastBulkGrant + spacing - now);
     }
 
     private long windowWait(Deque<Long> window, long now, int limit, Duration span, int ahead) {
@@ -235,15 +300,16 @@ public class RiotRateLimiter {
     }
 
     /**
-     * Le débit soutenable, marge déduite : le minimum des deux fenêtres.
+     * Le débit soutenable de la collecte, marge et réserve déduites.
      *
      * <p>Exposé parce que c'est lui, et rien d'autre, qui donne le temps d'écoulement d'une
-     * file d'ingestion. Le calculer ailleurs dupliquerait la règle de marge.</p>
+     * file d'ingestion. La réserve est comptée armée : une échéance annoncée doit être tenable
+     * le jour où quelqu'un consulte.</p>
      */
     public double allowedPerMinute() {
         double burst = effective(quota.getBurstRequests()) * 60_000.0 / quota.getBurstWindow().toMillis();
-        double sustained = effective(quota.getSustainedRequests()) * 60_000.0
-                / quota.getSustainedWindow().toMillis();
+        double sustained = (effective(quota.getSustainedRequests()) - configuredReserve())
+                * 60_000.0 / quota.getSustainedWindow().toMillis();
         return Math.min(burst, sustained);
     }
 
@@ -278,6 +344,7 @@ public class RiotRateLimiter {
         try {
             if (interactive) {
                 waitingInteractive++;
+                lastInteractiveDemand = clock.millis();
             } else {
                 starvedBulk++;
             }

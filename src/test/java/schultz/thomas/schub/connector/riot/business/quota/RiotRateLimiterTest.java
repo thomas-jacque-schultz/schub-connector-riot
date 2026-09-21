@@ -35,6 +35,7 @@ class RiotRateLimiterTest {
         attentes = new ArrayList<>();
         quota = new RiotProperties.Quota();
         quota.setSafetyMargin(0);
+        quota.setInteractiveReserve(0);
         quota.setBurstRequests(5);
         quota.setBurstWindow(Duration.ofSeconds(1));
         quota.setSustainedRequests(20);

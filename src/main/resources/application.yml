@@ -68,6 +68,14 @@ riot:
     # Passé ce délai de cession, une tâche de collecte reprend sa place dans la file même si des
     # appels interactifs attendent : c'est ce qui l'empêche d'être affamée.
     bulk-yield: 10s
+    # Créneaux de la fenêtre soutenue que la collecte ne prend jamais : céder du temps ne suffit
+    # pas, elle consomme les 98 créneaux en vingt secondes et il ne reste plus rien à céder.
+    # 10 sur 98, soit 10 % du débit de collecte (49 -> 44 appels/minute) ; une part du même
+    # compteur, jamais un supplément.
+    interactive-reserve: 10
+    # Sans demande interactive depuis ce délai, la collecte reprend la réserve — sauf un créneau,
+    # celui qui garantit que la demande suivante soit servie tout de suite et réarme le reste.
+    interactive-reserve-idle: 1m
 
   # Quatre natures de données, quatre politiques. Les confondre donne soit du gaspillage de
   # quota, soit des chiffres faux.
