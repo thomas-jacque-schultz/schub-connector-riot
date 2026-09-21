@@ -9,7 +9,7 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
-import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
+import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
@@ -42,7 +42,7 @@ public class MatchDetailService {
     private final CachedMatchRepository matches;
     private final PlayerMatchRefRepository playerMatches;
     private final RiotApiClient riotApiClient;
-    private final MatchMapper matchMapper;
+    private final RawMatchDecoder decoder;
     private final RiotProperties properties;
     private final Clock clock;
 
@@ -50,7 +50,7 @@ public class MatchDetailService {
     public Optional<MatchDetail> detail(String matchId) {
         Optional<CachedMatch> cached = matches.findById(matchId);
         if (cached.isPresent()) {
-            return Optional.of(cached.get().detail());
+            return Optional.of(decoder.toDetail(cached.get().raw()));
         }
         return fetchAndStore(matchId);
     }
@@ -66,7 +66,7 @@ public class MatchDetailService {
     public MatchDetailsResponse details(List<String> matchIds) {
         Set<String> requested = new LinkedHashSet<>(matchIds);
         List<MatchDetail> found = new ArrayList<>(matches.findByMatchIdIn(requested).stream()
-                .map(CachedMatch::detail)
+                .map(cached -> decoder.toDetail(cached.raw()))
                 .toList());
 
         Set<String> known = found.stream().map(MatchDetail::matchId)
@@ -108,12 +108,12 @@ public class MatchDetailService {
      * laisserait son renvoi sans date et serait indéfiniment considérée comme « à récupérer ».</p>
      */
     private Optional<MatchDetail> fetchAndStore(String matchId) {
-        Optional<MatchDetail> detail = riotApiClient.match(matchId).map(matchMapper::toDomain);
-        detail.ifPresent(value -> {
-            matches.save(new CachedMatch(value.matchId(), value, clock.instant()));
-            stampReferences(value);
+        return riotApiClient.match(matchId).map(raw -> {
+            MatchDetail detail = decoder.toDetail(raw);
+            matches.save(new CachedMatch(detail.matchId(), raw, clock.instant()));
+            stampReferences(detail);
+            return detail;
         });
-        return detail;
     }
 
     private void stampReferences(MatchDetail detail) {

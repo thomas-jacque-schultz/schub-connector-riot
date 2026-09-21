@@ -11,10 +11,10 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
+import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
-import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.PlayerMatchRefRepository;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
@@ -53,17 +53,17 @@ class MatchDetailServiceTest {
     void setUp() {
         properties = new RiotProperties();
         TestClock clock = new TestClock(Instant.parse("2026-09-18T12:00:00Z"));
-        service = new MatchDetailService(matches, playerMatches, riotApiClient, new MatchMapper(),
+        RawMatchDecoder decoder = new RawMatchDecoder(new MatchMapper());
+        service = new MatchDetailService(matches, playerMatches, riotApiClient, decoder,
                 properties, clock);
-        partie = new MatchMapper().toDomain(
-                Fixtures.load("match-ranked-solo.json", RiotMatchResponse.class));
+        partie = decoder.toDetail(Fixtures.document("match-ranked-solo.json"));
     }
 
     @Test
     @DisplayName("une partie déjà en base n'est JAMAIS redemandée à Riot")
     void neRedemandeJamaisUnePartieConnue() {
         when(matches.findById(MATCH_ID))
-                .thenReturn(Optional.of(new CachedMatch(MATCH_ID, partie, Instant.now())));
+                .thenReturn(Optional.of(new CachedMatch(MATCH_ID, Fixtures.document("match-ranked-solo.json"), Instant.now())));
 
         Optional<MatchDetail> resultat = service.detail(MATCH_ID);
 
@@ -77,7 +77,7 @@ class MatchDetailServiceTest {
     void rangeUnePartieInconnue() {
         when(matches.findById(MATCH_ID)).thenReturn(Optional.empty());
         when(riotApiClient.match(MATCH_ID)).thenReturn(Optional.of(
-                Fixtures.load("match-ranked-solo.json", RiotMatchResponse.class)));
+                Fixtures.document("match-ranked-solo.json")));
         when(playerMatches.findByMatchIdIn(List.of(MATCH_ID))).thenReturn(List.of());
 
         Optional<MatchDetail> resultat = service.detail(MATCH_ID);
@@ -92,7 +92,7 @@ class MatchDetailServiceTest {
     void dateLesRenvoisEnAttente() {
         when(matches.findById(MATCH_ID)).thenReturn(Optional.empty());
         when(riotApiClient.match(MATCH_ID)).thenReturn(Optional.of(
-                Fixtures.load("match-ranked-solo.json", RiotMatchResponse.class)));
+                Fixtures.document("match-ranked-solo.json")));
         PlayerMatchRef sansDate = new PlayerMatchRef(
                 PlayerMatchRef.idOf("p1", MATCH_ID), "p1", MATCH_ID, null, Instant.now());
         when(playerMatches.findByMatchIdIn(List.of(MATCH_ID))).thenReturn(List.of(sansDate));
@@ -110,7 +110,7 @@ class MatchDetailServiceTest {
         properties.getCache().setMaxDetailsPerCall(1);
         when(matches.findByMatchIdIn(any())).thenReturn(List.of());
         when(riotApiClient.match("EUW1_A")).thenReturn(Optional.of(
-                Fixtures.load("match-ranked-solo.json", RiotMatchResponse.class)));
+                Fixtures.document("match-ranked-solo.json")));
         when(playerMatches.findByMatchIdIn(any())).thenReturn(List.of());
 
         MatchDetailsResponse reponse = service.details(List.of("EUW1_A", "EUW1_B", "EUW1_C"));
@@ -137,7 +137,7 @@ class MatchDetailServiceTest {
     @DisplayName("un lot ne redemande que ce qui manque")
     void neRedemandeQueCeQuiManque() {
         when(matches.findByMatchIdIn(any()))
-                .thenReturn(List.of(new CachedMatch(MATCH_ID, partie, Instant.now())));
+                .thenReturn(List.of(new CachedMatch(MATCH_ID, Fixtures.document("match-ranked-solo.json"), Instant.now())));
 
         MatchDetailsResponse reponse = service.details(List.of(MATCH_ID));
 
