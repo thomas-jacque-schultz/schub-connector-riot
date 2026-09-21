@@ -22,4 +22,6 @@ public interface PlayerMatchRefRepository extends MongoRepository<PlayerMatchRef
     List<PlayerMatchRef> findByPuuidOrderByPlayedAtDesc(String puuid);
 
     List<PlayerMatchRef> findByMatchIdIn(Collection<String> matchIds);
+
+    long countByPuuid(String puuid);
 }
