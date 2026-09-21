@@ -79,6 +79,22 @@ riot:
     # du cœur vingt minutes, le temps que le quota s'écoule.
     max-details-per-call: 60
 
+  # La file d'ingestion. Un premier remplissage coûte un appel par partie et Riot en garde
+  # environ mille par joueur : compter dessus dans le temps d'une requête HTTP n'a pas de sens.
+  # La file vit en Mongo — un ingest de deux heures sera interrompu, et une file mémoire
+  # perdrait le reste sans qu'on sache ce qui manque.
+  ingest:
+    enabled: ${RIOT_INGEST_ENABLED:true}
+    poll-interval: 2s
+    batch-size: 25
+    # DOIT dépasser quota.acquire-timeout : une tâche qui attend légitimement son tour de
+    # quota se ferait sinon voler par le rattrapage des tâches orphelines.
+    lease: 15m
+    max-attempts: 5
+    retry-backoff: 1m
+    quota-backoff: 30s
+    idle-backoff: 5m
+
 management:
   endpoints:
     web:
