@@ -8,9 +8,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
+import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
@@ -20,6 +22,7 @@ import schultz.thomas.schub.connector.riot.support.TestClock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -100,5 +103,44 @@ class IngestServiceTest {
         // 49 tâches = une minute, plus les trente secondes de pénalité. Sans cet ajout,
         // l'estimation serait optimiste exactement au moment où elle compte.
         assertThat(statut.estimatedDrain()).isEqualTo(Duration.ofSeconds(90));
+    }
+
+    @Test
+    @DisplayName("l'avancement d'un joueur compte ce qui passe devant lui, pas ses seules tâches")
+    void estimeLaFinDUnJoueurDepuisToutCeQuiLePrecede() {
+        when(tasks.countByPuuidAndState("p1", IngestTaskState.PENDING)).thenReturn(200L);
+        when(tasks.countByPuuidAndState("p1", IngestTaskState.RUNNING)).thenReturn(0L);
+        when(tasks.countByPuuidAndState("p1", IngestTaskState.FAILED)).thenReturn(0L);
+        when(tasks.findFirstByPuuidAndStateOrderByPriorityAsc("p1", IngestTaskState.PENDING))
+                .thenReturn(Optional.of(tache(7_990_000_000L)));
+        when(tasks.countByStateAndPriorityGreaterThanEqual(IngestTaskState.PENDING, 7_990_000_000L))
+                .thenReturn(980L);
+        when(tasks.countByState(IngestTaskState.RUNNING)).thenReturn(0L);
+
+        PlayerIngestStatus statut = service.statusOf("p1");
+
+        // Ses 200 parties passeraient en 4 minutes s'il était seul ; il ne l'est pas.
+        assertThat(statut.queuedAhead()).isEqualTo(980L);
+        assertThat(statut.estimatedRemaining()).isEqualTo(Duration.ofMinutes(20));
+        assertThat(statut.estimatedReadyAt()).isEqualTo(MAINTENANT.plus(Duration.ofMinutes(20)));
+    }
+
+    @Test
+    @DisplayName("un joueur sans rien en file n'a pas de date de fin — et pas l'instant courant")
+    void nInventePasDeDateDeFinPourUnJoueurSansTravail() {
+        when(tasks.countByPuuidAndState("inconnu", IngestTaskState.PENDING)).thenReturn(0L);
+        when(tasks.countByPuuidAndState("inconnu", IngestTaskState.RUNNING)).thenReturn(0L);
+        when(tasks.countByPuuidAndState("inconnu", IngestTaskState.FAILED)).thenReturn(0L);
+
+        PlayerIngestStatus statut = service.statusOf("inconnu");
+
+        assertThat(statut.pending()).isZero();
+        assertThat(statut.estimatedReadyAt()).isNull();
+        assertThat(statut.estimatedRemaining()).isNull();
+    }
+
+    private static IngestTask tache(long priorite) {
+        return new IngestTask("MATCH_DETAIL:EUW1_1", IngestTaskType.MATCH_DETAIL, "EUW1_1", "p1",
+                IngestTaskState.PENDING, priorite, MAINTENANT, MAINTENANT, null, 0, null);
     }
 }

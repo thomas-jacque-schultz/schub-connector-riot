@@ -4,11 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
@@ -37,6 +39,19 @@ public class IngestController {
     @GetMapping
     public IngestStatus status() {
         return ingestService.status();
+    }
+
+    @Operation(summary = "Où en est la collecte d'un joueur",
+            description = """
+                    Le même chiffre que ci-dessus, mais pour un seul `puuid` : c'est ce qu'un
+                    écran de profil peut afficher, là où l'état global de la file ne lui dit rien.
+
+                    `estimatedReadyAt` est nul quand rien n'est en file pour ce joueur. Un `puuid`
+                    inconnu répond comme un joueur sans travail en attente : tout est à zéro,
+                    plutôt qu'un 404 que l'appelant devrait traduire.""")
+    @GetMapping("/players/{puuid}")
+    public PlayerIngestStatus playerStatus(@PathVariable String puuid) {
+        return ingestService.statusOf(puuid);
     }
 
     @Operation(summary = "Les tâches abandonnées",
