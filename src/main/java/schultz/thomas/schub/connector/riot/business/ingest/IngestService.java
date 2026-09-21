@@ -59,7 +59,7 @@ public class IngestService {
             return 0;
         }
 
-        Set<String> alreadyStored = matches.findByMatchIdIn(wanted).stream()
+        Set<String> alreadyStored = matches.findStoredIds(wanted).stream()
                 .map(CachedMatch::matchId)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 

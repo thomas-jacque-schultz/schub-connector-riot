@@ -57,7 +57,7 @@ class IngestServiceTest {
     @Test
     @DisplayName("une partie déjà stockée n'est pas empilée")
     void nEmpilePasUnePartieDejaStockee() {
-        when(matches.findByMatchIdIn(any())).thenReturn(List.of(
+        when(matches.findStoredIds(any())).thenReturn(List.of(
                 new CachedMatch("EUW1_DEJA", null, MAINTENANT)));
         when(queue.enqueue(eq(IngestTaskType.MATCH_DETAIL), eq("EUW1_NEUVE"), anyString(), anyLong()))
                 .thenReturn(true);
