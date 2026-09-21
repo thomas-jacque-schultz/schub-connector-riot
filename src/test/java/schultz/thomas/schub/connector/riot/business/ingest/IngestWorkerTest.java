@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
@@ -21,7 +23,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -109,6 +113,24 @@ class IngestWorkerTest {
         // pour une donnée qui n'existe plus.
         verify(queue).complete(task);
         verify(queue, never()).fail(any(), anyString(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("l'ouvrier travaille sur la voie de collecte, et la rend en sortant")
+    void travailleSurLaVoieDeCollecte() {
+        AtomicReference<QuotaLane> vue = new AtomicReference<>();
+        when(queue.claim(any())).thenReturn(Optional.of(detailTask())).thenReturn(Optional.empty());
+        when(matchDetailService.detail("EUW1_1")).thenAnswer(appel -> {
+            vue.set(QuotaLaneContext.current());
+            return Optional.empty();
+        });
+
+        worker.drain();
+
+        // Sans ce marquage, l'ingest passerait pour de l'interactif et retrouverait la priorité
+        // sans que rien n'échoue.
+        assertThat(vue.get()).isEqualTo(QuotaLane.BULK);
+        assertThat(QuotaLaneContext.current()).isEqualTo(QuotaLane.INTERACTIVE);
     }
 
     private IngestTask detailTask() {
