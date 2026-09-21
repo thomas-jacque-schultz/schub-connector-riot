@@ -6,19 +6,23 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
 import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
+import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.business.services.PlayerIdentityService;
@@ -48,6 +52,7 @@ public class PlayerController {
     private final MatchHistoryService historyService;
     private final RankingService rankingService;
     private final ChampionMasteryService masteryService;
+    private final IngestService ingestService;
 
     @Operation(summary = "Résoudre un Riot ID en joueur",
             description = """
@@ -100,17 +105,30 @@ public class PlayerController {
         return historyService.history(puuid, since);
     }
 
-    @Operation(summary = "Constituer ou prolonger l'historique d'un joueur",
+    @Operation(summary = "Empiler la collecte de l'historique d'un joueur",
             description = """
-                    Force un relevé auprès de Riot, sans attendre l'expiration de la fraîcheur.
+                    **Empile, puis répond immédiatement.** Un premier remplissage coûte un appel
+                    par partie et Riot en garde environ mille par joueur : compter dessus dans le
+                    temps d'une requête HTTP n'a pas de sens.
 
-                    Le premier remplissage se fait en plusieurs passes : les identifiants sont
-                    tous relevés d'un coup — c'est bon marché — mais les détails sont récupérés
-                    par paquets bornés, pour ne pas faire pendre cette requête le temps que le
-                    quota s'écoule. `detailsPending` dit ce qui reste ; rappeler cette route
-                    reprend où la précédente s'est arrêtée.""")
+                    L'empilement est idempotent — redemander pendant que la collecte tourne ne
+                    duplique rien — et `status` donne le temps d'écoulement estimé.""")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     @PostMapping("/{puuid}/matches/sync")
-    public HistorySyncReport sync(@PathVariable String puuid) {
+    public IngestEnqueueReport sync(@PathVariable String puuid) {
+        return ingestService.enqueuePlayer(puuid);
+    }
+
+    @Operation(summary = "Relever l'historique tout de suite, sans passer par la file",
+            description = """
+                    Voie synchrone, conservée pour le diagnostic : quand la file n'avance pas,
+                    elle rend l'erreur de Riot dans la réponse au lieu de la laisser dans les
+                    journaux.
+
+                    Bornée par `max-details-per-call` ; `detailsPending` dit ce qui reste. Ce
+                    n'est pas la voie normale — pour constituer un historique, empiler.""")
+    @PostMapping("/{puuid}/matches/sync-now")
+    public HistorySyncReport syncNow(@PathVariable String puuid) {
         return historyService.sync(puuid);
     }
 

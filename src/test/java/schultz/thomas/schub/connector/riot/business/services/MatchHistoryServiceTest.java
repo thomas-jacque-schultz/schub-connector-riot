@@ -12,7 +12,9 @@ import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
@@ -48,6 +50,7 @@ class MatchHistoryServiceTest {
     @Mock private PlayerMatchRefRepository playerMatches;
     @Mock private PlayerHistoryCursorRepository cursors;
     @Mock private MatchDetailService matchDetailService;
+    @Mock private IngestService ingestService;
 
     private RiotProperties properties;
     private TestClock clock;
@@ -58,7 +61,7 @@ class MatchHistoryServiceTest {
         properties = new RiotProperties();
         clock = new TestClock(MAINTENANT);
         service = new MatchHistoryService(riotApiClient, playerMatches, cursors,
-                matchDetailService, properties, clock);
+                matchDetailService, ingestService, properties, clock);
     }
 
     @Test
@@ -155,20 +158,19 @@ class MatchHistoryServiceTest {
 
         MatchHistory historique = service.history(PUUID, Instant.EPOCH);
 
-        assertThat(historique.refreshed()).isFalse();
-        // Sans cette borne, afficher une page d'équipe déclencherait cinq synchronisations
-        // à chaque rechargement.
+        assertThat(historique.ingestQueued()).isFalse();
+        // Sans cette borne, afficher une page d'équipe empilerait cinq relevés à chaque
+        // rechargement.
+        verify(ingestService, never()).enqueuePlayer(anyString());
         verify(riotApiClient, never()).matchIds(anyString(), any(), anyInt(), anyInt());
     }
 
     @Test
-    @DisplayName("si Riot est injoignable, la lecture sert le cache et le dit")
-    void sertLeCacheQuandRiotEstInjoignable() {
-        when(cursors.findById(PUUID))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.empty());
-        when(riotApiClient.matchIds(any(), any(), anyInt(), anyInt()))
-                .thenThrow(new RiotApiException("Riot ne répond pas."));
+    @DisplayName("une lecture empile la collecte, elle ne la fait pas")
+    void uneLectureEmpileMaisNAppellePasRiot() {
+        when(cursors.findById(PUUID)).thenReturn(Optional.empty());
+        when(ingestService.enqueuePlayer(PUUID))
+                .thenReturn(new IngestEnqueueReport(PUUID, true, null));
         when(playerMatches.findByPuuidAndPlayedAtGreaterThanEqualOrderByPlayedAtDesc(any(), any()))
                 .thenReturn(List.of(new PlayerMatchRef(PlayerMatchRef.idOf(PUUID, "EUW1_1"),
                         PUUID, "EUW1_1", MAINTENANT.minus(Duration.ofDays(1)), MAINTENANT)));
@@ -177,9 +179,10 @@ class MatchHistoryServiceTest {
         MatchHistory historique = service.history(PUUID, Instant.EPOCH);
 
         assertThat(historique.matchIds()).containsExactly("EUW1_1");
-        // Le cœur voit qu'il regarde une donnée non rafraîchie, au lieu de recevoir une erreur
-        // là où il avait une réponse utile.
-        assertThat(historique.refreshed()).isFalse();
+        assertThat(historique.ingestQueued()).isTrue();
+        // Un GET qui collecterait se disputerait le curseur et le quota avec l'ouvrier, et
+        // pendrait le temps que le quota s'écoule.
+        verify(riotApiClient, never()).matchIds(anyString(), any(), anyInt(), anyInt());
     }
 
     @Test

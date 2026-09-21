@@ -8,6 +8,7 @@ import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
@@ -55,31 +56,20 @@ public class MatchHistoryService {
     private final PlayerMatchRefRepository playerMatches;
     private final PlayerHistoryCursorRepository cursors;
     private final MatchDetailService matchDetailService;
+    private final IngestService ingestService;
     private final RiotProperties properties;
     private final Clock clock;
 
     /**
      * Les identifiants connus pour ce joueur depuis une date, servis du cache.
      *
-     * <p>Une synchronisation n'est déclenchée que si le curseur est plus vieux que la fraîcheur
-     * configurée : sans cela, afficher une page d'équipe déclencherait cinq synchronisations à
-     * chaque rechargement.</p>
-     *
-     * <p>Si Riot est injoignable, la lecture réussit quand même avec ce que le cache contient,
-     * et {@code refreshed} vaut {@code false}. Le cœur voit qu'il regarde une donnée non
-     * rafraîchie plutôt que de recevoir une erreur là où il avait une réponse utile.</p>
+     * <p>Une lecture ne collecte jamais elle-même : elle <em>empile</em>, et seulement si le
+     * relevé est plus vieux que la fraîcheur configurée. Collecter ici mettrait un second
+     * collecteur en concurrence avec l'ouvrier sur le même curseur et le même quota, et ferait
+     * pendre un GET le temps que le quota s'écoule.</p>
      */
     public MatchHistory history(String puuid, Instant since) {
-        boolean refreshed = false;
-        if (needsSync(puuid)) {
-            try {
-                sync(puuid);
-                refreshed = true;
-            } catch (RuntimeException failure) {
-                log.warn("Historique non rafraîchi pour ce joueur, cache servi tel quel : {}",
-                        failure.getMessage());
-            }
-        }
+        boolean queued = needsSync(puuid) && ingestService.enqueuePlayer(puuid).queued();
 
         Instant floor = since == null ? Instant.EPOCH : since;
         List<String> matchIds = knownSince(puuid, floor);
@@ -87,7 +77,7 @@ public class MatchHistoryService {
                 .map(PlayerHistoryCursor::lastSyncStartedAt)
                 .orElse(null);
 
-        return new MatchHistory(puuid, floor, matchIds, syncedAt, refreshed);
+        return new MatchHistory(puuid, floor, matchIds, syncedAt, queued);
     }
 
     /**
@@ -99,6 +89,23 @@ public class MatchHistoryService {
      * arrêtée.</p>
      */
     public HistorySyncReport sync(String puuid) {
+        IdSyncResult ids = syncIds(puuid);
+        MatchDetailsResponse details = fetchPendingDetails(puuid);
+
+        log.info("Historique synchronisé : {} ids vus, {} nouveaux, {} détails récupérés, {} en attente.",
+                ids.seen().size(), ids.created(), details.matches().size(), details.pending().size());
+
+        return new HistorySyncReport(puuid, ids.queriedFrom(), ids.seen().size(), ids.created(),
+                details.matches().size(), details.pending().size(), ids.startedAt());
+    }
+
+    /**
+     * Le relevé d'identifiants seul — un appel par tranche de cent parties, donc bon marché.
+     *
+     * <p>C'est la voie de l'ingestion : les détails, eux, coûtent un appel chacun et passent
+     * par la file plutôt que de pendre au bout d'une requête HTTP.</p>
+     */
+    public IdSyncResult syncIds(String puuid) {
         Instant startedAt = clock.instant();
         Optional<PlayerHistoryCursor> cursor = cursors.findById(puuid);
         Instant queriedFrom = queryFloor(cursor, startedAt);
@@ -106,19 +113,13 @@ public class MatchHistoryService {
         List<String> seen = collectIds(puuid, queriedFrom);
         int created = recordNewReferences(puuid, seen, startedAt);
 
-        MatchDetailsResponse details = fetchPendingDetails(puuid);
-
         cursors.save(new PlayerHistoryCursor(
                 puuid,
                 cursor.map(PlayerHistoryCursor::firstSyncAt).orElse(startedAt),
                 startedAt,
                 newestKnownMatchAt(puuid)));
 
-        log.info("Historique synchronisé : {} ids vus, {} nouveaux, {} détails récupérés, {} en attente.",
-                seen.size(), created, details.matches().size(), details.pending().size());
-
-        return new HistorySyncReport(puuid, queriedFrom, seen.size(), created,
-                details.matches().size(), details.pending().size(), startedAt);
+        return new IdSyncResult(puuid, queriedFrom, seen, created, startedAt);
     }
 
     private boolean needsSync(String puuid) {

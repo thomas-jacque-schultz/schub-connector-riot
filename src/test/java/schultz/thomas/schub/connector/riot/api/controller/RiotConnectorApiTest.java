@@ -18,6 +18,8 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
@@ -57,6 +59,8 @@ class RiotConnectorApiTest {
     @Mock private ChampionMasteryService masteryService;
     @Mock private MatchDetailService matchDetailService;
     @Mock private ChampionCatalogService catalogService;
+    @Mock private IngestService ingestService;
+    @Mock private ParticipationProjector projector;
 
     private MockMvc mockMvc;
 
@@ -64,7 +68,8 @@ class RiotConnectorApiTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
-                                masteryService),
+                                masteryService, ingestService),
+                        new IngestController(ingestService, projector),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
                 .setControllerAdvice(new RiotExceptionHandler())
@@ -94,7 +99,7 @@ class RiotConnectorApiTest {
                         .param("since", "2026-09-01T00:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matchIds.length()").value(2))
-                .andExpect(jsonPath("$.refreshed").value(true));
+                .andExpect(jsonPath("$.ingestQueued").value(true));
     }
 
     @Test
