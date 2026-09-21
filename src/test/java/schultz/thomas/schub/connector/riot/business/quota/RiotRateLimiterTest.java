@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.support.TestClock;
@@ -132,6 +133,46 @@ class RiotRateLimiterTest {
                 .isInstanceOf(RiotQuotaExceededException.class)
                 .hasMessageContaining("Quota Riot saturé");
         assertThat(attentes).isEmpty();
+    }
+
+    @Test
+    @DisplayName("un appel interactif qui ne peut pas être servi vite renonce sans dormir, et dit « occupé »")
+    void lInteractifRenonceViteEtDitOccupe() {
+        quota.setInteractiveTimeout(Duration.ofSeconds(2));
+        RiotRateLimiter limiteur = limiteur();
+
+        limiteur.penalise(Duration.ofSeconds(30));
+
+        assertThatThrownBy(() -> limiteur.acquire(QuotaLane.INTERACTIVE))
+                .isInstanceOf(RiotConnectorBusyException.class)
+                .isInstanceOf(RiotQuotaExceededException.class)
+                .hasMessageContaining("Connecteur occupé");
+        assertThat(attentes).isEmpty();
+    }
+
+    @Test
+    @DisplayName("là où l'interactif renonce, la collecte attend : ce sont deux délais distincts")
+    void laCollecteAttendLaOuLInteractifRenonce() {
+        quota.setInteractiveTimeout(Duration.ofSeconds(2));
+        quota.setAcquireTimeout(Duration.ofMinutes(5));
+        RiotRateLimiter limiteur = limiteur();
+
+        limiteur.penalise(Duration.ofSeconds(30));
+        limiteur.acquire(QuotaLane.BULK);
+
+        assertThat(attentes).containsExactly(Duration.ofSeconds(30));
+    }
+
+    @Test
+    @DisplayName("la pénalité d'un 429 vaut aussi pour la voie interactive : le quota est unique")
+    void la429SuspendAussiLInteractif() {
+        quota.setInteractiveTimeout(Duration.ofSeconds(5));
+        RiotRateLimiter limiteur = limiteur();
+
+        limiteur.penalise(Duration.ofSeconds(2));
+        limiteur.acquire(QuotaLane.INTERACTIVE);
+
+        assertThat(attentes).containsExactly(Duration.ofSeconds(2));
     }
 
     @Test
