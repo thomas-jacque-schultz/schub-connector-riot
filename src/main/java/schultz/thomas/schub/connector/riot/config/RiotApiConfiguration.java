@@ -44,8 +44,8 @@ public class RiotApiConfiguration {
     }
 
     /** Catalogue des champions, icônes, versions. Aucune clé, aucun quota. */
-    @Bean("dataDragonClient")
-    public RestClient dataDragonClient() {
+    @Bean("dataDragonRestClient")
+    public RestClient dataDragonRestClient() {
         return RestClient.builder()
                 .requestFactory(ClientHttpRequestFactories.get(timeouts()))
                 .baseUrl(properties.getDataDragonBaseUrl())
