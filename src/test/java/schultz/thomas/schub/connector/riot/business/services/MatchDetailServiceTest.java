@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
@@ -44,6 +45,7 @@ class MatchDetailServiceTest {
     @Mock private CachedMatchRepository matches;
     @Mock private PlayerMatchRefRepository playerMatches;
     @Mock private RiotApiClient riotApiClient;
+    @Mock private ParticipationProjector projector;
 
     private MatchDetailService service;
     private RiotProperties properties;
@@ -55,7 +57,7 @@ class MatchDetailServiceTest {
         TestClock clock = new TestClock(Instant.parse("2026-09-18T12:00:00Z"));
         RawMatchDecoder decoder = new RawMatchDecoder(new MatchMapper());
         service = new MatchDetailService(matches, playerMatches, riotApiClient, decoder,
-                properties, clock);
+                projector, properties, clock);
         partie = decoder.toDetail(Fixtures.document("match-ranked-solo.json"));
     }
 
