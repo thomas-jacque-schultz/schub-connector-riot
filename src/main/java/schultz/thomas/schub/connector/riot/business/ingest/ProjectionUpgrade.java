@@ -19,8 +19,8 @@ public class ProjectionUpgrade {
     @EventListener(ApplicationReadyEvent.class)
     public void upgrade() {
         if (projector.outdated()) {
-            log.info("Participations projetées par une version antérieure : reconstruction complète.");
-            projector.rebuildAll();
+            log.info("Participations projetées par une version antérieure : reprojection sur place.");
+            projector.upgradeOutdated();
         }
         int debuts = enrichment.recalculePerimes();
         if (debuts > 0) {
