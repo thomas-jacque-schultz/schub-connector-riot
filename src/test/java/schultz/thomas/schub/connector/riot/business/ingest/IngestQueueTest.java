@@ -63,6 +63,14 @@ class IngestQueueTest {
     }
 
     @Test
+    @DisplayName("sans la collecte de fond, les priorités négatives ne sont pas réclamables")
+    void excluLaCollecteDeFond() {
+        queue.claim(Duration.ofMinutes(15), false);
+
+        assertThat(captureQuery().getQueryObject().toString()).contains("priority").contains("$gte");
+    }
+
+    @Test
     @DisplayName("la réclamation sert les parties récentes d'abord")
     void servLesPartiesRecentesDAbord() {
         queue.claim(Duration.ofMinutes(15));
