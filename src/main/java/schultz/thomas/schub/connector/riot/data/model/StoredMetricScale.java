@@ -3,11 +3,14 @@ package schultz.thomas.schub.connector.riot.data.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import schultz.thomas.schub.connector.riot.api.dto.MetricScale;
+import schultz.thomas.schub.connector.riot.api.dto.MetricReference;
 
-// Un seul document : l'échelle courante, recalculée depuis riot_participation.
+import java.time.Instant;
+import java.util.List;
+
+// Un seul document : les référentiels par palier et par poste, recalculés depuis riot_player_position.
 @Document("riot_metric_scale")
-public record StoredMetricScale(@Id String id, MetricScale scale) {
+public record StoredMetricScale(@Id String id, Instant computedAt, List<MetricReference> leagues) {
 
     public static final String CURRENT = "current";
 }

@@ -11,6 +11,7 @@ import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
+import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
@@ -27,6 +28,7 @@ public class IngestWorker {
     private final MatchHistoryService historyService;
     private final MatchDetailService matchDetailService;
     private final MatchEnrichmentService enrichment;
+    private final RankingService rankingService;
     private final RiotProperties properties;
     private final BackgroundCrawler crawler;
 
@@ -75,10 +77,22 @@ public class IngestWorker {
     }
 
     private void collectIds(IngestTask task) {
+        releveRang(task.key());
         IdSyncResult relevé = historyService.syncIds(task.key());
         int queued = ingestService.enqueueDetails(task.key(), relevé.seen(), task.background());
         log.info("Historique relevé : {} ids vus, {} nouveaux, {} détails empilés.",
                 relevé.seen().size(), relevé.created(), queued);
+    }
+
+    // Le rang de chaque compte relevé nourrit le référentiel par ligue ; son échec ne bloque pas l'historique.
+    private void releveRang(String puuid) {
+        try {
+            rankingService.rankings(puuid);
+        } catch (RiotQuotaExceededException | RiotKeyMissingException bloquant) {
+            throw bloquant;
+        } catch (RuntimeException failure) {
+            log.debug("Rang non relevé pour un compte collecté : {}", failure.getMessage());
+        }
     }
 
     // Riot ne garde qu'environ mille parties par joueur : une partie introuvable est consommée, pas retentée.
