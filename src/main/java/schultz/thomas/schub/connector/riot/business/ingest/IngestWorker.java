@@ -28,6 +28,7 @@ public class IngestWorker {
     private final MatchDetailService matchDetailService;
     private final MatchEnrichmentService enrichment;
     private final RiotProperties properties;
+    private final BackgroundCrawler crawler;
 
     public void drain() {
         QuotaLaneContext.runAsBulk(this::drainTasks);
@@ -39,8 +40,9 @@ public class IngestWorker {
             return;
         }
 
+        boolean fond = crawler.active();
         for (int handled = 0; handled < config.getBatchSize(); handled++) {
-            Optional<IngestTask> claimed = queue.claim(config.getLease());
+            Optional<IngestTask> claimed = queue.claim(config.getLease(), fond);
             if (claimed.isEmpty() || !run(claimed.get(), config)) {
                 return;
             }

@@ -41,6 +41,11 @@ public class IngestQueue {
     }
 
     public Optional<IngestTask> claim(Duration lease) {
+        return claim(lease, true);
+    }
+
+    // Sans la collecte de fond : ses tâches restent en file, intactes, jusqu'à sa réactivation.
+    public Optional<IngestTask> claim(Duration lease, boolean includeBackground) {
         Instant now = clock.instant();
         Criteria claimable = new Criteria().orOperator(
                 Criteria.where("state").is(IngestTaskState.PENDING),
@@ -48,8 +53,10 @@ public class IngestQueue {
                         Criteria.where("state").is(IngestTaskState.RUNNING),
                         Criteria.where("leaseUntil").lt(now)));
 
-        Query query = Query.query(new Criteria().andOperator(
-                        Criteria.where("notBefore").lte(now), claimable))
+        Criteria eligible = includeBackground
+                ? Criteria.where("notBefore").lte(now)
+                : Criteria.where("notBefore").lte(now).and("priority").gte(0);
+        Query query = Query.query(new Criteria().andOperator(eligible, claimable))
                 .with(Sort.by(Sort.Direction.DESC, "priority"));
 
         Update update = new Update()

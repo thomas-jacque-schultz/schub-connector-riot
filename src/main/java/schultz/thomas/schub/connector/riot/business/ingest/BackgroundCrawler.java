@@ -51,6 +51,11 @@ public class BackgroundCrawler {
                 .orElse(config.isEnabledByDefault());
     }
 
+    // Activée et sous le seuil de volume : c'est ce qui autorise l'ouvrier à servir ses tâches.
+    public boolean active() {
+        return enabled() && databaseBytes() <= properties.getCrawler().getStorageAlertBytes();
+    }
+
     public CrawlerStatus toggle(boolean enabled) {
         if (!properties.getCrawler().isSwitchable()) {
             throw new CrawlerLockedException();
