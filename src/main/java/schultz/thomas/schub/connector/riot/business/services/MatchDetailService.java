@@ -86,7 +86,7 @@ public class MatchDetailService {
         return riotApiClient.match(matchId).map(raw -> {
             MatchDetail detail = decoder.toDetail(raw);
             matches.save(new CachedMatch(detail.matchId(), raw, clock.instant()));
-            projector.project(detail);
+            projector.project(raw);
             stampReferences(detail);
             return detail;
         });

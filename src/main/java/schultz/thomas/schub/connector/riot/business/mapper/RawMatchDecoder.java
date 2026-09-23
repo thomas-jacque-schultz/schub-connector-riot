@@ -25,6 +25,10 @@ public class RawMatchDecoder {
     }
 
     public MatchDetail toDetail(Document raw) {
-        return matchMapper.toDomain(decode(raw));
+        return toDetail(decode(raw));
+    }
+
+    public MatchDetail toDetail(RiotMatchResponse response) {
+        return matchMapper.toDomain(response);
     }
 }
