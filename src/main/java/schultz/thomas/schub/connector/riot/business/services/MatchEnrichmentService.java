@@ -199,6 +199,7 @@ public class MatchEnrichmentService {
 
         Map<Integer, int[]> kda = new HashMap<>();
         Map<Integer, Integer> ganks = new HashMap<>();
+        Map<Integer, Integer> reussis = new HashMap<>();
         for (Object frame : frames) {
             for (Object brut : liste(enObjet(frame), "events")) {
                 Map<String, Object> event = enObjet(brut);
@@ -215,6 +216,13 @@ public class MatchEnrichmentService {
                 int victime = (int) nombre(event, "victimId");
                 if (postesConnus && jungleAdverseImplique(event, victime, parId)) {
                     ganks.merge(victime, 1, Integer::sum);
+                    MatchParticipant cible = parId.get(victime);
+                    if (cible.position() != TeamPosition.JUNGLE) {
+                        impliques(event).stream().filter(id -> {
+                            MatchParticipant acteur = parId.get(id);
+                            return acteur != null && acteur.teamId() != cible.teamId();
+                        }).distinct().forEach(id -> reussis.merge(id, 1, Integer::sum));
+                    }
                 }
             }
         }
@@ -235,7 +243,8 @@ public class MatchEnrichmentService {
                     (int) (nombre(pf, "minionsKilled") + nombre(pf, "jungleMinionsKilled")),
                     (int) nombre(degats, "totalDamageDoneToChampions"),
                     siens[0], siens[1], siens[2],
-                    postesConnus ? ganks.getOrDefault(participantId, 0) : null));
+                    postesConnus ? ganks.getOrDefault(participantId, 0) : null,
+                    postesConnus ? reussis.getOrDefault(participantId, 0) : null));
         }
         return parPuuid;
     }
@@ -246,6 +255,11 @@ public class MatchEnrichmentService {
         if (cible == null) {
             return false;
         }
+        return impliques(event).stream().map(parId::get).anyMatch(acteur -> acteur != null
+                && acteur.position() == TeamPosition.JUNGLE && acteur.teamId() != cible.teamId());
+    }
+
+    private static List<Integer> impliques(Map<String, Object> event) {
         List<Integer> impliques = new ArrayList<>();
         impliques.add((int) nombre(event, "killerId"));
         for (Object aide : liste(event, "assistingParticipantIds")) {
@@ -253,8 +267,7 @@ public class MatchEnrichmentService {
                 impliques.add(id.intValue());
             }
         }
-        return impliques.stream().map(parId::get).anyMatch(acteur -> acteur != null
-                && acteur.position() == TeamPosition.JUNGLE && acteur.teamId() != cible.teamId());
+        return impliques;
     }
 
     @SuppressWarnings("unchecked")
