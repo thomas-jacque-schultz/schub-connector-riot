@@ -15,6 +15,7 @@ import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
+import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
@@ -47,6 +48,7 @@ class IngestWorkerTest {
     @Mock private MatchHistoryService historyService;
     @Mock private MatchDetailService matchDetailService;
     @Mock private MatchEnrichmentService enrichment;
+    @Mock private RankingService rankingService;
     @Mock private BackgroundCrawler crawler;
 
     private IngestWorker worker;
@@ -54,7 +56,7 @@ class IngestWorkerTest {
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                enrichment, new RiotProperties(), crawler);
+                enrichment, rankingService, new RiotProperties(), crawler);
     }
 
     @Test
@@ -97,7 +99,24 @@ class IngestWorkerTest {
 
         worker.drain();
 
+        verify(rankingService).rankings("p1");
         verify(ingestService).enqueueDetails("p1", List.of("EUW1_1", "EUW1_2"), false);
+        verify(queue).complete(task);
+    }
+
+    @Test
+    @DisplayName("un rang introuvable ne bloque pas le relevé d'identifiants")
+    void unRangIntrouvableNeBloquePas() {
+        IngestTask task = new IngestTask("PLAYER_IDS:p1", IngestTaskType.PLAYER_IDS, "p1", "p1",
+                IngestTaskState.RUNNING, Long.MAX_VALUE, MAINTENANT, MAINTENANT, null, 0, null);
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(task)).thenReturn(Optional.empty());
+        when(rankingService.rankings("p1")).thenThrow(new RiotApiException("Riot muet"));
+        when(historyService.syncIds("p1")).thenReturn(
+                new IdSyncResult("p1", MAINTENANT, List.of("EUW1_1"), 1, MAINTENANT));
+
+        worker.drain();
+
+        verify(ingestService).enqueueDetails("p1", List.of("EUW1_1"), false);
         verify(queue).complete(task);
     }
 

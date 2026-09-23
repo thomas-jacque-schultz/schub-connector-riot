@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,10 +11,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-import schultz.thomas.schub.connector.riot.api.dto.MetricScale;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
+import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
@@ -98,10 +98,15 @@ public class StatsController {
         return enrichment.insights(request.matchIds());
     }
 
-    @Operation(summary = "Bornes des indicateurs pour les graphiques radar",
-            description = "Recalculées toutes les heures depuis les participations, sans appel à Riot.")
-    @GetMapping("/scale")
-    public MetricScale scale() {
-        return metricScale.current();
+    @Operation(summary = "Référentiels du radar pour des joueurs à un poste",
+            description = """
+                    Pour chaque joueur : les bornes des joueurs collectés de son palier au même poste
+                    (recalculées toutes les heures), et celles de ses adversaires directs sur la
+                    période. **Aucun appel à Riot** : le palier vient du dernier rang relevé.
+
+                    Un référentiel de moins de dix joueurs est rendu absent plutôt que bruité.""")
+    @PostMapping("/references")
+    public List<PlayerReferences> references(@Valid @RequestBody ReferencesQuery query) {
+        return metricScale.references(query.players());
     }
 }

@@ -10,6 +10,7 @@ public record MatchInsights(
         String matchId,
         boolean timelineAvailable,
         @Schema(description = "Absente : les rangs n'ont pas encore été relevés.") Instant ranksObservedAt,
+        @Schema(description = "Absent : pas de timeline, ou postes de la partie inconnus.") EarlyGame early,
         List<Participant> participants
 ) {
 
@@ -24,10 +25,6 @@ public record MatchInsights(
     ) {
     }
 
-    public record At15(int gold, int xp, int cs, int damageToChampions, int kills, int deaths, int assists,
-                       @Schema(description = "Morts avant 15 minutes où le jungler adverse a tué ou assisté ; "
-                               + "absent si les postes de la partie sont inconnus.") Integer ganksSuffered,
-                       @Schema(description = "Kills avant 15 minutes sur un laner adverse, jungler allié impliqué, "
-                               + "le joueur aussi. Pour le jungler : tous ses ganks réussis.") Integer ganksSucceeded) {
+    public record At15(int gold, int xp, int cs, int damageToChampions, int kills, int deaths, int assists) {
     }
 }

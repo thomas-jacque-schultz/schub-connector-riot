@@ -112,7 +112,8 @@ public class MatchEnrichmentService {
                 .filter(cached -> cached.raw() != null)
                 .map(cached -> decoder.toDetail(cached.raw()).participants())
                 .orElse(List.of());
-        return new MatchEarlyStats(matchId, a15(timeline, participants), MatchEarlyStats.CURRENT_VERSION);
+        return new MatchEarlyStats(matchId, a15(timeline),
+                EarlyGameAnalyzer.analyse(timeline, participants), MatchEarlyStats.CURRENT_VERSION);
     }
 
     public void collectRanks(String matchId) {
@@ -149,6 +150,7 @@ public class MatchEnrichmentService {
                     detail.matchId(),
                     debut != null,
                     rangs == null ? null : rangs.observedAt(),
+                    debut == null ? null : debut.game(),
                     detail.participants().stream()
                             .map(participant -> {
                                 List<RankedStanding> siens = rangs == null ? List.of()
@@ -169,7 +171,7 @@ public class MatchEnrichmentService {
 
     // participantId 1 à 10 dans l'ordre de metadata.participants ; une image par minute.
     // Le brut fraîchement reçu porte des Map imbriquées, celui relu de Mongo des Document : on lit des Map.
-    static Map<String, MatchInsights.At15> a15(Map<String, Object> raw, List<MatchParticipant> participants) {
+    static Map<String, MatchInsights.At15> a15(Map<String, Object> raw) {
         Map<String, Object> metadata = objet(raw, "metadata");
         Map<String, Object> info = objet(raw, "info");
         List<Object> puuids = liste(metadata, "participants");
@@ -186,20 +188,7 @@ public class MatchEnrichmentService {
             return Map.of();
         }
 
-        Map<String, MatchParticipant> participantParPuuid = new HashMap<>();
-        participants.forEach(participant -> participantParPuuid.put(participant.puuid(), participant));
-        Map<Integer, MatchParticipant> parId = new HashMap<>();
-        for (int index = 0; index < puuids.size(); index++) {
-            MatchParticipant participant = participantParPuuid.get(String.valueOf(puuids.get(index)));
-            if (participant != null) {
-                parId.put(index + 1, participant);
-            }
-        }
-        boolean postesConnus = parId.size() == puuids.size();
-
         Map<Integer, int[]> kda = new HashMap<>();
-        Map<Integer, Integer> ganks = new HashMap<>();
-        Map<Integer, Integer> reussis = new HashMap<>();
         for (Object frame : frames) {
             for (Object brut : liste(enObjet(frame), "events")) {
                 Map<String, Object> event = enObjet(brut);
@@ -211,17 +200,6 @@ public class MatchEnrichmentService {
                 for (Object aide : liste(event, "assistingParticipantIds")) {
                     if (aide instanceof Number id) {
                         kda.computeIfAbsent(id.intValue(), cle -> new int[3])[2]++;
-                    }
-                }
-                int victime = (int) nombre(event, "victimId");
-                if (postesConnus && jungleAdverseImplique(event, victime, parId)) {
-                    ganks.merge(victime, 1, Integer::sum);
-                    MatchParticipant cible = parId.get(victime);
-                    if (cible.position() != TeamPosition.JUNGLE) {
-                        impliques(event).stream().filter(id -> {
-                            MatchParticipant acteur = parId.get(id);
-                            return acteur != null && acteur.teamId() != cible.teamId();
-                        }).distinct().forEach(id -> reussis.merge(id, 1, Integer::sum));
                     }
                 }
             }
@@ -242,49 +220,26 @@ public class MatchEnrichmentService {
                     (int) nombre(pf, "xp"),
                     (int) (nombre(pf, "minionsKilled") + nombre(pf, "jungleMinionsKilled")),
                     (int) nombre(degats, "totalDamageDoneToChampions"),
-                    siens[0], siens[1], siens[2],
-                    postesConnus ? ganks.getOrDefault(participantId, 0) : null,
-                    postesConnus ? reussis.getOrDefault(participantId, 0) : null));
+                    siens[0], siens[1], siens[2]));
         }
         return parPuuid;
     }
 
-    private static boolean jungleAdverseImplique(Map<String, Object> event, int victime,
-                                                 Map<Integer, MatchParticipant> parId) {
-        MatchParticipant cible = parId.get(victime);
-        if (cible == null) {
-            return false;
-        }
-        return impliques(event).stream().map(parId::get).anyMatch(acteur -> acteur != null
-                && acteur.position() == TeamPosition.JUNGLE && acteur.teamId() != cible.teamId());
-    }
-
-    private static List<Integer> impliques(Map<String, Object> event) {
-        List<Integer> impliques = new ArrayList<>();
-        impliques.add((int) nombre(event, "killerId"));
-        for (Object aide : liste(event, "assistingParticipantIds")) {
-            if (aide instanceof Number id) {
-                impliques.add(id.intValue());
-            }
-        }
-        return impliques;
-    }
-
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> enObjet(Object valeur) {
+    static Map<String, Object> enObjet(Object valeur) {
         return valeur instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
     }
 
-    private static Map<String, Object> objet(Map<String, Object> parent, String champ) {
+    static Map<String, Object> objet(Map<String, Object> parent, String champ) {
         return enObjet(parent.get(champ));
     }
 
     @SuppressWarnings("unchecked")
-    private static List<Object> liste(Map<String, Object> parent, String champ) {
+    static List<Object> liste(Map<String, Object> parent, String champ) {
         return parent.get(champ) instanceof List<?> liste ? (List<Object>) liste : List.of();
     }
 
-    private static long nombre(Map<String, Object> objet, String champ) {
+    static long nombre(Map<String, Object> objet, String champ) {
         return objet.get(champ) instanceof Number n ? n.longValue() : 0L;
     }
 }
