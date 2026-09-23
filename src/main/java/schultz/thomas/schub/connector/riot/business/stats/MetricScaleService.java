@@ -2,10 +2,8 @@ package schultz.thomas.schub.connector.riot.business.stats;
 
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -14,16 +12,11 @@ import schultz.thomas.schub.connector.riot.api.dto.MetricReference;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
-import schultz.thomas.schub.connector.riot.data.model.StoredMetricScale;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
-import schultz.thomas.schub.connector.riot.data.repository.StoredMetricScaleRepository;
+import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 
-import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,34 +25,50 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
+// Les adversaires directs d'un joueur : une population de quelques dizaines, calculée à la demande, bornée p5–p95.
 @Service
 @RequiredArgsConstructor
 public class MetricScaleService {
 
     public static final int MINIMUM_GAMES = 5;
     static final int POPULATION_MINIMUM = 10;
-    static final String TABLE = "riot_player_position";
-    private static final List<String> POSTES = List.of("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY");
     private static final double BAS = 0.05;
     private static final double HAUT = 0.95;
 
     private final MongoTemplate mongo;
-    private final StoredMetricScaleRepository store;
     private final RankHistory history;
-    private final Clock clock;
 
-    public StoredMetricScale current() {
-        return store.findById(StoredMetricScale.CURRENT)
-                .filter(scale -> scale.computedAt() != null && scale.leagues() != null)
-                .orElseGet(this::refresh);
+    public List<PlayerReferences> references(List<ReferencesQuery.Player> joueurs) {
+        Map<String, String> paliers = history.latestTiers(joueurs.stream().map(ReferencesQuery.Player::puuid).toList());
+        List<PlayerReferences> rendus = new ArrayList<>();
+        for (ReferencesQuery.Player joueur : joueurs) {
+            rendus.add(new PlayerReferences(joueur.puuid(), joueur.position(), paliers.get(joueur.puuid()),
+                    rencontres(joueur)));
+        }
+        return rendus;
     }
 
-    // Deux temps : la table joueur × poste est réécrite d'un bloc, puis les paliers se lisent dessus.
-    public StoredMetricScale refresh() {
-        mongo.indexOps(TABLE).ensureIndex(new Index("puuid", Sort.Direction.ASC));
-        Aggregation table = Aggregation.newAggregation(
-                Aggregation.match(faille().and("position").in(POSTES)),
-                Aggregation.group("puuid", "position")
+    private MetricReference rencontres(ReferencesQuery.Player joueur) {
+        Criteria siennes = faille(joueur).and("puuid").is(joueur.puuid());
+        Query parties = Query.query(siennes);
+        parties.fields().include("matchId");
+        List<String> matchIds = mongo.find(parties, Document.class, MatchParticipation.COLLECTION).stream()
+                .map(document -> document.getString("matchId"))
+                .toList();
+        if (matchIds.isEmpty()) {
+            return null;
+        }
+        Query face = Query.query(Criteria.where("matchId").in(matchIds)
+                .and("position").is(joueur.position().name())
+                .and("puuid").ne(joueur.puuid()));
+        face.fields().include("puuid");
+        Set<String> adversaires = new HashSet<>();
+        mongo.find(face, Document.class, MatchParticipation.COLLECTION)
+                .forEach(document -> adversaires.add(document.getString("puuid")));
+
+        Aggregation sommes = Aggregation.newAggregation(
+                Aggregation.match(faille(joueur).and("puuid").in(adversaires)),
+                Aggregation.group("puuid")
                         .count().as("games")
                         .sum(context -> new Document("$cond", List.of("$win", 1, 0))).as("wins")
                         .sum("kills").as("kills")
@@ -73,76 +82,9 @@ public class MetricScaleService {
                         .sum("teamKills").as("teamKills")
                         .sum("teamDeaths").as("teamDeaths")
                         .sum("durationSeconds").as("secondsPlayed"),
-                context -> new Document("$addFields", new Document("puuid", "$_id.puuid")
-                        .append("position", "$_id.position")),
-                Aggregation.out(TABLE)).withOptions(Aggregation.newAggregationOptions().allowDiskUse(true).build());
-        mongo.aggregate(table, MatchParticipation.class, Document.class);
-
-        Map<String, Map<String, List<Joueur>>> parPalier = new HashMap<>();
-        List<Document> lignes = mongo.find(Query.query(Criteria.where("games").gte(MINIMUM_GAMES)), Document.class, TABLE);
-        Map<String, String> paliers = paliers(lignes.stream().map(ligne -> ligne.getString("puuid")).toList());
-        for (Document ligne : lignes) {
-            String palier = paliers.get(ligne.getString("puuid"));
-            Joueur joueur = Joueur.of(ligne);
-            if (palier != null && joueur != null) {
-                parPalier.computeIfAbsent(palier, cle -> new HashMap<>())
-                        .computeIfAbsent(ligne.getString("position"), cle -> new ArrayList<>())
-                        .add(joueur);
-            }
-        }
-        List<MetricReference> ligues = new ArrayList<>();
-        parPalier.forEach((palier, parPoste) -> parPoste.forEach((poste, joueurs) -> {
-            if (joueurs.size() >= POPULATION_MINIMUM) {
-                ligues.add(new MetricReference(palier, TeamPosition.valueOf(poste), joueurs.size(), MINIMUM_GAMES,
-                        bornes(joueurs)));
-            }
-        }));
-        ligues.sort(Comparator.comparing(MetricReference::tier).thenComparing(MetricReference::position));
-        StoredMetricScale scale = new StoredMetricScale(StoredMetricScale.CURRENT, clock.instant(), ligues);
-        store.save(scale);
-        return scale;
-    }
-
-    public List<PlayerReferences> references(List<ReferencesQuery.Player> joueurs) {
-        List<MetricReference> ligues = current().leagues();
-        Map<String, String> paliers = paliers(joueurs.stream().map(ReferencesQuery.Player::puuid).toList());
-        List<PlayerReferences> rendus = new ArrayList<>();
-        for (ReferencesQuery.Player joueur : joueurs) {
-            String palier = paliers.get(joueur.puuid());
-            MetricReference ligue = palier == null ? null : ligues.stream()
-                    .filter(ref -> ref.tier().equals(palier) && ref.position() == joueur.position())
-                    .findFirst()
-                    .orElse(null);
-            rendus.add(new PlayerReferences(joueur.puuid(), joueur.position(), palier, ligue, rencontres(joueur)));
-        }
-        return rendus;
-    }
-
-    // Les adversaires directs : l'autre joueur du même poste dans chacune de ses parties.
-    private MetricReference rencontres(ReferencesQuery.Player joueur) {
-        Criteria siennes = faille().and("puuid").is(joueur.puuid()).and("position").is(joueur.position().name());
-        if (joueur.since() != null) {
-            siennes = siennes.and("startedAt").gte(joueur.since());
-        }
-        Query parties = Query.query(siennes);
-        parties.fields().include("matchId");
-        List<String> matchIds = mongo.find(parties, Document.class, "riot_participation").stream()
-                .map(document -> document.getString("matchId"))
-                .toList();
-        if (matchIds.isEmpty()) {
-            return null;
-        }
-        Query face = Query.query(Criteria.where("matchId").in(matchIds)
-                .and("position").is(joueur.position().name())
-                .and("puuid").ne(joueur.puuid()));
-        face.fields().include("puuid");
-        Set<String> adversaires = new HashSet<>();
-        mongo.find(face, Document.class, "riot_participation")
-                .forEach(document -> adversaires.add(document.getString("puuid")));
-
-        List<Joueur> population = mongo.find(Query.query(Criteria.where("puuid").in(adversaires)
-                        .and("position").is(joueur.position().name())
-                        .and("games").gte(MINIMUM_GAMES)), Document.class, TABLE).stream()
+                Aggregation.match(Criteria.where("games").gte(MINIMUM_GAMES)));
+        List<Joueur> population = mongo.aggregate(sommes, MatchParticipation.class, Document.class)
+                .getMappedResults().stream()
                 .map(Joueur::of)
                 .filter(Objects::nonNull)
                 .toList();
@@ -152,12 +94,10 @@ public class MetricScaleService {
         return new MetricReference(null, joueur.position(), population.size(), MINIMUM_GAMES, bornes(population));
     }
 
-    private Map<String, String> paliers(List<String> puuids) {
-        return history.latestTiers(puuids);
-    }
-
-    private static Criteria faille() {
-        return Criteria.where("queueId").in(QueueKind.RIFT_QUEUE_IDS).and("afk").is(false);
+    private static Criteria faille(ReferencesQuery.Player joueur) {
+        Criteria criteria = Criteria.where("queueId").in(QueueKind.RIFT_QUEUE_IDS).and("afk").is(false)
+                .and("position").is(joueur.position().name());
+        return joueur.since() == null ? criteria : criteria.and("startedAt").gte(Date.from(joueur.since()));
     }
 
     private static Map<String, MetricReference.Bound> bornes(List<Joueur> joueurs) {

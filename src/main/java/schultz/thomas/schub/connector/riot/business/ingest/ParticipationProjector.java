@@ -19,7 +19,6 @@ import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.SearchName;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
-import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
@@ -52,7 +51,6 @@ public class ParticipationProjector {
     private final KnownAccountIndex knownAccounts;
     private final RawMatchDecoder decoder;
     private final Clock clock;
-    private final MetricScaleService metricScale;
     private final MongoTemplate mongo;
     private final MatchEarlyStatsRepository earlyStats;
     private final RankHistory rankHistory;
@@ -150,7 +148,6 @@ public class ParticipationProjector {
         }
         log.info("Couche d'analyse reconstruite : {} parties lues, {} participations écrites.",
                 bilan.lues, bilan.ecrites);
-        metricScale.refresh();
         return new RebuildReport(bilan.lues, bilan.ecrites, bilan.inutilisables, startedAt, clock.instant());
     }
 
