@@ -17,8 +17,10 @@ import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
+import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -35,6 +37,7 @@ public class IngestController {
     private final ParticipationProjector projector;
     private final KnownAccountIndex knownAccounts;
     private final BackgroundCrawler crawler;
+    private final LadderSampler sampler;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -55,6 +58,14 @@ public class IngestController {
     @GetMapping("/crawler")
     public CrawlerStatus crawler() {
         return crawler.status();
+    }
+
+    @Operation(summary = "L'échantillon par palier",
+            description = "Graines tirées dans les classements, par palier, sur la fenêtre glissante. "
+                    + "Suit la collecte de fond : suspendu quand elle l'est.")
+    @GetMapping("/sampling")
+    public SamplingStatus sampling() {
+        return sampler.status();
     }
 
     @Operation(summary = "Basculer la collecte de fond", description = "409 là où elle n'est pas basculable.")

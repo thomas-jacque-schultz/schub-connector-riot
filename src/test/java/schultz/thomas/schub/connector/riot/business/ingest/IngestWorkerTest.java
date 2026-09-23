@@ -50,13 +50,14 @@ class IngestWorkerTest {
     @Mock private MatchEnrichmentService enrichment;
     @Mock private RankingService rankingService;
     @Mock private BackgroundCrawler crawler;
+    @Mock private LadderSampler sampler;
 
     private IngestWorker worker;
 
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                enrichment, rankingService, new RiotProperties(), crawler);
+                enrichment, rankingService, new RiotProperties(), crawler, sampler);
     }
 
     @Test
@@ -86,6 +87,28 @@ class IngestWorkerTest {
 
         verify(queue).fail(any(IngestTask.class), eq("Riot muet"), anyInt(), any(Duration.class));
         verify(queue, times(2)).claim(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("les tâches de l'échantillon par palier vont à l'échantillonneur, le résumé de timeline à l'enrichissement")
+    void routeLesTachesDeLEchantillon() {
+        IngestTask page = tache(IngestTaskType.LADDER_PAGE, "GOLD/II/3");
+        IngestTask graine = tache(IngestTaskType.SEED_MATCHES, "p1");
+        IngestTask resume = tache(IngestTaskType.MATCH_TIMELINE_DIGEST, "EUW1_1");
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(page), Optional.of(graine), Optional.of(resume),
+                Optional.empty());
+
+        worker.drain();
+
+        verify(sampler).samplePage("GOLD/II/3");
+        verify(sampler).collectSeed("p1");
+        verify(enrichment).collectDigest("EUW1_1");
+        verify(queue, times(3)).complete(any());
+    }
+
+    private static IngestTask tache(IngestTaskType type, String key) {
+        return new IngestTask(IngestTask.idOf(type, key), type, key, null, IngestTaskState.RUNNING, -1, MAINTENANT,
+                MAINTENANT, null, 0, null);
     }
 
     @Test

@@ -23,6 +23,7 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingExc
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
+import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
@@ -66,6 +67,7 @@ class RiotConnectorApiTest {
     @Mock private PlayerSearchService playerSearchService;
     @Mock private KnownAccountIndex knownAccounts;
     @Mock private BackgroundCrawler crawler;
+    @Mock private LadderSampler sampler;
 
     private MockMvc mockMvc;
 
@@ -74,7 +76,7 @@ class RiotConnectorApiTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
                                 masteryService, ingestService, playerSearchService),
-                        new IngestController(ingestService, projector, knownAccounts, crawler),
+                        new IngestController(ingestService, projector, knownAccounts, crawler, sampler),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
                 .setControllerAdvice(new RiotExceptionHandler())
