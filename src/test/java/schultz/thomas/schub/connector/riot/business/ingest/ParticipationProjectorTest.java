@@ -22,7 +22,6 @@ import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
-import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchLobbyRepository;
@@ -55,7 +54,6 @@ class ParticipationProjectorTest {
     @Mock private CachedMatchRepository matches;
     @Mock private MatchParticipationRepository participations;
     @Mock private KnownAccountIndex knownAccounts;
-    @Mock private MetricScaleService metricScale;
     @Mock private MongoTemplate mongo;
     @Mock private MatchEarlyStatsRepository earlyStats;
     @Mock private RankHistory rankHistory;
@@ -66,7 +64,7 @@ class ParticipationProjectorTest {
     @BeforeEach
     void setUp() {
         projector = new ParticipationProjector(matches, participations, knownAccounts,
-                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo, earlyStats, rankHistory, lobbies);
+                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), mongo, earlyStats, rankHistory, lobbies);
     }
 
     @Test

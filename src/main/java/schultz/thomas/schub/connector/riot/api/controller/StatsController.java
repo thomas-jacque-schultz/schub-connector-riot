@@ -157,13 +157,13 @@ public class StatsController {
                 .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce poste."));
     }
 
-    @Operation(summary = "Référentiels du radar pour des joueurs à un poste",
+    @Operation(summary = "Palier et adversaires directs de joueurs à un poste",
             description = """
-                    Pour chaque joueur : les bornes des joueurs collectés de son palier au même poste
-                    (recalculées toutes les heures), et celles de ses adversaires directs sur la
-                    période. **Aucun appel à Riot** : le palier vient du dernier rang relevé.
+                    Pour chaque joueur : son dernier palier relevé, et les bornes p5–p95 de ses adversaires
+                    directs sur la période, calculées à la demande. Le palier lui-même se note avec
+                    `GET /stats/references/{poste}`.
 
-                    Un référentiel de moins de dix joueurs est rendu absent plutôt que bruité.""")
+                    Moins de dix adversaires : rendu absent plutôt que bruité.""")
     @PostMapping("/references")
     public List<PlayerReferences> references(@Valid @RequestBody ReferencesQuery query) {
         return metricScale.references(query.players());
