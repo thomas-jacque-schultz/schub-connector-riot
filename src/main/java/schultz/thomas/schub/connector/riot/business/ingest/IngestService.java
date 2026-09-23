@@ -40,7 +40,7 @@ public class IngestService {
         return new IngestEnqueueReport(puuid, queued, status());
     }
 
-    public int enqueueDetails(String puuid, Collection<String> matchIds) {
+    public int enqueueDetails(String puuid, Collection<String> matchIds, boolean background) {
         Set<String> wanted = new LinkedHashSet<>(matchIds);
         if (wanted.isEmpty()) {
             return 0;
@@ -55,8 +55,9 @@ public class IngestService {
             if (alreadyStored.contains(matchId)) {
                 continue;
             }
+            long sequence = IngestTask.sequenceOf(matchId);
             if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid,
-                    IngestTask.sequenceOf(matchId))) {
+                    background ? IngestTask.backgroundPriority(sequence) : sequence)) {
                 queued++;
             }
         }

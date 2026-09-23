@@ -74,7 +74,7 @@ public class IngestWorker {
 
     private void collectIds(IngestTask task) {
         IdSyncResult relevé = historyService.syncIds(task.key());
-        int queued = ingestService.enqueueDetails(task.key(), relevé.seen());
+        int queued = ingestService.enqueueDetails(task.key(), relevé.seen(), task.background());
         log.info("Historique relevé : {} ids vus, {} nouveaux, {} détails empilés.",
                 relevé.seen().size(), relevé.created(), queued);
     }

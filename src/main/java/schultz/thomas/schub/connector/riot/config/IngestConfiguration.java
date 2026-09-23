@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
+import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestWorker;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 
@@ -23,6 +24,7 @@ public class IngestConfiguration implements SchedulingConfigurer {
     private final RiotProperties properties;
     private final IngestWorker worker;
     private final MetricScaleService metricScale;
+    private final BackgroundCrawler crawler;
 
     @Bean
     public TaskScheduler ingestScheduler() {
@@ -38,5 +40,6 @@ public class IngestConfiguration implements SchedulingConfigurer {
         registrar.setTaskScheduler(ingestScheduler());
         registrar.addFixedDelayTask(worker::drain, properties.getIngest().getPollInterval());
         registrar.addFixedDelayTask(metricScale::refresh, Duration.ofHours(1));
+        registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
     }
 }

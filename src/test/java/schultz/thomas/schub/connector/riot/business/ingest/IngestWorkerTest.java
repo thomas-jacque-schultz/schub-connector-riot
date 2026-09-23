@@ -95,7 +95,7 @@ class IngestWorkerTest {
 
         worker.drain();
 
-        verify(ingestService).enqueueDetails("p1", List.of("EUW1_1", "EUW1_2"));
+        verify(ingestService).enqueueDetails("p1", List.of("EUW1_1", "EUW1_2"), false);
         verify(queue).complete(task);
     }
 

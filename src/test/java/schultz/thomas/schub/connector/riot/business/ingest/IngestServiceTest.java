@@ -64,10 +64,22 @@ class IngestServiceTest {
         when(queue.enqueue(eq(IngestTaskType.MATCH_DETAIL), eq("EUW1_NEUVE"), anyString(), anyLong()))
                 .thenReturn(true);
 
-        int empilées = service.enqueueDetails("p1", List.of("EUW1_DEJA", "EUW1_NEUVE"));
+        int empilées = service.enqueueDetails("p1", List.of("EUW1_DEJA", "EUW1_NEUVE"), false);
 
         assertThat(empilées).isEqualTo(1);
         verify(queue, never()).enqueue(any(), eq("EUW1_DEJA"), anyString(), anyLong());
+    }
+
+    @Test
+    @DisplayName("les parties de la collecte de fond passent après toutes celles des joueurs")
+    void collecteDeFondEnDernier() {
+        when(matches.findStoredIds(any())).thenReturn(List.of());
+
+        service.enqueueDetails("p1", List.of("EUW1_7000000000"), true);
+
+        verify(queue).enqueue(eq(IngestTaskType.MATCH_DETAIL), eq("EUW1_7000000000"), eq("p1"),
+                eq(IngestTask.backgroundPriority(7_000_000_000L)));
+        assertThat(IngestTask.backgroundPriority(Long.MAX_VALUE / 4)).isNegative();
     }
 
     @Test
