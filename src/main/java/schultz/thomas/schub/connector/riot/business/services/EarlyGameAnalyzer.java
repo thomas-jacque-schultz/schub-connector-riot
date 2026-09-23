@@ -163,6 +163,7 @@ final class EarlyGameAnalyzer {
             long a = fin + APRES_MS;
             int pertesDefense = 0;
             int pertesAttaque = 0;
+            List<String> morts = new ArrayList<>();
             for (Kill kill : kills) {
                 if (kill.t() < de || kill.t() > a || kill.zone() != lane) {
                     continue;
@@ -171,6 +172,7 @@ final class EarlyGameAnalyzer {
                 if (victime == null) {
                     continue;
                 }
+                morts.add(victime.puuid());
                 if (victime.teamId() == side) {
                     pertesAttaque++;
                 } else {
@@ -189,6 +191,7 @@ final class EarlyGameAnalyzer {
                     issue(pertesDefense, pertesAttaque),
                     pertesDefense,
                     pertesAttaque,
+                    morts,
                     objectif));
             i = j;
         }
