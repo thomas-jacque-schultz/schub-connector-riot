@@ -46,6 +46,17 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
             parPartie("killsDiffAt15", "$laning.killsDiffAt15"),
             new ReferenceMetric("winRate", new Document("$cond", List.of("$win", 1, 0)), PARTIE, Polarity.HIGHER, false));
 
+    // Un camp d'une partie à 15 minutes : écarts à l'autre camp, objectifs pris, ganks décisifs faits et subis.
+    public static final List<ReferenceMetric> EQUIPE = List.of(
+            parPartie("goldDiffAt15", "$goldDiffAt15"),
+            parPartie("xpDiffAt15", "$xpDiffAt15"),
+            parPartie("killsDiffAt15", "$killsDiffAt15"),
+            parPartie("dragons", "$dragons"),
+            parPartie("grubs", "$grubs"),
+            parPartie("heralds", "$heralds"),
+            parPartie("ganksDecisive", "$ganksDecisive"),
+            new ReferenceMetric("ganksConceded", "$ganksConceded", PARTIE, Polarity.LOWER, true));
+
     private static ReferenceMetric parMinute(String key, String champ) {
         return new ReferenceMetric(key, champ, MINUTES, Polarity.HIGHER, true);
     }

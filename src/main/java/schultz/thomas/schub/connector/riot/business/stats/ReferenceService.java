@@ -12,12 +12,12 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
+import schultz.thomas.schub.connector.riot.data.model.TeamSide;
 import schultz.thomas.schub.connector.riot.data.repository.StoredChampionReferenceRepository;
 import schultz.thomas.schub.connector.riot.data.repository.StoredReferenceRepository;
 
@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -41,6 +42,7 @@ public class ReferenceService {
 
     public static final String GAME = "GAME";
     public static final String MEAN = "MEAN";
+    public static final String TEAM = "TEAM";
     public static final List<String> PALIERS = List.of("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
             "DIAMOND", "MASTER_PLUS");
     static final List<String> POSTES = List.of("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY");
@@ -84,7 +86,7 @@ public class ReferenceService {
             });
             metriques.put(cle, new ReferenceGrid.Metric(polarite(cle), paliers, grille.ladder(), grille.missingTiers()));
         });
-        return new ReferenceGrid(reference.patches(), reference.scope(), TeamPosition.valueOf(reference.position()),
+        return new ReferenceGrid(reference.patches(), reference.scope(), reference.position(),
                 reference.computedAt(), reference.distribution(), reference.percentiles(), niveaux(), metriques);
     }
 
@@ -117,7 +119,7 @@ public class ReferenceService {
     }
 
     // Maître, GM et Challenger ne forment qu'un palier tant que la population ne permet pas de les séparer.
-    static String groupe(String tier) {
+    public static String groupe(String tier) {
         if (tier == null || tier.isBlank()) {
             return null;
         }
@@ -137,7 +139,7 @@ public class ReferenceService {
     }
 
     private static String polarite(String cle) {
-        return ReferenceMetric.CATALOGUE.stream()
+        return Stream.concat(ReferenceMetric.EQUIPE.stream(), ReferenceMetric.CATALOGUE.stream())
                 .filter(metrique -> metrique.key().equals(cle))
                 .map(metrique -> metrique.polarity().name())
                 .findFirst()
@@ -173,11 +175,33 @@ public class ReferenceService {
                         scope, poste, maintenant, properties.getLadder().getLabel(), PERCENTILES, metriques));
             }
         }
+        rendus.add(equipe(patchs, maintenant));
         store.saveAll(rendus);
         List<StoredChampionReference> parChampion = champions(patchs, maintenant);
         champions.saveAll(parChampion);
         log.info("Référentiels calculés sur les patchs {} : {} champions assez joués.", patchs, parChampion.size());
         return rendus;
+    }
+
+    private StoredReference equipe(List<String> patchs, Instant maintenant) {
+        Map<String, Map<String, StoredReference.TierGrid>> parMetrique = new HashMap<>();
+        mongo.getCollection(TeamSide.COLLECTION).aggregate(ReferencePipeline.parCamp(patchs, ReferenceMetric.EQUIPE))
+                .allowDiskUse(true).forEach(ligne -> {
+                    String palier = ligne.get("_id", Document.class).getString("tier");
+                    for (ReferenceMetric metrique : ReferenceMetric.EQUIPE) {
+                        long effectif = nombre(ligne.get("c_" + metrique.key())).longValue();
+                        List<?> valeurs = ligne.getList("q_" + metrique.key(), Object.class);
+                        if (effectif > 0 && valeurs != null) {
+                            parMetrique.computeIfAbsent(metrique.key(), cle -> new HashMap<>())
+                                    .put(palier, new StoredReference.TierGrid(effectif, monotone(valeurs)));
+                        }
+                    }
+                });
+        Map<String, StoredReference.Grid> metriques = new LinkedHashMap<>();
+        ReferenceMetric.EQUIPE.forEach(metrique -> metriques.put(metrique.key(),
+                grille(GAME, parMetrique.getOrDefault(metrique.key(), Map.of()))));
+        return new StoredReference(String.join("/", TEAM, TEAM, String.join("+", patchs)), patchs, TEAM, TEAM,
+                maintenant, properties.getLadder().getLabel(), PERCENTILES, metriques);
     }
 
     private List<StoredChampionReference> champions(List<String> patchs, Instant maintenant) {

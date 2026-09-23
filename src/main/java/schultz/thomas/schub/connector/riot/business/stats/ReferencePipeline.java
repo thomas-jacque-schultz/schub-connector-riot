@@ -89,6 +89,30 @@ final class ReferencePipeline {
         return new Document("case", new Document("$in", List.of("$tier", paliers))).append("then", groupe);
     }
 
+    // Un camp par ligne, déjà à 15 min : pas de dénominateur autre que « la valeur existe ».
+    static List<Document> parCamp(List<String> patchs, List<ReferenceMetric> metriques) {
+        Document filtre = new Document("patch", new Document("$in", patchs))
+                .append("queueId", new Document("$in", ReferenceService.FILES_CLASSEES))
+                .append("tier", new Document("$ne", null));
+        Document projection = new Document("tier", 1);
+        for (ReferenceMetric metrique : metriques) {
+            projection.append("n_" + metrique.key(), metrique.numerator())
+                    .append("d_" + metrique.key(), new Document("$cond", List.of(
+                            new Document("$isNumber", metrique.numerator()), metrique.denominator(), 0)));
+        }
+        Document groupe = new Document("_id", new Document("position", "TEAM").append("tier", "$tier"));
+        for (ReferenceMetric metrique : metriques) {
+            String k = metrique.key();
+            Document valeur = new Document("$cond", Arrays.asList(new Document("$gt", List.of("$d_" + k, 0)),
+                    new Document("$divide", List.of("$n_" + k, "$d_" + k)), null));
+            groupe.append("q_" + k, percentile(valeur))
+                    .append("c_" + k, new Document("$sum", new Document("$cond",
+                            List.of(new Document("$gt", List.of("$d_" + k, 0)), 1, 0))));
+        }
+        return List.of(new Document("$match", filtre), new Document("$project", projection),
+                new Document("$group", groupe));
+    }
+
     private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques, boolean moyenne) {
         Document filtre = new Document("patch", new Document("$in", patchs))
                 .append("queueId", new Document("$in", ReferenceService.FILES_CLASSEES))

@@ -19,6 +19,7 @@ public class ProjectionUpgrade {
     private final MatchEnrichmentService enrichment;
     private final RankHistory rankHistory;
     private final ReferenceService references;
+    private final TeamSideProjector teamSides;
 
     @EventListener(ApplicationReadyEvent.class)
     public void upgrade() {
@@ -31,6 +32,7 @@ public class ProjectionUpgrade {
         if (debuts > 0) {
             log.info("{} chiffres à 15 minutes recalculés depuis leur timeline.", debuts);
         }
+        teamSides.backfill();
         if (references.missing()) {
             references.refresh();
         }

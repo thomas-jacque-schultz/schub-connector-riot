@@ -117,6 +117,20 @@ public class StatsController {
         return patches.recent(Math.clamp(count, 1, 20));
     }
 
+    @Operation(summary = "Répartition des chiffres d'un camp à 15 minutes, par palier moyen du camp",
+            description = """
+                    Écarts d'or, d'XP et de kills à l'autre camp, objectifs pris, ganks décisifs faits et
+                    subis. Une partie par ligne : c'est une partie d'équipe qui se situe dedans, pas une moyenne.""")
+    @GetMapping("/references/team")
+    public ReferenceGrid teamGrid(@RequestParam(required = false) String patch,
+                                  @RequestParam(required = false) String tier) {
+        return (patch == null
+                ? references.latest(ReferenceService.TEAM, ReferenceService.TEAM)
+                : references.forPatch(ReferenceService.TEAM, ReferenceService.TEAM, patch))
+                .map(reference -> references.toGrid(reference, tier))
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence d'équipe calculée."));
+    }
+
     @Operation(summary = "Répartition des moyennes des joueurs d'un champion, dans le groupe de paliers donné",
             description = """
                     `tier` est le palier du joueur à noter ; il est ramené à son groupe (Or → SILVER_GOLD).

@@ -14,7 +14,7 @@ public record ReferenceGrid(
         List<String> patches,
         @Schema(description = "GAME : une partie isolée. MEAN : la moyenne d'un joueur à au moins 10 parties.")
         String scope,
-        TeamPosition position,
+        @Schema(description = "Un poste, ou TEAM pour un camp entier.") String position,
         Instant computedAt,
         @Schema(description = "La répartition du ladder utilisée, et sa date.") String distribution,
         @Schema(description = "Les rangs des quantiles de chaque grille, de 0 à 1.") List<Double> percentiles,
