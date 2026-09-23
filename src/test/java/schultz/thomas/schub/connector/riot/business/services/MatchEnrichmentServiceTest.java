@@ -44,8 +44,8 @@ class MatchEnrichmentServiceTest {
 
         Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw, List.of());
 
-        assertThat(a15.get("p1")).isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 1, 1, null));
-        assertThat(a15.get("p2")).isEqualTo(new MatchInsights.At15(5300, 6500, 95, 4100, 1, 1, 0, null));
+        assertThat(a15.get("p1")).isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 1, 1, null, null));
+        assertThat(a15.get("p2")).isEqualTo(new MatchInsights.At15(5300, 6500, 95, 4100, 1, 1, 0, null, null));
     }
 
     @Test
@@ -69,11 +69,11 @@ class MatchEnrichmentServiceTest {
                 "info", Map.of("frames", List.of(image)));
 
         assertThat(MatchEnrichmentService.a15(raw, List.of()).get("p1"))
-                .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0, null));
+                .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0, null, null));
     }
 
     @Test
-    @DisplayName("Un gank subi : une mort avant 15:00 où le jungler adverse tue ou assiste")
+    @DisplayName("Gank avant 15:00 : subi par le mort, réussi pour ceux qui tuent avec leur jungler")
     void ganksSubis() {
         List<String> puuids = List.of("top-bleu", "jgl-bleu", "top-rouge", "jgl-rouge");
         List<MatchParticipant> participants = List.of(
@@ -86,12 +86,24 @@ class MatchEnrichmentServiceTest {
                                 kill(400_000, 3, 1, List.of(4)),
                                 kill(500_000, 3, 1, List.of()),
                                 kill(600_000, 2, 3, List.of(1)))),
-                        image(900_000, 6000, 6000, List.of(kill(910_000, 4, 1, List.of()))))));
+                        quatreJoueurs(image(900_000, 6000, 6000, List.of(kill(910_000, 4, 1, List.of())))))));
 
         Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw, participants);
 
         assertThat(a15.get("top-bleu").ganksSuffered()).isEqualTo(2);
+        assertThat(a15.get("top-rouge").ganksSuffered()).isEqualTo(1);
         assertThat(a15.get("jgl-bleu").ganksSuffered()).isZero();
+
+        assertThat(a15.get("jgl-rouge").ganksSucceeded()).isEqualTo(2);
+        assertThat(a15.get("top-rouge").ganksSucceeded()).isEqualTo(1);
+        assertThat(a15.get("jgl-bleu").ganksSucceeded()).isEqualTo(1);
+        assertThat(a15.get("top-bleu").ganksSucceeded()).isEqualTo(1);
+    }
+
+    private static Document quatreJoueurs(Document image) {
+        Document frames = image.get("participantFrames", Document.class);
+        frames.append("3", frames.get("1")).append("4", frames.get("2"));
+        return image;
     }
 
     private static MatchParticipant joueur(String puuid, TeamPosition position, int teamId) {
