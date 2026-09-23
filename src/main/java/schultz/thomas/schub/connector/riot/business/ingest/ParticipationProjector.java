@@ -22,7 +22,9 @@ import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRep
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -40,8 +42,14 @@ public class ParticipationProjector {
 
     public int project(MatchDetail detail) {
         Instant now = clock.instant();
+        Map<Integer, int[]> equipes = new HashMap<>();
+        for (MatchParticipant participant : detail.participants()) {
+            int[] totaux = equipes.computeIfAbsent(participant.teamId(), id -> new int[2]);
+            totaux[0] += participant.kills();
+            totaux[1] += participant.deaths();
+        }
         List<MatchParticipation> rows = detail.participants().stream()
-                .map(participant -> toParticipation(detail, participant, now))
+                .map(participant -> toParticipation(detail, participant, equipes.get(participant.teamId()), now))
                 .toList();
         if (!rows.isEmpty()) {
             participations.saveAll(rows);
@@ -52,6 +60,10 @@ public class ParticipationProjector {
 
     public int project(CachedMatch cached) {
         return project(decoder.toDetail(cached.raw()));
+    }
+
+    public boolean outdated() {
+        return participations.existsByProjectionVersionNot(MatchParticipation.PROJECTION_VERSION);
     }
 
     public RebuildReport rebuildAll() {
@@ -95,7 +107,7 @@ public class ParticipationProjector {
     }
 
     private MatchParticipation toParticipation(MatchDetail detail, MatchParticipant participant,
-                                               Instant now) {
+                                               int[] equipe, Instant now) {
         return new MatchParticipation(
                 MatchParticipation.idOf(participant.puuid(), detail.matchId()),
                 participant.puuid(),
@@ -124,7 +136,10 @@ public class ParticipationProjector {
                 participant.damageToChampions(),
                 participant.damageTaken(),
                 participant.visionScore(),
+                equipe[0],
+                equipe[1],
                 participant.afk(),
+                MatchParticipation.PROJECTION_VERSION,
                 now);
     }
 

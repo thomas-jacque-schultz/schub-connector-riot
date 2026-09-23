@@ -65,6 +65,8 @@ public class ParticipationStatsService {
                 .sum("damageToChampions").as("damageToChampions")
                 .sum("damageTaken").as("damageTaken")
                 .sum("visionScore").as("visionScore")
+                .sum("teamKills").as("teamKills")
+                .sum("teamDeaths").as("teamDeaths")
                 .sum("durationSeconds").as("secondsPlayed")
                 .min("startedAt").as("firstPlayedAt")
                 .max("startedAt").as("lastPlayedAt");
@@ -94,6 +96,8 @@ public class ParticipationStatsService {
                     entier(row, "damageToChampions"),
                     entier(row, "damageTaken"),
                     entier(row, "visionScore"),
+                    entier(row, "teamKills"),
+                    entier(row, "teamDeaths"),
                     entier(row, "afkGames"),
                     entier(row, "secondsPlayed"),
                     instant(row, "firstPlayedAt"),
@@ -115,7 +119,7 @@ public class ParticipationStatsService {
                             bucket.games(), bucket.wins(), bucket.kills(), bucket.deaths(),
                             bucket.assists(), bucket.minionsKilled(), bucket.goldEarned(),
                             bucket.damageToChampions(), bucket.damageTaken(), bucket.visionScore(),
-                            bucket.afkGames(),
+                            bucket.teamKills(), bucket.teamDeaths(), bucket.afkGames(),
                             bucket.secondsPlayed(), bucket.firstPlayedAt(), bucket.lastPlayedAt()),
                     ParticipationStatsService::additionne);
         }
@@ -134,6 +138,8 @@ public class ParticipationStatsService {
                 a.damageToChampions() + b.damageToChampions(),
                 a.damageTaken() + b.damageTaken(),
                 a.visionScore() + b.visionScore(),
+                a.teamKills() + b.teamKills(),
+                a.teamDeaths() + b.teamDeaths(),
                 a.afkGames() + b.afkGames(),
                 a.secondsPlayed() + b.secondsPlayed(),
                 plusTot(a.firstPlayedAt(), b.firstPlayedAt()),

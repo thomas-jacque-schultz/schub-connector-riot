@@ -10,6 +10,7 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
@@ -60,6 +61,7 @@ public class MatchEnrichmentService {
         Set<String> avecTimeline = timelines.findStoredIds(voulues).stream()
                 .map(CachedTimeline::matchId).collect(Collectors.toSet());
         Set<String> avecDebut = earlyStats.findByMatchIdIn(voulues).stream()
+                .filter(debut -> debut.version() == MatchEarlyStats.CURRENT_VERSION)
                 .map(MatchEarlyStats::matchId).collect(Collectors.toSet());
         avecTimeline.stream().filter(matchId -> !avecDebut.contains(matchId)).forEach(this::recalculeDebut);
         Set<String> avecRangs = rankSnapshots.findByMatchIdIn(voulues).stream()
@@ -89,15 +91,28 @@ public class MatchEnrichmentService {
         riotApiClient.timeline(matchId).ifPresentOrElse(
                 raw -> {
                     timelines.save(new CachedTimeline(matchId, raw, clock.instant()));
-                    earlyStats.save(new MatchEarlyStats(matchId, a15(raw)));
+                    earlyStats.save(debut(matchId, raw));
                 },
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
     }
 
     // Sans appel à Riot : le brut est déjà là.
     private void recalculeDebut(String matchId) {
-        timelines.findById(matchId).ifPresent(timeline ->
-                earlyStats.save(new MatchEarlyStats(matchId, a15(timeline.raw()))));
+        timelines.findById(matchId).ifPresent(timeline -> earlyStats.save(debut(matchId, timeline.raw())));
+    }
+
+    public int recalculePerimes() {
+        List<MatchEarlyStats> perimes = earlyStats.findOutdatedIds(MatchEarlyStats.CURRENT_VERSION);
+        perimes.forEach(debut -> recalculeDebut(debut.matchId()));
+        return perimes.size();
+    }
+
+    private MatchEarlyStats debut(String matchId, Map<String, Object> timeline) {
+        List<MatchParticipant> participants = matches.findById(matchId)
+                .filter(cached -> cached.raw() != null)
+                .map(cached -> decoder.toDetail(cached.raw()).participants())
+                .orElse(List.of());
+        return new MatchEarlyStats(matchId, a15(timeline, participants), MatchEarlyStats.CURRENT_VERSION);
     }
 
     public void collectRanks(String matchId) {
@@ -154,7 +169,7 @@ public class MatchEnrichmentService {
 
     // participantId 1 à 10 dans l'ordre de metadata.participants ; une image par minute.
     // Le brut fraîchement reçu porte des Map imbriquées, celui relu de Mongo des Document : on lit des Map.
-    static Map<String, MatchInsights.At15> a15(Map<String, Object> raw) {
+    static Map<String, MatchInsights.At15> a15(Map<String, Object> raw, List<MatchParticipant> participants) {
         Map<String, Object> metadata = objet(raw, "metadata");
         Map<String, Object> info = objet(raw, "info");
         List<Object> puuids = liste(metadata, "participants");
@@ -171,7 +186,19 @@ public class MatchEnrichmentService {
             return Map.of();
         }
 
+        Map<String, MatchParticipant> participantParPuuid = new HashMap<>();
+        participants.forEach(participant -> participantParPuuid.put(participant.puuid(), participant));
+        Map<Integer, MatchParticipant> parId = new HashMap<>();
+        for (int index = 0; index < puuids.size(); index++) {
+            MatchParticipant participant = participantParPuuid.get(String.valueOf(puuids.get(index)));
+            if (participant != null) {
+                parId.put(index + 1, participant);
+            }
+        }
+        boolean postesConnus = parId.size() == puuids.size();
+
         Map<Integer, int[]> kda = new HashMap<>();
+        Map<Integer, Integer> ganks = new HashMap<>();
         for (Object frame : frames) {
             for (Object brut : liste(enObjet(frame), "events")) {
                 Map<String, Object> event = enObjet(brut);
@@ -184,6 +211,10 @@ public class MatchEnrichmentService {
                     if (aide instanceof Number id) {
                         kda.computeIfAbsent(id.intValue(), cle -> new int[3])[2]++;
                     }
+                }
+                int victime = (int) nombre(event, "victimId");
+                if (postesConnus && jungleAdverseImplique(event, victime, parId)) {
+                    ganks.merge(victime, 1, Integer::sum);
                 }
             }
         }
@@ -203,9 +234,27 @@ public class MatchEnrichmentService {
                     (int) nombre(pf, "xp"),
                     (int) (nombre(pf, "minionsKilled") + nombre(pf, "jungleMinionsKilled")),
                     (int) nombre(degats, "totalDamageDoneToChampions"),
-                    siens[0], siens[1], siens[2]));
+                    siens[0], siens[1], siens[2],
+                    postesConnus ? ganks.getOrDefault(participantId, 0) : null));
         }
         return parPuuid;
+    }
+
+    private static boolean jungleAdverseImplique(Map<String, Object> event, int victime,
+                                                 Map<Integer, MatchParticipant> parId) {
+        MatchParticipant cible = parId.get(victime);
+        if (cible == null) {
+            return false;
+        }
+        List<Integer> impliques = new ArrayList<>();
+        impliques.add((int) nombre(event, "killerId"));
+        for (Object aide : liste(event, "assistingParticipantIds")) {
+            if (aide instanceof Number id) {
+                impliques.add(id.intValue());
+            }
+        }
+        return impliques.stream().map(parId::get).anyMatch(acteur -> acteur != null
+                && acteur.position() == TeamPosition.JUNGLE && acteur.teamId() != cible.teamId());
     }
 
     @SuppressWarnings("unchecked")
