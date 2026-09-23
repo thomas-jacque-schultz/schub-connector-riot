@@ -116,9 +116,8 @@ public class ReferenceService {
     }
 
     public List<StoredReference> refresh() {
-        mongo.indexOps(MatchParticipation.COLLECTION)
-                .ensureIndex(new Index().on("patch", Sort.Direction.ASC).on("queueId", Sort.Direction.ASC)
-                        .named("patch_queueId"));
+        mongo.indexOps(MatchParticipation.COLLECTION).ensureIndex(new Index()
+                .on("patch", Sort.Direction.ASC).on("startedAt", Sort.Direction.ASC).named(PatchCalendar.INDEX));
         List<String> patchs = derniersPatchs();
         if (patchs.isEmpty()) {
             return List.of();
