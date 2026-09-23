@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
@@ -114,6 +115,16 @@ public class StatsController {
     @GetMapping("/patches")
     public List<PatchStart> patches(@RequestParam(defaultValue = "4") int count) {
         return patches.recent(Math.clamp(count, 1, 20));
+    }
+
+    @Operation(summary = "Répartition des moyennes des joueurs d'un champion, dans le groupe de paliers donné",
+            description = """
+                    `tier` est le palier du joueur à noter ; il est ramené à son groupe (Or → SILVER_GOLD).
+                    Une métrique absente de la réponse : pas assez de joueurs, se rabattre sur le poste.""")
+    @GetMapping("/references/champions/{championId}")
+    public ChampionReferenceGrid championGrid(@PathVariable int championId, @RequestParam String tier) {
+        return references.championGrid(championId, tier)
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce champion."));
     }
 
     @Operation(summary = "Répartition des métriques à un poste, par palier et sur tout le ladder",

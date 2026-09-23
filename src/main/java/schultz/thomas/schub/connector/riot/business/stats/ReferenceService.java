@@ -10,12 +10,15 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
+import schultz.thomas.schub.connector.riot.data.repository.StoredChampionReferenceRepository;
 import schultz.thomas.schub.connector.riot.data.repository.StoredReferenceRepository;
 
 import java.time.Clock;
@@ -47,12 +50,14 @@ public class ReferenceService {
     static final int PARTIES_PAR_JOUEUR = 10;
     static final int MINIMUM_PARTIES = 200;
     static final int MINIMUM_JOUEURS = 30;
+    static final int PARTIES_PAR_CHAMPION = 5;
     static final long DUREE_MINIMUM = 600;
     private static final Duration RECUL_PATCHS = Duration.ofDays(120);
     private static final int RETAMPONNAGE_MAX = 20_000;
 
     private final MongoTemplate mongo;
     private final StoredReferenceRepository store;
+    private final StoredChampionReferenceRepository champions;
     private final ParticipationProjector projector;
     private final RiotProperties properties;
     private final Clock clock;
@@ -81,6 +86,34 @@ public class ReferenceService {
         });
         return new ReferenceGrid(reference.patches(), reference.scope(), TeamPosition.valueOf(reference.position()),
                 reference.computedAt(), reference.distribution(), reference.percentiles(), niveaux(), metriques);
+    }
+
+    public Optional<ChampionReferenceGrid> championGrid(int championId, String tier) {
+        String groupe = groupeChampion(tier);
+        return champions.findFirstByChampionIdOrderByComputedAtDesc(championId).map(reference -> {
+            Map<String, ChampionReferenceGrid.Metric> metriques = new LinkedHashMap<>();
+            reference.metrics().forEach((cle, parGroupe) -> {
+                StoredReference.TierGrid grille = groupe == null ? null : parGroupe.get(groupe);
+                if (grille != null) {
+                    metriques.put(cle, new ChampionReferenceGrid.Metric(polarite(cle), grille.count(), grille.values()));
+                }
+            });
+            return new ChampionReferenceGrid(championId, groupe, reference.patches(), reference.computedAt(),
+                    reference.percentiles(), metriques);
+        });
+    }
+
+    static String groupeChampion(String tier) {
+        String groupe = groupe(tier);
+        if (groupe == null) {
+            return null;
+        }
+        return switch (groupe) {
+            case "IRON", "BRONZE" -> "IRON_BRONZE";
+            case "SILVER", "GOLD" -> "SILVER_GOLD";
+            case "PLATINUM", "EMERALD" -> "PLATINUM_EMERALD";
+            default -> groupe;
+        };
     }
 
     // Maître, GM et Challenger ne forment qu'un palier tant que la population ne permet pas de les séparer.
@@ -141,7 +174,33 @@ public class ReferenceService {
             }
         }
         store.saveAll(rendus);
-        log.info("Référentiels calculés sur les patchs {}.", patchs);
+        List<StoredChampionReference> parChampion = champions(patchs, maintenant);
+        champions.saveAll(parChampion);
+        log.info("Référentiels calculés sur les patchs {} : {} champions assez joués.", patchs, parChampion.size());
+        return rendus;
+    }
+
+    private List<StoredChampionReference> champions(List<String> patchs, Instant maintenant) {
+        Map<Integer, Map<String, Map<String, StoredReference.TierGrid>>> parChampion = new HashMap<>();
+        List<Document> pipeline = ReferencePipeline.parChampion(patchs, ReferenceMetric.CATALOGUE, PARTIES_PAR_CHAMPION);
+        mongo.getCollection(MatchParticipation.COLLECTION).aggregate(pipeline).allowDiskUse(true).forEach(ligne -> {
+            Document id = ligne.get("_id", Document.class);
+            int championId = nombre(id.get("championId")).intValue();
+            String groupe = id.getString("tier");
+            for (ReferenceMetric metrique : ReferenceMetric.CATALOGUE) {
+                long effectif = nombre(ligne.get("c_" + metrique.key())).longValue();
+                List<?> valeurs = ligne.getList("q_" + metrique.key(), Object.class);
+                if (effectif < MINIMUM_JOUEURS || valeurs == null) {
+                    continue;
+                }
+                parChampion.computeIfAbsent(championId, cle -> new HashMap<>())
+                        .computeIfAbsent(metrique.key(), cle -> new HashMap<>())
+                        .put(groupe, new StoredReference.TierGrid(effectif, monotone(valeurs)));
+            }
+        });
+        List<StoredChampionReference> rendus = new ArrayList<>();
+        parChampion.forEach((championId, metriques) -> rendus.add(new StoredChampionReference(
+                championId + "/" + String.join("+", patchs), championId, patchs, maintenant, PERCENTILES, metriques)));
         return rendus;
     }
 

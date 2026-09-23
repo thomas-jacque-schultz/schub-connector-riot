@@ -54,6 +54,41 @@ final class ReferencePipeline {
         return pipeline;
     }
 
+    // Par joueur et par champion, tous postes confondus : un champion se joue presque toujours à un ou deux postes.
+    static List<Document> parChampion(List<String> patchs, List<ReferenceMetric> metriques, int partiesParJoueur) {
+        List<Document> pipeline = new ArrayList<>(base(patchs, metriques, true));
+        pipeline.add(new Document("$sort", new Document("startedAt", 1)));
+        Document joueur = new Document("_id", new Document("puuid", "$puuid").append("championId", "$championId"))
+                .append("tier", new Document("$last", "$tier"))
+                .append("games", new Document("$sum", 1));
+        for (ReferenceMetric metrique : metriques) {
+            joueur.append("n_" + metrique.key(), new Document("$sum", "$n_" + metrique.key()))
+                    .append("d_" + metrique.key(), new Document("$sum", "$d_" + metrique.key()));
+        }
+        pipeline.add(new Document("$group", joueur));
+        pipeline.add(new Document("$match", new Document("games", new Document("$gte", partiesParJoueur))));
+        pipeline.add(new Document("$addFields", new Document("groupe", new Document("$switch", new Document("branches", List.of(
+                branche(List.of("IRON", "BRONZE"), "IRON_BRONZE"),
+                branche(List.of("SILVER", "GOLD"), "SILVER_GOLD"),
+                branche(List.of("PLATINUM", "EMERALD"), "PLATINUM_EMERALD")))
+                .append("default", "$tier")))));
+        Document groupe = new Document("_id", new Document("championId", "$_id.championId").append("tier", "$groupe"));
+        for (ReferenceMetric metrique : metriques) {
+            String k = metrique.key();
+            Document valeur = new Document("$cond", Arrays.asList(new Document("$gt", List.of("$d_" + k, 0)),
+                    new Document("$divide", List.of("$n_" + k, "$d_" + k)), null));
+            groupe.append("q_" + k, percentile(valeur))
+                    .append("c_" + k, new Document("$sum", new Document("$cond",
+                            List.of(new Document("$gt", List.of("$d_" + k, 0)), 1, 0))));
+        }
+        pipeline.add(new Document("$group", groupe));
+        return pipeline;
+    }
+
+    private static Document branche(List<String> paliers, String groupe) {
+        return new Document("case", new Document("$in", List.of("$tier", paliers))).append("then", groupe);
+    }
+
     private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques, boolean moyenne) {
         Document filtre = new Document("patch", new Document("$in", patchs))
                 .append("queueId", new Document("$in", ReferenceService.FILES_CLASSEES))
@@ -61,7 +96,7 @@ final class ReferencePipeline {
                 .append("durationSeconds", new Document("$gte", ReferenceService.DUREE_MINIMUM))
                 .append("position", new Document("$in", ReferenceService.POSTES))
                 .append("rank.tier", new Document("$ne", null));
-        Document projection = new Document("puuid", 1).append("position", 1).append("startedAt", 1)
+        Document projection = new Document("puuid", 1).append("position", 1).append("startedAt", 1).append("championId", 1)
                 .append("tier", new Document("$cond", List.of(
                         new Document("$in", List.of("$rank.tier", List.of("MASTER", "GRANDMASTER", "CHALLENGER"))),
                         "MASTER_PLUS", "$rank.tier")));
