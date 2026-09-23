@@ -13,6 +13,8 @@ public record SharedMatchesQuery(
         @Positive int minimumPlayers,
         Instant since,
         Integer limit,
-        @Schema(description = "Empile timeline et rangs des parties rendues qui ne les ont pas encore.") Boolean enrich
+        @Schema(description = "Empile timeline et rangs des parties rendues qui ne les ont pas encore.") Boolean enrich,
+        @Schema(description = "Restreint la recherche à ces parties : vérifier qu'une partie est commune sans relire tout l'historique.")
+        List<String> matchIds
 ) {
 }
