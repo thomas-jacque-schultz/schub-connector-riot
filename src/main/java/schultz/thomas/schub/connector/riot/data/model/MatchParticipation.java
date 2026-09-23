@@ -42,10 +42,11 @@ public record MatchParticipation(
         int damageToChampions,
         int damageTaken,
         int visionScore,
-        int teamKills,
-        int teamDeaths,
+        // Absents des lignes projetées avant la version 2, le temps que le démarrage les reprojette.
+        Integer teamKills,
+        Integer teamDeaths,
         boolean afk,
-        int projectionVersion,
+        Integer projectionVersion,
         Instant projectedAt
 ) {
 
