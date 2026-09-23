@@ -13,7 +13,7 @@ final class ReferencePipeline {
     }
 
     static List<Document> parPartie(List<String> patchs, List<ReferenceMetric> metriques) {
-        List<Document> pipeline = new ArrayList<>(base(patchs, metriques));
+        List<Document> pipeline = new ArrayList<>(base(patchs, metriques, false));
         Document groupe = new Document("_id", new Document("position", "$position").append("tier", "$tier"));
         for (ReferenceMetric metrique : metriques) {
             String k = metrique.key();
@@ -29,7 +29,7 @@ final class ReferencePipeline {
 
     // Rapport des sommes par joueur, puis la répartition de ces moyennes. Palier retenu : le plus récent de la fenêtre.
     static List<Document> parMoyenne(List<String> patchs, List<ReferenceMetric> metriques) {
-        List<Document> pipeline = new ArrayList<>(base(patchs, metriques));
+        List<Document> pipeline = new ArrayList<>(base(patchs, metriques, true));
         pipeline.add(new Document("$sort", new Document("startedAt", 1)));
         Document joueur = new Document("_id", new Document("puuid", "$puuid").append("position", "$position"))
                 .append("tier", new Document("$last", "$tier"))
@@ -54,7 +54,7 @@ final class ReferencePipeline {
         return pipeline;
     }
 
-    private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques) {
+    private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques, boolean moyenne) {
         Document filtre = new Document("patch", new Document("$in", patchs))
                 .append("queueId", new Document("$in", ReferenceService.FILES_CLASSEES))
                 .append("afk", false)
@@ -68,7 +68,8 @@ final class ReferencePipeline {
         for (ReferenceMetric metrique : metriques) {
             projection.append("n_" + metrique.key(), metrique.numerator())
                     .append("d_" + metrique.key(), new Document("$cond", List.of(
-                            new Document("$isNumber", metrique.numerator()), metrique.denominator(), 0)));
+                            new Document("$isNumber", metrique.numerator()),
+                            moyenne ? metrique.meanDenominator() : metrique.denominator(), 0)));
         }
         return List.of(new Document("$match", filtre), new Document("$project", projection));
     }
