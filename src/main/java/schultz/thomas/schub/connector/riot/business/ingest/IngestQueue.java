@@ -45,19 +45,16 @@ public class IngestQueue {
     }
 
     // Sans la collecte de fond : ses tâches restent en file, intactes, jusqu'à sa réactivation.
+    // Index {state, priority} : la file se lit dans l'ordre et la lecture s'arrête à la première tâche mûre.
     public Optional<IngestTask> claim(Duration lease, boolean includeBackground) {
         Instant now = clock.instant();
-        Criteria claimable = new Criteria().orOperator(
-                Criteria.where("state").is(IngestTaskState.PENDING),
-                new Criteria().andOperator(
-                        Criteria.where("state").is(IngestTaskState.RUNNING),
-                        Criteria.where("leaseUntil").lt(now)));
+        requeueExpired(now);
 
-        Criteria eligible = includeBackground
-                ? Criteria.where("notBefore").lte(now)
-                : Criteria.where("notBefore").lte(now).and("priority").gte(0);
-        Query query = Query.query(new Criteria().andOperator(eligible, claimable))
-                .with(Sort.by(Sort.Direction.DESC, "priority"));
+        Criteria mures = Criteria.where("state").is(IngestTaskState.PENDING).and("notBefore").lte(now);
+        if (!includeBackground) {
+            mures = mures.and("priority").gte(0);
+        }
+        Query query = Query.query(mures).with(Sort.by(Sort.Direction.DESC, "priority"));
 
         Update update = new Update()
                 .set("state", IngestTaskState.RUNNING)
@@ -65,6 +62,13 @@ public class IngestQueue {
 
         return Optional.ofNullable(mongo.findAndModify(query, update,
                 FindAndModifyOptions.options().returnNew(true), IngestTask.class));
+    }
+
+    // Bail expiré : l'ouvrier est mort en route, la tâche repart avec sa priorité.
+    private void requeueExpired(Instant now) {
+        mongo.updateMulti(Query.query(Criteria.where("state").is(IngestTaskState.RUNNING).and("leaseUntil").lt(now)),
+                new Update().set("state", IngestTaskState.PENDING).unset("leaseUntil"),
+                IngestTask.class);
     }
 
     public void complete(IngestTask task) {

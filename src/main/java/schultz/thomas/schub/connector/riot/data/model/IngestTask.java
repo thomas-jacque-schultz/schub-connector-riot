@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
 
 @Document("riot_ingest_task")
-@CompoundIndex(name = "claim", def = "{'state': 1, 'notBefore': 1, 'priority': -1}")
+@CompoundIndex(name = "state_priority", def = "{'state': 1, 'priority': -1}")
 public record IngestTask(
         @Id String id,
         IngestTaskType type,

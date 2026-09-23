@@ -149,10 +149,8 @@ public class MatchHistoryService {
     }
 
     private Instant newestKnownMatchAt(String puuid) {
-        return playerMatches.findByPuuidOrderByPlayedAtDesc(puuid).stream()
+        return playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(puuid)
                 .map(PlayerMatchRef::playedAt)
-                .filter(java.util.Objects::nonNull)
-                .max(Comparator.naturalOrder())
                 .orElse(null);
     }
 }

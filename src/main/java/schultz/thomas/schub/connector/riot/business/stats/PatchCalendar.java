@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.bson.Document;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -21,13 +20,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PatchCalendar {
 
-    static final String INDEX = "patch_startedAt";
 
     private final MongoTemplate mongo;
 
     public List<PatchStart> recent(int count) {
-        mongo.indexOps(MatchParticipation.COLLECTION).ensureIndex(new Index()
-                .on("patch", Sort.Direction.ASC).on("startedAt", Sort.Direction.ASC).named(INDEX));
         return mongo.findDistinct(new Query(), "patch", MatchParticipation.COLLECTION, String.class).stream()
                 .filter(patch -> patch != null && patch.matches("\\d+\\.\\d+"))
                 .sorted(ReferenceService.parVersion().reversed())

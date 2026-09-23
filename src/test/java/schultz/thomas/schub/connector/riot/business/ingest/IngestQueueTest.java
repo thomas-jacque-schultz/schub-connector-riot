@@ -57,9 +57,13 @@ class IngestQueueTest {
     void rattrapeLesTachesOrphelines() {
         queue.claim(Duration.ofMinutes(15));
 
-        String requête = captureQuery().getQueryObject().toString();
-        assertThat(requête).contains("RUNNING").contains("leaseUntil").contains("$lt");
-        assertThat(requête).contains("PENDING");
+        ArgumentCaptor<Query> orphelines = ArgumentCaptor.forClass(Query.class);
+        ArgumentCaptor<UpdateDefinition> remise = ArgumentCaptor.forClass(UpdateDefinition.class);
+        verify(mongo).updateMulti(orphelines.capture(), remise.capture(), eq(IngestTask.class));
+        assertThat(orphelines.getValue().getQueryObject().toString())
+                .contains("RUNNING").contains("leaseUntil").contains("$lt");
+        assertThat(remise.getValue().getUpdateObject().toString()).contains("PENDING");
+        assertThat(captureQuery().getQueryObject().toString()).contains("PENDING").doesNotContain("$or");
     }
 
     @Test

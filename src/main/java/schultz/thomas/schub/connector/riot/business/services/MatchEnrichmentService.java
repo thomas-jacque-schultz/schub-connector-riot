@@ -5,12 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.stereotype.Service;
 
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
@@ -22,16 +20,19 @@ import schultz.thomas.schub.connector.riot.data.model.CachedTimelineDigest;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineDigestRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchRankSnapshotRepository;
 
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ public class MatchEnrichmentService {
     private final ParticipationProjector projector;
     private final TeamSideProjector teamSides;
     private final MatchRankSnapshotRepository rankSnapshots;
+    private final MatchParticipationRepository participations;
     private final MatchEarlyStatsRepository earlyStats;
     private final RiotApiClient riotApiClient;
     private final RankingService rankingService;
@@ -168,28 +170,30 @@ public class MatchEnrichmentService {
         Map<String, MatchRankSnapshot> parRangs = rankSnapshots.findByMatchIdIn(voulues).stream()
                 .collect(Collectors.toMap(MatchRankSnapshot::matchId, Function.identity()));
 
+        // Les participations portent déjà les places : relire le brut (≈ 85 ko par partie) ne servirait qu'à ça.
+        Map<String, List<MatchParticipation>> places = new LinkedHashMap<>();
+        participations.findSeatsByMatchIdIn(voulues).stream()
+                .sorted(Comparator.comparingInt(MatchParticipation::side)
+                        .thenComparing(MatchParticipation::position, Comparator.nullsLast(Comparator.naturalOrder())))
+                .forEach(ligne -> places.computeIfAbsent(ligne.matchId(), id -> new ArrayList<>()).add(ligne));
+
         List<MatchInsights> rendus = new ArrayList<>();
-        for (CachedMatch cached : matches.findByMatchIdIn(voulues)) {
-            if (cached.raw() == null) {
-                continue;
-            }
-            MatchDetail detail = decoder.toDetail(cached.raw());
-            MatchEarlyStats debut = parDebut.get(detail.matchId());
-            MatchRankSnapshot rangs = parRangs.get(detail.matchId());
+        for (Map.Entry<String, List<MatchParticipation>> partie : places.entrySet()) {
+            MatchEarlyStats debut = parDebut.get(partie.getKey());
+            MatchRankSnapshot rangs = parRangs.get(partie.getKey());
             Map<String, MatchInsights.At15> a15 = debut == null ? Map.of() : debut.byPuuid();
             rendus.add(new MatchInsights(
-                    detail.matchId(),
+                    partie.getKey(),
                     debut != null,
                     rangs == null ? null : rangs.observedAt(),
                     debut == null ? null : debut.game(),
-                    detail.participants().stream()
-                            .map(participant -> {
+                    partie.getValue().stream()
+                            .map(place -> {
                                 List<RankedStanding> siens = rangs == null ? List.of()
-                                        : rangs.byPuuid().getOrDefault(participant.puuid(), List.of());
-                                return new MatchInsights.Participant(participant.puuid(),
-                                        participant.teamId(), participant.position(),
-                                        participant.championId(), file(siens, QueueKind.RANKED_SOLO),
-                                        file(siens, QueueKind.RANKED_FLEX), a15.get(participant.puuid()));
+                                        : rangs.byPuuid().getOrDefault(place.puuid(), List.of());
+                                return new MatchInsights.Participant(place.puuid(), place.side(), place.position(),
+                                        place.championId(), file(siens, QueueKind.RANKED_SOLO),
+                                        file(siens, QueueKind.RANKED_FLEX), a15.get(place.puuid()));
                             })
                             .toList()));
         }

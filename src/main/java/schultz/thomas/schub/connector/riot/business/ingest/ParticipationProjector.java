@@ -44,7 +44,7 @@ import java.util.Set;
 public class ParticipationProjector {
 
     private static final int REBUILD_PAGE = 200;
-    static final Duration RANG_TOLERANCE = Duration.ofDays(30);
+    public static final Duration RANG_TOLERANCE = Duration.ofDays(30);
 
     private final CachedMatchRepository matches;
     private final MatchParticipationRepository participations;
