@@ -18,6 +18,7 @@ import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotChampionMasteryResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueEntryResponse;
+import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueListResponse;
 
 import java.net.URI;
 import java.time.Duration;
@@ -42,6 +43,8 @@ public class RiotApiClient {
     private static final ParameterizedTypeReference<List<RiotLeagueEntryResponse>> LEAGUE_ENTRIES =
             new ParameterizedTypeReference<>() { };
     private static final ParameterizedTypeReference<List<RiotChampionMasteryResponse>> MASTERIES =
+            new ParameterizedTypeReference<>() { };
+    private static final ParameterizedTypeReference<RiotLeagueListResponse> LEAGUE_LIST =
             new ParameterizedTypeReference<>() { };
 
     private final RestClient regional;
@@ -102,6 +105,42 @@ public class RiotApiClient {
         return call(platform, "league-v4 entries", LEAGUE_ENTRIES, uri -> uri
                 .path("/lol/league/v4/entries/by-puuid/{puuid}")
                 .build(puuid)).orElseGet(List::of);
+    }
+
+    public List<String> rankedMatchIds(String puuid, int queueId, int count) {
+        return call(regional, "match-v5 ids", MATCH_IDS, uri -> uri
+                .path("/lol/match/v5/matches/by-puuid/{puuid}/ids")
+                .queryParam("queue", queueId)
+                .queryParam("start", 0)
+                .queryParam("count", count)
+                .build(puuid)).orElseGet(List::of);
+    }
+
+    // 205 joueurs par page avec leur puuid (vérifié le 23-09) ; au-delà de la dernière page, une liste vide.
+    public List<RiotLeagueEntryResponse> ladderPage(String queue, String tier, String division, int page) {
+        return call(platform, "league-v4 entries by division", LEAGUE_ENTRIES, uri -> uri
+                .path("/lol/league/v4/entries/{queue}/{tier}/{division}")
+                .queryParam("page", page)
+                .build(queue, tier, division)).orElseGet(List::of);
+    }
+
+    // Toute la ligue en un appel (301 Challenger le 23-09).
+    public List<RiotLeagueEntryResponse> apexLeague(String queue, String tier) {
+        String ligue = switch (tier) {
+            case "CHALLENGER" -> "challengerleagues";
+            case "GRANDMASTER" -> "grandmasterleagues";
+            case "MASTER" -> "masterleagues";
+            default -> throw new IllegalArgumentException("Pas une ligue au sommet : " + tier);
+        };
+        return call(platform, "league-v4 " + ligue, LEAGUE_LIST, uri -> uri
+                .path("/lol/league/v4/{ligue}/by-queue/{queue}")
+                .build(ligue, queue))
+                .map(liste -> liste.entries() == null ? List.<RiotLeagueEntryResponse>of() : liste.entries().stream()
+                        .map(entree -> new RiotLeagueEntryResponse(entree.puuid(), queue, tier, entree.rank(),
+                                entree.leaguePoints(), entree.wins(), entree.losses(), entree.hotStreak(),
+                                entree.veteran(), entree.freshBlood(), entree.inactive()))
+                        .toList())
+                .orElseGet(List::of);
     }
 
     public List<RiotChampionMasteryResponse> masteries(String puuid) {
