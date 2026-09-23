@@ -18,4 +18,6 @@ public interface MatchParticipationRepository extends MongoRepository<MatchParti
     List<MatchParticipation> findByMatchIdIn(Collection<String> matchIds);
 
     long countByPuuid(String puuid);
+
+    boolean existsByProjectionVersionNot(int projectionVersion);
 }

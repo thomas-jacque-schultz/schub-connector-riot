@@ -42,9 +42,15 @@ public record MatchParticipation(
         int damageToChampions,
         int damageTaken,
         int visionScore,
+        int teamKills,
+        int teamDeaths,
         boolean afk,
+        int projectionVersion,
         Instant projectedAt
 ) {
+
+    // À incrémenter quand un champ dérivé du brut change : le démarrage reprojette alors tout.
+    public static final int PROJECTION_VERSION = 2;
 
     public static String idOf(String puuid, String matchId) {
         return puuid + "#" + matchId;

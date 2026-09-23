@@ -21,6 +21,8 @@ public record ParticipationBucket(
         long damageToChampions,
         long damageTaken,
         long visionScore,
+        long teamKills,
+        long teamDeaths,
         long afkGames,
         long secondsPlayed,
         Instant firstPlayedAt,

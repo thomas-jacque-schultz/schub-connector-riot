@@ -62,6 +62,8 @@ public class MetricScaleService {
                         .sum("damageToChampions").as("damageToChampions")
                         .sum("damageTaken").as("damageTaken")
                         .sum("visionScore").as("visionScore")
+                        .sum("teamKills").as("teamKills")
+                        .sum("teamDeaths").as("teamDeaths")
                         .sum("durationSeconds").as("secondsPlayed"),
                 Aggregation.match(Criteria.where("games").gte(MINIMUM_GAMES)));
 
@@ -73,6 +75,8 @@ public class MetricScaleService {
             }
             double morts = nombre(row, "deaths");
             double positif = nombre(row, "kills") + nombre(row, "assists");
+            double killsEquipe = nombre(row, "teamKills");
+            double mortsEquipe = nombre(row, "teamDeaths");
             joueurs.add(new Joueur(
                     nombre(row, "wins") / nombre(row, "games"),
                     morts == 0 ? positif : positif / morts,
@@ -80,7 +84,9 @@ public class MetricScaleService {
                     nombre(row, "goldEarned") / minutes,
                     nombre(row, "damageToChampions") / minutes,
                     nombre(row, "damageTaken") / minutes,
-                    nombre(row, "visionScore") / minutes));
+                    nombre(row, "visionScore") / minutes,
+                    killsEquipe == 0 ? 0 : positif / killsEquipe,
+                    mortsEquipe == 0 ? 0 : morts / mortsEquipe));
         }
 
         Map<String, MetricScale.Bound> bounds = new LinkedHashMap<>();
@@ -92,6 +98,8 @@ public class MetricScaleService {
             bounds.put("damagePerMinute", borne(joueurs, Joueur::damagePerMinute));
             bounds.put("damageTakenPerMinute", borne(joueurs, Joueur::damageTakenPerMinute));
             bounds.put("visionPerMinute", borne(joueurs, Joueur::visionPerMinute));
+            bounds.put("killParticipation", borne(joueurs, Joueur::killParticipation));
+            bounds.put("deathShare", borne(joueurs, Joueur::deathShare));
         }
         return new MetricScale(clock.instant(), joueurs.size(), MINIMUM_GAMES, patchesRecents(faille),
                 bounds);
@@ -133,7 +141,8 @@ public class MetricScaleService {
     }
 
     private record Joueur(double winRate, double kda, double csPerMinute, double goldPerMinute,
-                          double damagePerMinute, double damageTakenPerMinute, double visionPerMinute) {
+                          double damagePerMinute, double damageTakenPerMinute, double visionPerMinute,
+                          double killParticipation, double deathShare) {
     }
 
 }

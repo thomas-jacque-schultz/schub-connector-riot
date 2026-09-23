@@ -24,6 +24,8 @@ public record MatchInsights(
     ) {
     }
 
-    public record At15(int gold, int xp, int cs, int damageToChampions, int kills, int deaths, int assists) {
+    public record At15(int gold, int xp, int cs, int damageToChampions, int kills, int deaths, int assists,
+                       @Schema(description = "Morts avant 15 minutes où le jungler adverse a tué ou assisté ; "
+                               + "absent si les postes de la partie sont inconnus.") Integer ganksSuffered) {
     }
 }
