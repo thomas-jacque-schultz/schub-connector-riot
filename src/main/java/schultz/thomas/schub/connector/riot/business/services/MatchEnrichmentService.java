@@ -59,6 +59,9 @@ public class MatchEnrichmentService {
         }
         Set<String> avecTimeline = timelines.findStoredIds(voulues).stream()
                 .map(CachedTimeline::matchId).collect(Collectors.toSet());
+        Set<String> avecDebut = earlyStats.findByMatchIdIn(voulues).stream()
+                .map(MatchEarlyStats::matchId).collect(Collectors.toSet());
+        avecTimeline.stream().filter(matchId -> !avecDebut.contains(matchId)).forEach(this::recalculeDebut);
         Set<String> avecRangs = rankSnapshots.findByMatchIdIn(voulues).stream()
                 .map(MatchRankSnapshot::matchId).collect(Collectors.toSet());
         int empilees = 0;
@@ -89,6 +92,12 @@ public class MatchEnrichmentService {
                     earlyStats.save(new MatchEarlyStats(matchId, a15(raw)));
                 },
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
+    }
+
+    // Sans appel à Riot : le brut est déjà là.
+    private void recalculeDebut(String matchId) {
+        timelines.findById(matchId).ifPresent(timeline ->
+                earlyStats.save(new MatchEarlyStats(matchId, a15(timeline.raw()))));
     }
 
     public void collectRanks(String matchId) {
@@ -144,18 +153,17 @@ public class MatchEnrichmentService {
     }
 
     // participantId 1 à 10 dans l'ordre de metadata.participants ; une image par minute.
-    static Map<String, MatchInsights.At15> a15(Document raw) {
-        Document metadata = raw.get("metadata", Document.class);
-        Document info = raw.get("info", Document.class);
-        if (metadata == null || info == null) {
+    // Le brut fraîchement reçu porte des Map imbriquées, celui relu de Mongo des Document : on lit des Map.
+    static Map<String, MatchInsights.At15> a15(Map<String, Object> raw) {
+        Map<String, Object> metadata = objet(raw, "metadata");
+        Map<String, Object> info = objet(raw, "info");
+        List<Object> puuids = liste(metadata, "participants");
+        List<Object> frames = liste(info, "frames");
+        if (puuids.isEmpty() || frames.isEmpty()) {
             return Map.of();
         }
-        List<String> puuids = metadata.getList("participants", String.class);
-        List<Document> frames = info.getList("frames", Document.class);
-        if (puuids == null || frames == null) {
-            return Map.of();
-        }
-        Document image = frames.stream()
+        Map<String, Object> image = frames.stream()
+                .map(MatchEnrichmentService::enObjet)
                 .filter(frame -> nombre(frame, "timestamp") >= QUINZE_MINUTES_MS)
                 .findFirst()
                 .orElse(null);
@@ -164,46 +172,57 @@ public class MatchEnrichmentService {
         }
 
         Map<Integer, int[]> kda = new HashMap<>();
-        for (Document frame : frames) {
-            List<Document> events = frame.getList("events", Document.class);
-            if (events == null) {
-                continue;
-            }
-            for (Document event : events) {
-                if (!"CHAMPION_KILL".equals(event.getString("type")) || nombre(event, "timestamp") > QUINZE_MINUTES_MS) {
+        for (Object frame : frames) {
+            for (Object brut : liste(enObjet(frame), "events")) {
+                Map<String, Object> event = enObjet(brut);
+                if (!"CHAMPION_KILL".equals(event.get("type")) || nombre(event, "timestamp") > QUINZE_MINUTES_MS) {
                     continue;
                 }
                 kda.computeIfAbsent((int) nombre(event, "killerId"), id -> new int[3])[0]++;
                 kda.computeIfAbsent((int) nombre(event, "victimId"), id -> new int[3])[1]++;
-                List<Integer> aides = event.getList("assistingParticipantIds", Integer.class);
-                if (aides != null) {
-                    aides.forEach(id -> kda.computeIfAbsent(id, cle -> new int[3])[2]++);
+                for (Object aide : liste(event, "assistingParticipantIds")) {
+                    if (aide instanceof Number id) {
+                        kda.computeIfAbsent(id.intValue(), cle -> new int[3])[2]++;
+                    }
                 }
             }
         }
 
-        Document participantFrames = image.get("participantFrames", Document.class);
+        Map<String, Object> participantFrames = objet(image, "participantFrames");
         Map<String, MatchInsights.At15> parPuuid = new HashMap<>();
         for (int index = 0; index < puuids.size(); index++) {
             int participantId = index + 1;
-            Document pf = participantFrames == null ? null : participantFrames.get(String.valueOf(participantId), Document.class);
-            if (pf == null) {
+            Map<String, Object> pf = objet(participantFrames, String.valueOf(participantId));
+            if (pf.isEmpty()) {
                 continue;
             }
-            Document degats = pf.get("damageStats", Document.class);
+            Map<String, Object> degats = objet(pf, "damageStats");
             int[] siens = kda.getOrDefault(participantId, new int[3]);
-            parPuuid.put(puuids.get(index), new MatchInsights.At15(
+            parPuuid.put(String.valueOf(puuids.get(index)), new MatchInsights.At15(
                     (int) nombre(pf, "totalGold"),
                     (int) nombre(pf, "xp"),
                     (int) (nombre(pf, "minionsKilled") + nombre(pf, "jungleMinionsKilled")),
-                    degats == null ? 0 : (int) nombre(degats, "totalDamageDoneToChampions"),
+                    (int) nombre(degats, "totalDamageDoneToChampions"),
                     siens[0], siens[1], siens[2]));
         }
         return parPuuid;
     }
 
-    private static long nombre(Document document, String champ) {
-        Object valeur = document.get(champ);
-        return valeur instanceof Number n ? n.longValue() : 0L;
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> enObjet(Object valeur) {
+        return valeur instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private static Map<String, Object> objet(Map<String, Object> parent, String champ) {
+        return enObjet(parent.get(champ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> liste(Map<String, Object> parent, String champ) {
+        return parent.get(champ) instanceof List<?> liste ? (List<Object>) liste : List.of();
+    }
+
+    private static long nombre(Map<String, Object> objet, String champ) {
+        return objet.get(champ) instanceof Number n ? n.longValue() : 0L;
     }
 }

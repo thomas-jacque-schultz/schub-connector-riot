@@ -54,4 +54,19 @@ class MatchEnrichmentServiceTest {
 
         assertThat(MatchEnrichmentService.a15(raw)).isEmpty();
     }
+
+    @Test
+    @DisplayName("Le brut tel que Riot le rend — des Map imbriquées, pas des Document — se lit aussi")
+    void brutFraisDeRiot() {
+        Map<String, Object> image = Map.of("timestamp", 900_000,
+                "participantFrames", Map.of("1", Map.of("totalGold", 6100, "xp", 7000, "minionsKilled", 110,
+                        "jungleMinionsKilled", 4, "damageStats", Map.of("totalDamageDoneToChampions", 5200))),
+                "events", List.of(Map.of("type", "CHAMPION_KILL", "timestamp", 600_000, "killerId", 1,
+                        "victimId", 2, "assistingParticipantIds", List.of())));
+        Map<String, Object> raw = Map.of("metadata", Map.of("participants", List.of("p1")),
+                "info", Map.of("frames", List.of(image)));
+
+        assertThat(MatchEnrichmentService.a15(raw).get("p1"))
+                .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0));
+    }
 }
