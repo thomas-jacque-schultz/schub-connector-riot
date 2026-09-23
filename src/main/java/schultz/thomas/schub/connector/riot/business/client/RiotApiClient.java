@@ -91,6 +91,13 @@ public class RiotApiClient {
                 .build(matchId)).map(Document::new);
     }
 
+    // Même politique que la partie : le brut entier, faute de pouvoir le redemander un jour.
+    public Optional<Document> timeline(String matchId) {
+        return call(regional, "match-v5 timeline", MATCH, uri -> uri
+                .path("/lol/match/v5/matches/{matchId}/timeline")
+                .build(matchId)).map(Document::new);
+    }
+
     public List<RiotLeagueEntryResponse> leagueEntries(String puuid) {
         return call(platform, "league-v4 entries", LEAGUE_ENTRIES, uri -> uri
                 .path("/lol/league/v4/entries/by-puuid/{puuid}")

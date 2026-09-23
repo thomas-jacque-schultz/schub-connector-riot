@@ -13,6 +13,7 @@ import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
+import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -44,13 +45,14 @@ class IngestWorkerTest {
     @Mock private IngestService ingestService;
     @Mock private MatchHistoryService historyService;
     @Mock private MatchDetailService matchDetailService;
+    @Mock private MatchEnrichmentService enrichment;
 
     private IngestWorker worker;
 
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                new RiotProperties());
+                enrichment, new RiotProperties());
     }
 
     @Test

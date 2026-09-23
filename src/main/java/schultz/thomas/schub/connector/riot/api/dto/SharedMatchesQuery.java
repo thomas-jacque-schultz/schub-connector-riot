@@ -12,6 +12,7 @@ public record SharedMatchesQuery(
         @NotEmpty List<String> puuids,
         @Positive int minimumPlayers,
         Instant since,
-        Integer limit
+        Integer limit,
+        @Schema(description = "Empile timeline et rangs des parties rendues qui ne les ont pas encore.") Boolean enrich
 ) {
 }

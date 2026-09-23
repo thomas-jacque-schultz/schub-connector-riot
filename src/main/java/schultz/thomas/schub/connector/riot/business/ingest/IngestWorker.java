@@ -9,6 +9,7 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceeded
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
+import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -25,6 +26,7 @@ public class IngestWorker {
     private final IngestService ingestService;
     private final MatchHistoryService historyService;
     private final MatchDetailService matchDetailService;
+    private final MatchEnrichmentService enrichment;
     private final RiotProperties properties;
 
     public void drain() {
@@ -50,6 +52,8 @@ public class IngestWorker {
             switch (task.type()) {
                 case PLAYER_IDS -> collectIds(task);
                 case MATCH_DETAIL -> collectDetail(task);
+                case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
+                case MATCH_RANKS -> enrichment.collectRanks(task.key());
             }
             queue.complete(task);
             return true;
