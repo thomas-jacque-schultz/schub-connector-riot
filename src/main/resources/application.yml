@@ -75,6 +75,15 @@ riot:
     refresh-after: 7d
     storage-alert-bytes: ${RIOT_STORAGE_ALERT_BYTES:2000000000000}
 
+  # Graines tirées des classements, par palier : suit la collecte de fond (suspendu avec elle).
+  sampling:
+    enabled: ${RIOT_SAMPLING_ENABLED:true}
+    seeds-per-tier: 300
+    window: 28d
+    games-per-seed: 20
+    seeds-per-page: 10
+    max-page: 50
+
 management:
   endpoints:
     web:

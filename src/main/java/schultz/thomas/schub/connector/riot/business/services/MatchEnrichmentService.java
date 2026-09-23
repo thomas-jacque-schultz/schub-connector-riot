@@ -16,11 +16,13 @@ import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.CachedTimeline;
+import schultz.thomas.schub.connector.riot.data.model.CachedTimelineDigest;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineDigestRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchRankSnapshotRepository;
@@ -45,6 +47,8 @@ public class MatchEnrichmentService {
 
     private final CachedMatchRepository matches;
     private final CachedTimelineRepository timelines;
+    private final CachedTimelineDigestRepository digests;
+    private final MatchDetailService matchDetailService;
     private final MatchRankSnapshotRepository rankSnapshots;
     private final MatchEarlyStatsRepository earlyStats;
     private final RiotApiClient riotApiClient;
@@ -96,9 +100,26 @@ public class MatchEnrichmentService {
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
     }
 
+    // La partie d'abord : l'analyse du début de partie lit les postes dans son détail.
+    public void collectDigest(String matchId) {
+        if (timelines.existsById(matchId) || digests.existsById(matchId)
+                || matchDetailService.detail(matchId).isEmpty()) {
+            return;
+        }
+        riotApiClient.timeline(matchId).ifPresentOrElse(
+                raw -> {
+                    org.bson.Document resume = TimelineDigest.of(raw);
+                    digests.save(new CachedTimelineDigest(matchId, resume, clock.instant()));
+                    earlyStats.save(debut(matchId, resume));
+                },
+                () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
+    }
+
     // Sans appel à Riot : le brut est déjà là.
     private void recalculeDebut(String matchId) {
-        timelines.findById(matchId).ifPresent(timeline -> earlyStats.save(debut(matchId, timeline.raw())));
+        timelines.findById(matchId).map(CachedTimeline::raw)
+                .or(() -> digests.findById(matchId).map(CachedTimelineDigest::raw))
+                .ifPresent(timeline -> earlyStats.save(debut(matchId, timeline)));
     }
 
     public int recalculePerimes() {
