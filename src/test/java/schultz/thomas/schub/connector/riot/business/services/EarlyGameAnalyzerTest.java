@@ -152,6 +152,16 @@ class EarlyGameAnalyzerTest {
     }
 
     @Test
+    @DisplayName("« decisive » est calculé, et sérialisé quand même : le cœur le lit dans le JSON")
+    void decisiveSerialise() throws Exception {
+        EarlyGame.Gank gank = new EarlyGame.Gank(300, Lane.TOP, 200, "jgl-r", List.of("top-b"), Outcome.KILL, 1, 0,
+                List.of("top-b"), false);
+
+        assertThat(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(gank))
+                .contains("\"decisive\":true");
+    }
+
+    @Test
     @DisplayName("Les couloirs de la carte")
     void zones() {
         assertThat(EarlyGameAnalyzer.zone(1_200, 9_000)).isEqualTo(Lane.TOP);

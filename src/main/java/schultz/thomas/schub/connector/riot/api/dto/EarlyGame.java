@@ -1,5 +1,6 @@
 package schultz.thomas.schub.connector.riot.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public record EarlyGame(List<Gank> ganks, List<JunglePresence> junglers, List<Ob
             boolean objectiveFollowUp
     ) {
 
+        @JsonProperty("decisive")
         public boolean decisive() {
             return attackersLost == 0 && (defendersLost > 0 || objectiveFollowUp);
         }
