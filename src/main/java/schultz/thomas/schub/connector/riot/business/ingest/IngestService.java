@@ -32,6 +32,7 @@ public class IngestService {
     private final IngestTaskRepository tasks;
     private final CachedMatchRepository matches;
     private final RiotRateLimiter rateLimiter;
+    private final IngestThroughput throughput;
     private final RiotProperties properties;
     private final Clock clock;
 
@@ -68,7 +69,7 @@ public class IngestService {
         long pending = tasks.countByPuuidAndState(puuid, IngestTaskState.PENDING);
         long running = tasks.countByPuuidAndState(puuid, IngestTaskState.RUNNING);
         long failed = tasks.countByPuuidAndState(puuid, IngestTaskState.FAILED);
-        double perMinute = rateLimiter.allowedPerMinute();
+        double perMinute = debit();
 
         if (pending + running == 0 || perMinute <= 0) {
             return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null);
@@ -91,7 +92,7 @@ public class IngestService {
         long running = tasks.countByState(IngestTaskState.RUNNING);
         long failed = tasks.countByState(IngestTaskState.FAILED);
 
-        double perMinute = rateLimiter.allowedPerMinute();
+        double perMinute = debit();
         Duration throttled = rateLimiter.throttledFor();
         long remaining = pending + running;
 
@@ -101,6 +102,15 @@ public class IngestService {
 
         return new IngestStatus(pending, running, failed, perMinute, drain,
                 clock.instant().plus(drain), throttled);
+    }
+
+    // Tâches par minute : mesuré sur les cinq dernières minutes, sinon une tâche par seconde et par ouvrier, sous le quota.
+    private double debit() {
+        double mesure = throughput.perMinute();
+        if (mesure > 0) {
+            return mesure;
+        }
+        return Math.min(rateLimiter.allowedPerMinute(), properties.getIngest().getWorkers() * 60.0);
     }
 
     public long retryFailed() {

@@ -26,13 +26,14 @@ riot:
   connect-timeout: 3s
   read-timeout: 10s
 
-  # Fenêtres d'une clé de développement (X-App-Rate-Limit : 100:120,20:1).
+  # Clé de production (portail développeur, relevé du 2026-09-23) : 20 000 / 10 s et 1 200 000 / 10 min.
+  # Les limites par route sont dans RiotProperties.Quota.methods. La clé est partagée par le dev et la prod.
   quota:
-    burst-requests: 20
-    burst-window: 1s
-    sustained-requests: 100
-    sustained-window: 2m
-    safety-margin: 2
+    burst-requests: 20000
+    burst-window: 10s
+    sustained-requests: 1200000
+    sustained-window: 10m
+    safety-margin: 200
     max-retries-on429: 3
     max-retry-after: 3m
     acquire-timeout: 5m
@@ -56,6 +57,8 @@ riot:
 
   ingest:
     enabled: ${RIOT_INGEST_ENABLED:true}
+    # ≈ 44 ko stockés par partie : c'est le disque qui borne le débit, plus le quota.
+    workers: ${RIOT_INGEST_WORKERS:4}
     poll-interval: 2s
     batch-size: 25
     # Doit dépasser quota.acquire-timeout.
@@ -70,8 +73,8 @@ riot:
     switchable: ${RIOT_CRAWLER_SWITCHABLE:false}
     enabled-by-default: ${RIOT_CRAWLER_ENABLED:true}
     interval: 1m
-    accounts-per-round: 20
-    backlog: 500
+    accounts-per-round: 100
+    backlog: 5000
     refresh-after: 7d
     storage-alert-bytes: ${RIOT_STORAGE_ALERT_BYTES:2000000000000}
 

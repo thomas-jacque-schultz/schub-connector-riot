@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
+import schultz.thomas.schub.connector.riot.business.quota.MethodRateLimiter;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotApiConfiguration;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
@@ -38,6 +40,7 @@ class RiotApiClientTest {
     private RiotApiClient client;
     private MockRestServiceServer regionalServer;
     private MockRestServiceServer platformServer;
+    private RiotRateLimiter limiteur;
 
     @BeforeEach
     void setUp() {
@@ -53,9 +56,10 @@ class RiotApiClientTest {
         regionalServer = MockRestServiceServer.bindTo(regional).build();
         platformServer = MockRestServiceServer.bindTo(platform).build();
 
-        RiotRateLimiter limiteur = new RiotRateLimiter(properties.getQuota(), clock,
+        limiteur = new RiotRateLimiter(properties.getQuota(), clock,
                 clock::advance);
-        client = new RiotApiClient(regional.build(), platform.build(), limiteur, properties);
+        client = new RiotApiClient(regional.build(), platform.build(), limiteur,
+                new MethodRateLimiter(properties.getQuota().getMethods(), clock, clock::advance), properties);
     }
 
     @Test
@@ -161,6 +165,27 @@ class RiotApiClientTest {
         assertThat(Duration.between(avant, clock.instant()))
                 .isGreaterThanOrEqualTo(Duration.ofSeconds(2));
         regionalServer.verify();
+    }
+
+    @Test
+    @DisplayName("un 429 de route ne suspend pas toute la clé : la collecte attend cette route seule")
+    void un429DeRouteNeSuspendPasLaCle() {
+        HttpHeaders entetes = new HttpHeaders();
+        entetes.add(HttpHeaders.RETRY_AFTER, "3");
+        entetes.add("X-Rate-Limit-Type", "method");
+        platformServer.expect(requestTo(
+                        "https://euw1.api.riotgames.com/lol/league/v4/entries/RANKED_SOLO_5x5/GOLD/II?page=1"))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).headers(entetes));
+        platformServer.expect(requestTo(
+                        "https://euw1.api.riotgames.com/lol/league/v4/entries/RANKED_SOLO_5x5/GOLD/II?page=1"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        Instant avant = clock.instant();
+        QuotaLaneContext.runAsBulk(() -> assertThat(client.ladderPage("RANKED_SOLO_5x5", "GOLD", "II", 1)).isEmpty());
+
+        assertThat(Duration.between(avant, clock.instant())).isGreaterThanOrEqualTo(Duration.ofSeconds(3));
+        assertThat(limiteur.throttledFor()).isZero();
+        platformServer.verify();
     }
 
     @Test
