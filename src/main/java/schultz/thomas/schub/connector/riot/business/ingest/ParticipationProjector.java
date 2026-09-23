@@ -119,6 +119,7 @@ public class ParticipationProjector {
                 participant.minionsKilled(),
                 participant.goldEarned(),
                 participant.damageToChampions(),
+                participant.damageTaken(),
                 participant.visionScore(),
                 participant.afk(),
                 now);

@@ -17,6 +17,8 @@ import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchPlayer;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.StatsGrouping;
+import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
@@ -45,7 +47,8 @@ public class ParticipationStatsService {
     private final PlayerMatchRefRepository matchRefs;
     private final PlayerHistoryCursorRepository cursors;
 
-    public List<ParticipationBucket> aggregate(List<String> puuids, StatsGrouping groupBy, Instant since) {
+    public List<ParticipationBucket> aggregate(List<String> puuids, StatsGrouping groupBy, StatsScope scope,
+                                               Instant since) {
         List<String> propres = propres(puuids);
         if (propres.isEmpty()) {
             return List.of();
@@ -60,6 +63,7 @@ public class ParticipationStatsService {
                 .sum("minionsKilled").as("minionsKilled")
                 .sum("goldEarned").as("goldEarned")
                 .sum("damageToChampions").as("damageToChampions")
+                .sum("damageTaken").as("damageTaken")
                 .sum("visionScore").as("visionScore")
                 .sum("durationSeconds").as("secondsPlayed")
                 .min("startedAt").as("firstPlayedAt")
@@ -68,7 +72,7 @@ public class ParticipationStatsService {
             group = group.first("championName").as("championName");
         }
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(filtre(propres, since, groupBy)),
+                Aggregation.match(filtre(propres, since, groupBy, scope)),
                 context -> new Document("$addFields", new Document("statsKey", cle(groupBy))),
                 group);
 
@@ -88,6 +92,7 @@ public class ParticipationStatsService {
                     entier(row, "minionsKilled"),
                     entier(row, "goldEarned"),
                     entier(row, "damageToChampions"),
+                    entier(row, "damageTaken"),
                     entier(row, "visionScore"),
                     entier(row, "afkGames"),
                     entier(row, "secondsPlayed"),
@@ -109,7 +114,8 @@ public class ParticipationStatsService {
                     new ParticipationBucket(bucket.puuid(), bucket.groupedBy(), mode, null,
                             bucket.games(), bucket.wins(), bucket.kills(), bucket.deaths(),
                             bucket.assists(), bucket.minionsKilled(), bucket.goldEarned(),
-                            bucket.damageToChampions(), bucket.visionScore(), bucket.afkGames(),
+                            bucket.damageToChampions(), bucket.damageTaken(), bucket.visionScore(),
+                            bucket.afkGames(),
                             bucket.secondsPlayed(), bucket.firstPlayedAt(), bucket.lastPlayedAt()),
                     ParticipationStatsService::additionne);
         }
@@ -126,6 +132,7 @@ public class ParticipationStatsService {
                 a.minionsKilled() + b.minionsKilled(),
                 a.goldEarned() + b.goldEarned(),
                 a.damageToChampions() + b.damageToChampions(),
+                a.damageTaken() + b.damageTaken(),
                 a.visionScore() + b.visionScore(),
                 a.afkGames() + b.afkGames(),
                 a.secondsPlayed() + b.secondsPlayed(),
@@ -161,7 +168,7 @@ public class ParticipationStatsService {
             return List.of();
         }
         Map<String, ParticipationBucket> bornes = new LinkedHashMap<>();
-        aggregate(propres, StatsGrouping.OVERALL, null)
+        aggregate(propres, StatsGrouping.OVERALL, StatsScope.ALL, null)
                 .forEach(bucket -> bornes.put(bucket.puuid(), bucket));
         Map<String, PlayerHistoryCursor> parPuuid = new LinkedHashMap<>();
         cursors.findAllById(propres).forEach(cursor -> parPuuid.put(cursor.puuid(), cursor));
@@ -194,7 +201,7 @@ public class ParticipationStatsService {
                 : (int) Math.clamp(limit.longValue(), 1, SHARED_MATCHES_LIMIT_MAX);
 
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(filtre(propres, since, null)),
+                Aggregation.match(filtre(propres, since, null, StatsScope.ALL)),
                 Aggregation.group("matchId")
                         .count().as("present")
                         .max("startedAt").as("startedAt"),
@@ -217,13 +224,13 @@ public class ParticipationStatsService {
         }
         Map<String, List<MatchParticipation>> parMatch = new LinkedHashMap<>();
         matchIds.forEach(id -> parMatch.put(id, new ArrayList<>()));
-        participations.findByMatchIdIn(matchIds).stream()
-                .filter(row -> demandes.contains(row.puuid()))
+        participations.findByMatchIdIn(matchIds)
                 .forEach(row -> parMatch.get(row.matchId()).add(row));
 
         List<SharedMatch> rendus = new ArrayList<>();
         for (Map.Entry<String, List<MatchParticipation>> entree : parMatch.entrySet()) {
-            List<MatchParticipation> rows = entree.getValue();
+            List<MatchParticipation> tous = entree.getValue();
+            List<MatchParticipation> rows = tous.stream().filter(row -> demandes.contains(row.puuid())).toList();
             if (rows.isEmpty()) {
                 continue;
             }
@@ -240,20 +247,27 @@ public class ParticipationStatsService {
                     rows.size(),
                     cotesSepares,
                     cotesSepares ? null : premiere.win(),
-                    rows.stream().map(ParticipationStatsService::toPlayer).toList()));
+                    tous.stream().map(row -> toPlayer(row, demandes.contains(row.puuid()))).toList()));
         }
         return rendus;
     }
 
-    private static SharedMatchPlayer toPlayer(MatchParticipation row) {
+    private static SharedMatchPlayer toPlayer(MatchParticipation row, boolean requested) {
         return new SharedMatchPlayer(row.puuid(), row.championId(), row.championName(),
                 row.position(), row.win(), row.side(), row.kills(), row.deaths(), row.assists(),
-                row.minionsKilled(), row.goldEarned(), row.damageToChampions(), row.visionScore(),
-                row.afk());
+                row.minionsKilled(), row.goldEarned(), row.damageToChampions(), row.damageTaken(),
+                row.visionScore(), row.afk(), requested);
     }
 
-    private static Criteria filtre(List<String> puuids, Instant since, StatsGrouping groupBy) {
+    private static Criteria filtre(List<String> puuids, Instant since, StatsGrouping groupBy,
+                                   StatsScope scope) {
         Criteria criteria = Criteria.where("puuid").in(puuids);
+        if (scope == StatsScope.RIFT) {
+            criteria = criteria.and("queueId").in(QueueKind.RIFT_QUEUE_IDS);
+        }
+        if (groupBy == StatsGrouping.POSITION) {
+            criteria = criteria.and("position").nin(TeamPosition.UNKNOWN, null);
+        }
         if (since != null) {
             criteria = criteria.and("startedAt").gte(Date.from(since));
         } else if (groupBy == StatsGrouping.MONTH) {
@@ -268,7 +282,7 @@ public class ParticipationStatsService {
             case CHAMPION -> new Document("$toString", "$championId");
             case QUEUE -> new Document("$toString", "$queueId");
             case SIDE -> new Document("$toString", "$side");
-            case POSITION -> new Document("$ifNull", List.of("$position", "UNKNOWN"));
+            case POSITION -> new Document("$toString", "$position");
             case PATCH -> new Document("$ifNull", List.of("$patch", ""));
             case MONTH -> new Document("$dateToString",
                     new Document("format", "%Y-%m").append("date", "$startedAt"));

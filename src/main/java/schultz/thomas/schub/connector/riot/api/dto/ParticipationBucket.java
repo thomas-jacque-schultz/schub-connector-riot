@@ -19,6 +19,7 @@ public record ParticipationBucket(
         long minionsKilled,
         long goldEarned,
         long damageToChampions,
+        long damageTaken,
         long visionScore,
         long afkGames,
         long secondsPlayed,

@@ -21,6 +21,7 @@ public record MatchParticipant(
         int minionsKilled,
         int goldEarned,
         int damageToChampions,
+        int damageTaken,
         int visionScore,
         int summonerSpell1,
         int summonerSpell2,

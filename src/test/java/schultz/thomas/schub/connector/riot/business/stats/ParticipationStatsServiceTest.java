@@ -16,6 +16,7 @@ import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.StatsGrouping;
+import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
@@ -74,13 +75,13 @@ class ParticipationStatsServiceTest {
         return new MatchParticipation(MatchParticipation.idOf(puuid, matchId), puuid, matchId,
                 "Pseudo", "TAG", "pseudo", 126, "Jayce", TeamPosition.MIDDLE, win, side, 1800,
                 440, QueueKind.RANKED_FLEX, "16.18.1.1", "16.18", "EUW1", QUAND, true,
-                5, 2, 3, 150, 12000, 20000, 25, false, QUAND);
+                5, 2, 3, 150, 12000, 20000, 18000, 25, false, QUAND);
     }
 
     @Test
     @DisplayName("Aucun puuid : aucune requête, pas une agrégation sur toute la collection")
     void aucunPuuid() {
-        assertThat(service().aggregate(Arrays.asList("  ", null), StatsGrouping.OVERALL, null)).isEmpty();
+        assertThat(service().aggregate(Arrays.asList("  ", null), StatsGrouping.OVERALL, StatsScope.ALL, null)).isEmpty();
         verify(mongo, never()).aggregate(any(Aggregation.class), eq(MatchParticipation.class),
                 eq(Document.class));
     }
@@ -89,7 +90,7 @@ class ParticipationStatsServiceTest {
     @DisplayName("La clé de groupe est bien celle de l'axe demandé")
     void cleDeGroupe() {
         rows();
-        service().aggregate(List.of("p1"), StatsGrouping.MONTH, null);
+        service().aggregate(List.of("p1"), StatsGrouping.MONTH, StatsScope.ALL, null);
 
         ArgumentCaptor<Aggregation> capture = ArgumentCaptor.forClass(Aggregation.class);
         verify(mongo).aggregate(capture.capture(), eq(MatchParticipation.class), eq(Document.class));
@@ -97,11 +98,44 @@ class ParticipationStatsServiceTest {
     }
 
     @Test
+    @DisplayName("La Faille ne garde que ses files, et le poste inconnu n'est jamais un groupe")
+    void failleEtPosteInconnu() {
+        rows();
+        service().aggregate(List.of("p1"), StatsGrouping.POSITION, StatsScope.RIFT, null);
+
+        ArgumentCaptor<Aggregation> capture = ArgumentCaptor.forClass(Aggregation.class);
+        verify(mongo).aggregate(capture.capture(), eq(MatchParticipation.class), eq(Document.class));
+        assertThat(capture.getValue().toString())
+                .contains("queueId").contains("420").contains("$nin").contains("UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("Une partie partagée rend les dix joueurs, et dit lesquels ont été demandés")
+    void dixJoueurs() {
+        when(mongo.aggregate(any(Aggregation.class), eq(MatchParticipation.class), eq(Document.class)))
+                .thenReturn(new AggregationResults<>(
+                        List.of(new Document("_id", "EUW1_2").append("present", 1)), new Document()));
+        when(participations.findByMatchIdIn(List.of("EUW1_2"))).thenReturn(List.of(
+                participation("p1", "EUW1_2", true, 100),
+                participation("x1", "EUW1_2", true, 100),
+                participation("x2", "EUW1_2", false, 200)));
+
+        SharedMatches communes = service().sharedMatches(List.of("p1"), 1, null, null);
+
+        assertThat(communes.matches()).singleElement().satisfies(partie -> {
+            assertThat(partie.presentPlayers()).isEqualTo(1);
+            assertThat(partie.players()).hasSize(3);
+            assertThat(partie.players()).filteredOn(joueur -> joueur.requested())
+                    .singleElement().satisfies(joueur -> assertThat(joueur.puuid()).isEqualTo("p1"));
+        });
+    }
+
+    @Test
     @DisplayName("Les groupes rendus portent des sommes, et la clé telle quelle")
     void sommes() {
         rows(groupe("p1", "126", 40, 22));
         List<ParticipationBucket> buckets = service().aggregate(List.of("p1"),
-                StatsGrouping.CHAMPION, null);
+                StatsGrouping.CHAMPION, StatsScope.ALL, null);
 
         assertThat(buckets).singleElement().satisfies(bucket -> {
             assertThat(bucket.key()).isEqualTo("126");
@@ -116,7 +150,7 @@ class ParticipationStatsServiceTest {
     void filesReplieesParMode() {
         rows(groupe("p1", "1700", 3, 2), groupe("p1", "1710", 2, 1), groupe("p1", "420", 10, 5));
         List<ParticipationBucket> buckets = service().aggregate(List.of("p1"),
-                StatsGrouping.QUEUE, null);
+                StatsGrouping.QUEUE, StatsScope.ALL, null);
 
         assertThat(buckets).extracting(ParticipationBucket::key)
                 .containsExactly("RANKED_SOLO", "ARENA");
@@ -134,7 +168,7 @@ class ParticipationStatsServiceTest {
     void fileInconnueLisible() {
         rows(groupe("p1", "9999", 4, 2));
 
-        assertThat(service().aggregate(List.of("p1"), StatsGrouping.QUEUE, null))
+        assertThat(service().aggregate(List.of("p1"), StatsGrouping.QUEUE, StatsScope.ALL, null))
                 .singleElement()
                 .satisfies(bucket -> assertThat(bucket.key()).isEqualTo("OTHER"));
     }
