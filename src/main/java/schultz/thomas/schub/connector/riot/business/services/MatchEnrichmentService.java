@@ -17,9 +17,11 @@ import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.CachedTimeline;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
+import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchRankSnapshotRepository;
 
 import java.time.Clock;
@@ -43,6 +45,7 @@ public class MatchEnrichmentService {
     private final CachedMatchRepository matches;
     private final CachedTimelineRepository timelines;
     private final MatchRankSnapshotRepository rankSnapshots;
+    private final MatchEarlyStatsRepository earlyStats;
     private final RiotApiClient riotApiClient;
     private final RankingService rankingService;
     private final IngestQueue queue;
@@ -81,7 +84,10 @@ public class MatchEnrichmentService {
             return;
         }
         riotApiClient.timeline(matchId).ifPresentOrElse(
-                raw -> timelines.save(new CachedTimeline(matchId, raw, clock.instant())),
+                raw -> {
+                    timelines.save(new CachedTimeline(matchId, raw, clock.instant()));
+                    earlyStats.save(new MatchEarlyStats(matchId, a15(raw)));
+                },
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
     }
 
@@ -101,8 +107,8 @@ public class MatchEnrichmentService {
 
     public List<MatchInsights> insights(Collection<String> matchIds) {
         Set<String> voulues = Set.copyOf(matchIds);
-        Map<String, CachedTimeline> parTimeline = timelines.findByMatchIdIn(voulues).stream()
-                .collect(Collectors.toMap(CachedTimeline::matchId, Function.identity()));
+        Map<String, MatchEarlyStats> parDebut = earlyStats.findByMatchIdIn(voulues).stream()
+                .collect(Collectors.toMap(MatchEarlyStats::matchId, Function.identity()));
         Map<String, MatchRankSnapshot> parRangs = rankSnapshots.findByMatchIdIn(voulues).stream()
                 .collect(Collectors.toMap(MatchRankSnapshot::matchId, Function.identity()));
 
@@ -112,12 +118,12 @@ public class MatchEnrichmentService {
                 continue;
             }
             MatchDetail detail = decoder.toDetail(cached.raw());
-            CachedTimeline timeline = parTimeline.get(detail.matchId());
+            MatchEarlyStats debut = parDebut.get(detail.matchId());
             MatchRankSnapshot rangs = parRangs.get(detail.matchId());
-            Map<String, MatchInsights.At15> a15 = timeline == null ? Map.of() : a15(timeline.raw());
+            Map<String, MatchInsights.At15> a15 = debut == null ? Map.of() : debut.byPuuid();
             rendus.add(new MatchInsights(
                     detail.matchId(),
-                    timeline != null,
+                    debut != null,
                     rangs == null ? null : rangs.observedAt(),
                     detail.participants().stream()
                             .map(participant -> {
