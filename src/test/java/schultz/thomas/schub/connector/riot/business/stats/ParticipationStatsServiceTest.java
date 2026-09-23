@@ -88,6 +88,20 @@ class ParticipationStatsServiceTest {
     }
 
     @Test
+    @DisplayName("les sommes de la v3 suivent le bucket, et deux files d'un même mode s'additionnent")
+    void sommesDePerformance() {
+        rows(groupe("p1", "76", 3, 2).append("wardsKilled", 5L).append("laningGames", 2L).append("goldDiffAt15", 900L),
+                groupe("p1", "1900", 1, 0).append("wardsKilled", 1L).append("laningGames", 1L).append("goldDiffAt15", -300L));
+
+        List<ParticipationBucket> buckets = service().aggregate(List.of("p1"), StatsGrouping.QUEUE, StatsScope.ALL, null);
+
+        assertThat(buckets).hasSize(1);
+        assertThat(buckets.getFirst().performance().wardsKilled()).isEqualTo(6);
+        assertThat(buckets.getFirst().performance().laningGames()).isEqualTo(3);
+        assertThat(buckets.getFirst().performance().goldDiffAt15()).isEqualTo(600);
+    }
+
+    @Test
     @DisplayName("La clé de groupe est bien celle de l'axe demandé")
     void cleDeGroupe() {
         rows();

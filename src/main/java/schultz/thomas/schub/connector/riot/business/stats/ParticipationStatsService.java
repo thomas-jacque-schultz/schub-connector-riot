@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
+import schultz.thomas.schub.connector.riot.api.dto.PerformanceSums;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
@@ -69,7 +70,22 @@ public class ParticipationStatsService {
                 .sum("teamDeaths").as("teamDeaths")
                 .sum("durationSeconds").as("secondsPlayed")
                 .min("startedAt").as("firstPlayedAt")
-                .max("startedAt").as("lastPlayedAt");
+                .max("startedAt").as("lastPlayedAt")
+                .sum("performance.wardsPlaced").as("wardsPlaced")
+                .sum("performance.wardsKilled").as("wardsKilled")
+                .sum("performance.controlWardsPlaced").as("controlWardsPlaced")
+                .sum("performance.timeDeadSeconds").as("timeDeadSeconds")
+                .sum("performance.turretDamage").as("turretDamage")
+                .sum("performance.turretTakedowns").as("turretTakedowns")
+                .sum("performance.epicMonsterDamage").as("epicMonsterDamage")
+                .sum("performance.teamDamageToChampions").as("teamDamageToChampions")
+                .sum(siNombre("laning.platesDiff")).as("platesGames")
+                .sum("laning.platesDiff").as("platesDiff")
+                .sum(siNombre("laning.goldDiffAt15")).as("laningGames")
+                .sum("laning.goldDiffAt15").as("goldDiffAt15")
+                .sum("laning.csDiffAt15").as("csDiffAt15")
+                .sum("laning.xpDiffAt15").as("xpDiffAt15")
+                .sum("laning.killsDiffAt15").as("killsDiffAt15");
         if (groupBy == StatsGrouping.CHAMPION) {
             group = group.first("championName").as("championName");
         }
@@ -101,7 +117,8 @@ public class ParticipationStatsService {
                     entier(row, "afkGames"),
                     entier(row, "secondsPlayed"),
                     instant(row, "firstPlayedAt"),
-                    instant(row, "lastPlayedAt")));
+                    instant(row, "lastPlayedAt"),
+                    performance(row)));
         }
         List<ParticipationBucket> rendus = groupBy == StatsGrouping.QUEUE ? parMode(buckets) : buckets;
         rendus.sort(Comparator.comparingLong(ParticipationBucket::games).reversed()
@@ -120,7 +137,8 @@ public class ParticipationStatsService {
                             bucket.assists(), bucket.minionsKilled(), bucket.goldEarned(),
                             bucket.damageToChampions(), bucket.damageTaken(), bucket.visionScore(),
                             bucket.teamKills(), bucket.teamDeaths(), bucket.afkGames(),
-                            bucket.secondsPlayed(), bucket.firstPlayedAt(), bucket.lastPlayedAt()),
+                            bucket.secondsPlayed(), bucket.firstPlayedAt(), bucket.lastPlayedAt(),
+                            bucket.performance()),
                     ParticipationStatsService::additionne);
         }
         return new ArrayList<>(parCle.values());
@@ -143,7 +161,8 @@ public class ParticipationStatsService {
                 a.afkGames() + b.afkGames(),
                 a.secondsPlayed() + b.secondsPlayed(),
                 plusTot(a.firstPlayedAt(), b.firstPlayedAt()),
-                plusTard(a.lastPlayedAt(), b.lastPlayedAt()));
+                plusTard(a.lastPlayedAt(), b.lastPlayedAt()),
+                a.performance().plus(b.performance()));
     }
 
     private static Instant plusTot(Instant a, Instant b) {
@@ -293,6 +312,19 @@ public class ParticipationStatsService {
             case MONTH -> new Document("$dateToString",
                     new Document("format", "%Y-%m").append("date", "$startedAt"));
         };
+    }
+
+    private static AggregationExpression siNombre(String champ) {
+        return context -> new Document("$cond", List.of(new Document("$isNumber", "$" + champ), 1, 0));
+    }
+
+    private static PerformanceSums performance(Document row) {
+        return new PerformanceSums(entier(row, "wardsPlaced"), entier(row, "wardsKilled"),
+                entier(row, "controlWardsPlaced"), entier(row, "timeDeadSeconds"), entier(row, "turretDamage"),
+                entier(row, "turretTakedowns"), entier(row, "epicMonsterDamage"), entier(row, "teamDamageToChampions"),
+                entier(row, "platesGames"), entier(row, "platesDiff"), entier(row, "laningGames"),
+                entier(row, "goldDiffAt15"), entier(row, "csDiffAt15"), entier(row, "xpDiffAt15"),
+                entier(row, "killsDiffAt15"));
     }
 
     private static AggregationExpression siVrai(String champ) {

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
+import schultz.thomas.schub.connector.riot.api.dto.PatchStart;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
@@ -30,6 +31,7 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFo
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
+import schultz.thomas.schub.connector.riot.business.stats.PatchCalendar;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
 
 import java.util.List;
@@ -45,6 +47,7 @@ public class StatsController {
     private final MetricScaleService metricScale;
     private final MatchEnrichmentService enrichment;
     private final ReferenceService references;
+    private final PatchCalendar patches;
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """
@@ -104,6 +107,13 @@ public class StatsController {
     @PostMapping("/match-insights")
     public List<MatchInsights> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
         return enrichment.insights(request.matchIds());
+    }
+
+    @Operation(summary = "Les derniers patchs et la date de leur première partie collectée",
+            description = "Le plus récent d'abord. Sert à traduire « les 2 derniers patchs » en date de début.")
+    @GetMapping("/patches")
+    public List<PatchStart> patches(@RequestParam(defaultValue = "4") int count) {
+        return patches.recent(Math.clamp(count, 1, 20));
     }
 
     @Operation(summary = "Répartition des métriques à un poste, par palier et sur tout le ladder",

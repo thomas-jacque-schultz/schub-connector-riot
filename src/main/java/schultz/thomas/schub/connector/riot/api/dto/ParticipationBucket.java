@@ -26,6 +26,7 @@ public record ParticipationBucket(
         long afkGames,
         long secondsPlayed,
         Instant firstPlayedAt,
-        Instant lastPlayedAt
+        Instant lastPlayedAt,
+        PerformanceSums performance
 ) {
 }
