@@ -14,12 +14,15 @@ import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjecto
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
+import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
+import schultz.thomas.schub.connector.riot.data.repository.StoredChampionReferenceRepository;
 import schultz.thomas.schub.connector.riot.data.repository.StoredReferenceRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -34,13 +37,14 @@ class ReferenceServiceTest {
 
     @Mock private MongoTemplate mongo;
     @Mock private StoredReferenceRepository store;
+    @Mock private StoredChampionReferenceRepository champions;
     @Mock private ParticipationProjector projector;
 
     private ReferenceService service;
 
     @BeforeEach
     void setUp() {
-        service = new ReferenceService(mongo, store, projector, new RiotProperties(), new TestClock(MAINTENANT));
+        service = new ReferenceService(mongo, store, champions, projector, new RiotProperties(), new TestClock(MAINTENANT));
     }
 
     @Test
@@ -84,5 +88,29 @@ class ReferenceServiceTest {
         assertThat(metrique.tiers()).containsOnlyKeys("GOLD");
         assertThat(metrique.ladder()).containsExactly(0.1, 0.4);
         assertThat(metrique.polarity()).isEqualTo("LOWER");
+    }
+
+    @Test
+    @DisplayName("un champion se compare par groupe de paliers : Or et Argent ensemble, le sommet à part")
+    void groupesDeChampion() {
+        assertThat(ReferenceService.groupeChampion("GOLD")).isEqualTo("SILVER_GOLD");
+        assertThat(ReferenceService.groupeChampion("EMERALD")).isEqualTo("PLATINUM_EMERALD");
+        assertThat(ReferenceService.groupeChampion("CHALLENGER")).isEqualTo("MASTER_PLUS");
+        assertThat(ReferenceService.groupeChampion(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("la grille d'un champion ne rend que le groupe du joueur ; une métrique sans ce groupe disparaît")
+    void grilleDeChampion() {
+        when(champions.findFirstByChampionIdOrderByComputedAtDesc(222)).thenReturn(Optional.of(new StoredChampionReference(
+                "222/16.18", 222, List.of("16.18"), MAINTENANT, List.of(0.0, 1.0), Map.of(
+                "csPerMinute", Map.of("SILVER_GOLD", new StoredReference.TierGrid(40, List.of(6.0, 9.0))),
+                "kda", Map.of("DIAMOND", new StoredReference.TierGrid(35, List.of(1.0, 5.0)))))));
+
+        var grille = service.championGrid(222, "GOLD").orElseThrow();
+
+        assertThat(grille.group()).isEqualTo("SILVER_GOLD");
+        assertThat(grille.metrics()).containsOnlyKeys("csPerMinute");
+        assertThat(grille.metrics().get("csPerMinute").count()).isEqualTo(40);
     }
 }
