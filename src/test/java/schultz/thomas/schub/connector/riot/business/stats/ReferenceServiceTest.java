@@ -11,6 +11,10 @@ import org.springframework.data.mongodb.core.query.Query;
 
 import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
+import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
+import org.bson.Document;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
@@ -19,7 +23,9 @@ import schultz.thomas.schub.connector.riot.data.repository.StoredChampionReferen
 import schultz.thomas.schub.connector.riot.data.repository.StoredReferenceRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,12 +48,13 @@ class ReferenceServiceTest {
     @Mock private StoredReferenceRepository store;
     @Mock private StoredChampionReferenceRepository champions;
     @Mock private ParticipationProjector projector;
+    @Mock private RankHistory rankHistory;
 
     private ReferenceService service;
 
     @BeforeEach
     void setUp() {
-        service = new ReferenceService(mongo, store, champions, projector, new RiotProperties(), new TestClock(MAINTENANT));
+        service = new ReferenceService(mongo, store, champions, projector, rankHistory, new RiotProperties(), new TestClock(MAINTENANT));
     }
 
     @Test
@@ -54,6 +64,25 @@ class ReferenceServiceTest {
                 .thenReturn(List.of("16.9", "16.18", "16.17", "15.24", "bizarre"));
 
         assertThat(service.derniersPatchs()).containsExactly("16.18", "16.17");
+    }
+
+    @Test
+    @DisplayName("seules les parties dont un joueur a désormais un rang sont reprojetées")
+    void retamponneSeulementLesRangsApparus() {
+        Instant jouee = MAINTENANT.minus(Duration.ofDays(3));
+        when(mongo.stream(any(Query.class), eq(Document.class), eq(MatchParticipation.COLLECTION)))
+                .thenReturn(java.util.stream.Stream.of(
+                        ligne("EUW1_1", "classe", jouee), ligne("EUW1_2", "sans-rang", jouee)));
+        when(rankHistory.spansOf(anyCollection())).thenReturn(Map.of("classe", List.of(new RankSpan("s1", "classe",
+                QueueKind.RANKED_SOLO, "GOLD", "II", 40, MAINTENANT.minus(Duration.ofDays(1)), MAINTENANT))));
+
+        assertThat(service.retamponne(List.of("16.19"))).isEqualTo(1);
+        verify(projector).reproject("EUW1_1");
+        verify(projector, never()).reproject("EUW1_2");
+    }
+
+    private static Document ligne(String matchId, String puuid, Instant jouee) {
+        return new Document("matchId", matchId).append("puuid", puuid).append("startedAt", Date.from(jouee));
     }
 
     @Test

@@ -18,6 +18,7 @@ import schultz.thomas.schub.connector.riot.data.repository.KnownAccountRepositor
 import schultz.thomas.schub.connector.riot.data.repository.PlayerHistoryCursorRepository;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -28,6 +29,8 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class BackgroundCrawler {
+
+    private static final Duration MESURE_VALIDE = Duration.ofMinutes(1);
 
     private final RiotProperties properties;
     private final CrawlerSettingRepository settings;
@@ -40,6 +43,10 @@ public class BackgroundCrawler {
 
     private volatile Instant lastRoundAt;
     private volatile int lastRoundAccounts;
+    private volatile Mesure mesure;
+
+    private record Mesure(long octets, Instant prise) {
+    }
 
     public boolean enabled() {
         RiotProperties.Crawler config = properties.getCrawler();
@@ -124,7 +131,18 @@ public class BackgroundCrawler {
                 .into(new ArrayList<>());
     }
 
+    // dbStats parcourt toutes les collections ; l'ouvrier demande le volume toutes les deux secondes.
     private long databaseBytes() {
+        Instant maintenant = clock.instant();
+        Mesure derniere = mesure;
+        if (derniere == null || derniere.prise().plus(MESURE_VALIDE).isBefore(maintenant)) {
+            derniere = new Mesure(mesureVolume(), maintenant);
+            mesure = derniere;
+        }
+        return derniere.octets();
+    }
+
+    private long mesureVolume() {
         Document stats = mongo.getDb().runCommand(new Document("dbStats", 1));
         Object total = stats.get("totalSize");
         if (total instanceof Number n) {

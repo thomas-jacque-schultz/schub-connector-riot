@@ -102,6 +102,19 @@ public class RankHistory {
         return retenues;
     }
 
+    public Map<String, List<RankSpan>> spansOf(Collection<String> puuids) {
+        Map<String, List<RankSpan>> parPuuid = new HashMap<>();
+        mongo.find(Query.query(Criteria.where("puuid").in(puuids).and("queue").in(FILES)), RankSpan.class)
+                .forEach(span -> parPuuid.computeIfAbsent(span.puuid(), cle -> new ArrayList<>()).add(span));
+        return parPuuid;
+    }
+
+    // Même règle que rankAt : une plage qui couvre l'instant, à la tolérance près.
+    public static boolean covers(List<RankSpan> spans, Instant instant, Duration tolerance) {
+        return instant != null && spans.stream().anyMatch(span -> !span.lastSeenAt().isBefore(instant.minus(tolerance))
+                && !span.firstSeenAt().isAfter(instant.plus(tolerance)));
+    }
+
     private static RankSpan meilleure(RankSpan a, RankSpan b, Instant instant) {
         if (a.queue() != b.queue()) {
             return a.queue() == QueueKind.RANKED_SOLO ? a : b;

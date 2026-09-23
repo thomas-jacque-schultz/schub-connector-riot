@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.IndexOperations;
 import org.springframework.stereotype.Component;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
+import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.List;
 
@@ -20,6 +22,8 @@ public class ProjectionUpgrade {
 
     // Dérivées, remplacées par riot_reference : se recalculaient toutes les heures sur tout l'historique.
     private static final List<String> OBSOLETES = List.of("riot_player_position", "riot_metric_scale");
+    // Remplacé par state_priority : avec lui, chaque prise triait toute la file en mémoire.
+    private static final String INDEX_OBSOLETE = "claim";
 
     private final ParticipationProjector projector;
     private final MatchEnrichmentService enrichment;
@@ -32,6 +36,10 @@ public class ProjectionUpgrade {
     public void upgrade() {
         rankHistory.backfillIfEmpty();
         OBSOLETES.stream().filter(mongo::collectionExists).forEach(mongo::dropCollection);
+        IndexOperations file = mongo.indexOps(IngestTask.class);
+        if (file.getIndexInfo().stream().anyMatch(index -> INDEX_OBSOLETE.equals(index.getName()))) {
+            file.dropIndex(INDEX_OBSOLETE);
+        }
         if (projector.outdated()) {
             log.info("Participations projetées par une version antérieure : reprojection sur place.");
             projector.upgradeOutdated();

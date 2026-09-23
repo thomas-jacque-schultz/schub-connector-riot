@@ -7,6 +7,7 @@ import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface PlayerMatchRefRepository extends MongoRepository<PlayerMatchRef, String> {
 
@@ -14,7 +15,7 @@ public interface PlayerMatchRefRepository extends MongoRepository<PlayerMatchRef
 
     List<PlayerMatchRef> findByPuuidAndPlayedAtIsNull(String puuid);
 
-    List<PlayerMatchRef> findByPuuidOrderByPlayedAtDesc(String puuid);
+    Optional<PlayerMatchRef> findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(String puuid);
 
     List<PlayerMatchRef> findByMatchIdIn(Collection<String> matchIds);
 

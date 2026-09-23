@@ -67,7 +67,7 @@ class MatchHistoryServiceTest {
         when(cursors.findById(PUUID)).thenReturn(Optional.empty());
         when(riotApiClient.matchIds(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
-        when(playerMatches.findByPuuidOrderByPlayedAtDesc(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         HistorySyncReport rapport = service.sync(PUUID);
 
@@ -83,7 +83,7 @@ class MatchHistoryServiceTest {
                         dernierReleve, null)));
         when(riotApiClient.matchIds(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
-        when(playerMatches.findByPuuidOrderByPlayedAtDesc(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         service.sync(PUUID);
 
@@ -103,7 +103,7 @@ class MatchHistoryServiceTest {
                 new PlayerMatchRef(PlayerMatchRef.idOf(PUUID, "EUW1_DEJA_VU"), PUUID,
                         "EUW1_DEJA_VU", MAINTENANT.minus(Duration.ofHours(2)), MAINTENANT)));
         when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
-        when(playerMatches.findByPuuidOrderByPlayedAtDesc(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         HistorySyncReport rapport = service.sync(PUUID);
 
@@ -126,7 +126,7 @@ class MatchHistoryServiceTest {
             return List.of();
         });
         when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
-        when(playerMatches.findByPuuidOrderByPlayedAtDesc(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         service.sync(PUUID);
 
@@ -199,7 +199,7 @@ class MatchHistoryServiceTest {
                         MAINTENANT)));
         when(matchDetailService.details(List.of("EUW1_1")))
                 .thenReturn(new MatchDetailsResponse(List.of(), List.of("EUW1_1"), List.of()));
-        when(playerMatches.findByPuuidOrderByPlayedAtDesc(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         HistorySyncReport rapport = service.sync(PUUID);
 

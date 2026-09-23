@@ -4,17 +4,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
 import schultz.thomas.schub.connector.riot.data.model.TeamSide;
@@ -28,10 +28,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -56,11 +59,13 @@ public class ReferenceService {
     static final long DUREE_MINIMUM = 600;
     private static final Duration RECUL_PATCHS = Duration.ofDays(120);
     private static final int RETAMPONNAGE_MAX = 20_000;
+    private static final int LOT_RETAMPONNAGE = 1_000;
 
     private final MongoTemplate mongo;
     private final StoredReferenceRepository store;
     private final StoredChampionReferenceRepository champions;
     private final ParticipationProjector projector;
+    private final RankHistory rankHistory;
     private final RiotProperties properties;
     private final Clock clock;
 
@@ -151,8 +156,6 @@ public class ReferenceService {
     }
 
     public List<StoredReference> refresh() {
-        mongo.indexOps(MatchParticipation.COLLECTION).ensureIndex(new Index()
-                .on("patch", Sort.Direction.ASC).on("startedAt", Sort.Direction.ASC).named(PatchCalendar.INDEX));
         List<String> patchs = derniersPatchs();
         if (patchs.isEmpty()) {
             return List.of();
@@ -259,15 +262,42 @@ public class ReferenceService {
     }
 
     // Un rang relevé après la projection d'une partie (page de classement lue plus tard) : on reprojette.
-    private void retamponne(List<String> patchs) {
+    // Seulement les parties dont un joueur a désormais un rang : les non-classés resteraient sans rang chaque jour.
+    int retamponne(List<String> patchs) {
         Query sansRang = Query.query(Criteria.where("patch").in(patchs).and("queueId").in(FILES_CLASSEES)
-                .and("rank").is(null)).limit(RETAMPONNAGE_MAX);
-        sansRang.fields().include("matchId");
-        List<String> matchIds = mongo.find(sansRang, Document.class, MatchParticipation.COLLECTION).stream()
-                .map(ligne -> ligne.getString("matchId"))
-                .distinct()
-                .toList();
-        matchIds.forEach(projector::reproject);
+                .and("rank").is(null));
+        sansRang.fields().include("matchId").include("puuid").include("startedAt");
+        Set<String> aReprojeter = new LinkedHashSet<>();
+        List<Document> lot = new ArrayList<>();
+        try (Stream<Document> lignes = mongo.stream(sansRang, Document.class, MatchParticipation.COLLECTION)) {
+            Iterator<Document> suite = lignes.iterator();
+            while (suite.hasNext() && aReprojeter.size() < RETAMPONNAGE_MAX) {
+                lot.add(suite.next());
+                if (lot.size() == LOT_RETAMPONNAGE || !suite.hasNext()) {
+                    aReprojeter.addAll(rangsApparus(lot));
+                    lot.clear();
+                }
+            }
+        }
+        aReprojeter.forEach(projector::reproject);
+        if (!aReprojeter.isEmpty()) {
+            log.info("{} parties reprojetées : un rang est apparu pour au moins un joueur.", aReprojeter.size());
+        }
+        return aReprojeter.size();
+    }
+
+    private Set<String> rangsApparus(List<Document> lignes) {
+        Map<String, List<RankSpan>> plages = rankHistory.spansOf(lignes.stream()
+                .map(ligne -> ligne.getString("puuid")).distinct().toList());
+        Set<String> matchIds = new LinkedHashSet<>();
+        for (Document ligne : lignes) {
+            Instant jouee = ligne.get("startedAt") instanceof Date date ? date.toInstant() : null;
+            if (RankHistory.covers(plages.getOrDefault(ligne.getString("puuid"), List.of()), jouee,
+                    ParticipationProjector.RANG_TOLERANCE)) {
+                matchIds.add(ligne.getString("matchId"));
+            }
+        }
+        return matchIds;
     }
 
     private Map<String, Map<String, Map<String, StoredReference.TierGrid>>> grilles(String scope, List<String> patchs) {
