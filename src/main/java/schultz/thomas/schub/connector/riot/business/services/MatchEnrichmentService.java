@@ -14,6 +14,7 @@ import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.ingest.TeamSideProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.CachedTimeline;
@@ -51,6 +52,7 @@ public class MatchEnrichmentService {
     private final CachedTimelineDigestRepository digests;
     private final MatchDetailService matchDetailService;
     private final ParticipationProjector projector;
+    private final TeamSideProjector teamSides;
     private final MatchRankSnapshotRepository rankSnapshots;
     private final MatchEarlyStatsRepository earlyStats;
     private final RiotApiClient riotApiClient;
@@ -127,6 +129,7 @@ public class MatchEnrichmentService {
     private void enregistreDebut(String matchId, Map<String, Object> timeline) {
         earlyStats.save(debut(matchId, timeline));
         projector.reproject(matchId);
+        teamSides.project(matchId);
     }
 
     public int recalculePerimes() {
