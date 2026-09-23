@@ -7,8 +7,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Limit;
+import org.bson.Document;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
 
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
@@ -28,6 +30,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,13 +45,14 @@ class ParticipationProjectorTest {
     @Mock private MatchParticipationRepository participations;
     @Mock private KnownAccountIndex knownAccounts;
     @Mock private MetricScaleService metricScale;
+    @Mock private MongoTemplate mongo;
 
     private ParticipationProjector projector;
 
     @BeforeEach
     void setUp() {
         projector = new ParticipationProjector(matches, participations, knownAccounts,
-                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale);
+                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo);
     }
 
     @Test
@@ -85,19 +91,19 @@ class ParticipationProjectorTest {
     }
 
     @Test
-    @DisplayName("une reconstruction purge d'abord, sinon un champ retiré laisserait des restes")
-    void purgeAvantDeReconstruire() {
-        when(matches.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+    @DisplayName("une reconstruction écrase sur place : les statistiques restent lisibles pendant qu'elle tourne")
+    void reconstruitSansPurger() {
+        when(matches.findByMatchIdGreaterThanOrderByMatchIdAsc(anyString(), any(Limit.class))).thenReturn(List.of());
 
         projector.rebuildAll();
 
-        verify(participations).deleteAll();
+        verify(participations, never()).deleteAll();
     }
 
     @Test
     @DisplayName("une partie stockée sans JSON brut est comptée, pas ignorée en silence")
     void compteLesPartiesSansBrut() {
-        when(matches.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(
+        when(matches.findByMatchIdGreaterThanOrderByMatchIdAsc(anyString(), any(Limit.class))).thenReturn((List.of(
                 new CachedMatch("EUW1_7987650481", Fixtures.document("match-ranked-solo.json"), MAINTENANT),
                 new CachedMatch("EUW1_ANCIENNE", null, MAINTENANT))));
 
@@ -106,6 +112,22 @@ class ParticipationProjectorTest {
         assertThat(rapport.matchesRead()).isEqualTo(2);
         assertThat(rapport.participationsWritten()).isEqualTo(10);
         assertThat(rapport.unusableMatches()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("la mise à niveau ne relit que les lignes périmées, et une partie sans brut ne tourne pas en boucle")
+    void metANiveauSansBoucler() {
+        when(mongo.find(any(Query.class), eq(Document.class), eq(MatchParticipation.COLLECTION)))
+                .thenReturn(List.of(new Document("matchId", "EUW1_7987650481"), new Document("matchId", "EUW1_PERDUE")))
+                .thenReturn(List.of());
+        when(matches.findByMatchIdIn(List.of("EUW1_7987650481", "EUW1_PERDUE"))).thenReturn(List.of(
+                new CachedMatch("EUW1_7987650481", Fixtures.document("match-ranked-solo.json"), MAINTENANT)));
+
+        RebuildReport rapport = projector.upgradeOutdated();
+
+        assertThat(rapport.participationsWritten()).isEqualTo(10);
+        assertThat(rapport.unusableMatches()).isEqualTo(1);
+        verify(participations, never()).deleteAll();
     }
 
     @SuppressWarnings("unchecked")
