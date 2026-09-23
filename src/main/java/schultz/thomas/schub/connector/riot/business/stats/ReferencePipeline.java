@@ -85,6 +85,24 @@ final class ReferencePipeline {
         return pipeline;
     }
 
+    // Les dix joueurs d'une partie, sans filtre de file ni de durée : c'est la partie qu'on regarde, pas une population.
+    static List<Document> valeursDePartie(String matchId, List<ReferenceMetric> metriques) {
+        Document termes = new Document("puuid", 1).append("side", 1).append("position", 1).append("championId", 1)
+                .append("rank", 1);
+        Document valeurs = new Document("puuid", 1).append("side", 1).append("position", 1).append("championId", 1)
+                .append("rank", 1);
+        for (ReferenceMetric metrique : metriques) {
+            String k = metrique.key();
+            termes.append("n_" + k, metrique.numerator())
+                    .append("d_" + k, new Document("$cond", List.of(
+                            new Document("$isNumber", metrique.numerator()), metrique.denominator(), 0)));
+            valeurs.append(k, new Document("$cond", Arrays.asList(new Document("$gt", List.of("$d_" + k, 0)),
+                    new Document("$divide", List.of("$n_" + k, "$d_" + k)), null)));
+        }
+        return List.of(new Document("$match", new Document("matchId", matchId)),
+                new Document("$project", termes), new Document("$project", valeurs));
+    }
+
     private static Document branche(List<String> paliers, String groupe) {
         return new Document("case", new Document("$in", List.of("$tier", paliers))).append("then", groupe);
     }

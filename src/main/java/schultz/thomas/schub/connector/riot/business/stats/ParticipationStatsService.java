@@ -216,6 +216,11 @@ public class ParticipationStatsService {
     }
 
     public SharedMatches sharedMatches(List<String> puuids, int minimumPlayers, Instant since, Integer limit) {
+        return sharedMatches(puuids, minimumPlayers, since, limit, null);
+    }
+
+    public SharedMatches sharedMatches(List<String> puuids, int minimumPlayers, Instant since, Integer limit,
+                                       List<String> parmi) {
         List<String> propres = propres(puuids);
         int seuil = Math.max(1, minimumPlayers);
         if (propres.size() < seuil) {
@@ -226,7 +231,9 @@ public class ParticipationStatsService {
                 : (int) Math.clamp(limit.longValue(), 1, SHARED_MATCHES_LIMIT_MAX);
 
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(filtre(propres, since, null, StatsScope.ALL)),
+                Aggregation.match(parmi == null || parmi.isEmpty()
+                        ? filtre(propres, since, null, StatsScope.ALL)
+                        : filtre(propres, since, null, StatsScope.ALL).and("matchId").in(parmi)),
                 Aggregation.group("matchId")
                         .count().as("present")
                         .max("startedAt").as("startedAt"),

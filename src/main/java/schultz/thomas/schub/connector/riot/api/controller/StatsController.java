@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
+import schultz.thomas.schub.connector.riot.api.dto.MatchPlayerMetrics;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PatchStart;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
@@ -30,6 +31,7 @@ import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
+import schultz.thomas.schub.connector.riot.business.stats.MatchMetricsService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
 import schultz.thomas.schub.connector.riot.business.stats.PatchCalendar;
@@ -49,6 +51,7 @@ public class StatsController {
     private final MatchEnrichmentService enrichment;
     private final ReferenceService references;
     private final PatchCalendar patches;
+    private final MatchMetricsService matchMetrics;
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """
@@ -96,7 +99,7 @@ public class StatsController {
     @PostMapping("/shared-matches")
     public SharedMatches sharedMatches(@Valid @RequestBody SharedMatchesQuery query) {
         SharedMatches communes = statsService.sharedMatches(
-                query.puuids(), query.minimumPlayers(), query.since(), query.limit());
+                query.puuids(), query.minimumPlayers(), query.since(), query.limit(), query.matchIds());
         if (Boolean.TRUE.equals(query.enrich())) {
             enrichment.enqueueMissing(communes.matches().stream().map(SharedMatch::matchId).toList());
         }
@@ -108,6 +111,13 @@ public class StatsController {
     @PostMapping("/match-insights")
     public List<MatchInsights> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
         return enrichment.insights(request.matchIds());
+    }
+
+    @Operation(summary = "Les indicateurs de chaque joueur sur une partie",
+            description = "Mêmes expressions que la grille GAME : chaque valeur se place directement sur la répartition du poste.")
+    @GetMapping("/matches/{matchId}/metrics")
+    public List<MatchPlayerMetrics> matchMetrics(@PathVariable String matchId) {
+        return matchMetrics.of(matchId);
     }
 
     @Operation(summary = "Les derniers patchs et la date de leur première partie collectée",
