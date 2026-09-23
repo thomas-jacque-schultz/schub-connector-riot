@@ -10,14 +10,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
+import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.MetricScale;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
+import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
+import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
 
@@ -32,6 +36,7 @@ public class StatsController {
 
     private final ParticipationStatsService statsService;
     private final MetricScaleService metricScale;
+    private final MatchEnrichmentService enrichment;
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """
@@ -78,8 +83,19 @@ public class StatsController {
                     serait faux dans les deux sens.""")
     @PostMapping("/shared-matches")
     public SharedMatches sharedMatches(@Valid @RequestBody SharedMatchesQuery query) {
-        return statsService.sharedMatches(
+        SharedMatches communes = statsService.sharedMatches(
                 query.puuids(), query.minimumPlayers(), query.since(), query.limit());
+        if (Boolean.TRUE.equals(query.enrich())) {
+            enrichment.enqueueMissing(communes.matches().stream().map(SharedMatch::matchId).toList());
+        }
+        return communes;
+    }
+
+    @Operation(summary = "Rangs relevés et chiffres à 15 minutes de parties déjà collectées",
+            description = "Aucun appel à Riot : ce qui manque est rendu absent, et se collecte via `enrich`.")
+    @PostMapping("/match-insights")
+    public List<MatchInsights> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
+        return enrichment.insights(request.matchIds());
     }
 
     @Operation(summary = "Bornes des indicateurs pour les graphiques radar",
