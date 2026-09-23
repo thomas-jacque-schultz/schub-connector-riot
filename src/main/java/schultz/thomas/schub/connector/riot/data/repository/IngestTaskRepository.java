@@ -4,7 +4,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
+import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +21,6 @@ public interface IngestTaskRepository extends MongoRepository<IngestTask, String
     Optional<IngestTask> findFirstByPuuidAndStateOrderByPriorityAsc(String puuid, IngestTaskState state);
 
     List<IngestTask> findByState(IngestTaskState state);
+
+    long countByTypeAndKeyStartingWithAndStateIn(IngestTaskType type, String prefix, Collection<IngestTaskState> states);
 }

@@ -6,5 +6,9 @@ public enum IngestTaskType {
 
     MATCH_DETAIL,
     MATCH_TIMELINE,
-    MATCH_RANKS
+    MATCH_TIMELINE_DIGEST,
+    MATCH_RANKS,
+
+    LADDER_PAGE,
+    SEED_MATCHES
 }

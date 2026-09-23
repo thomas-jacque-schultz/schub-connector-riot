@@ -31,6 +31,7 @@ public class IngestWorker {
     private final RankingService rankingService;
     private final RiotProperties properties;
     private final BackgroundCrawler crawler;
+    private final LadderSampler sampler;
 
     public void drain() {
         QuotaLaneContext.runAsBulk(this::drainTasks);
@@ -57,6 +58,9 @@ public class IngestWorker {
                 case PLAYER_IDS -> collectIds(task);
                 case MATCH_DETAIL -> collectDetail(task);
                 case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
+                case MATCH_TIMELINE_DIGEST -> enrichment.collectDigest(task.key());
+                case LADDER_PAGE -> sampler.samplePage(task.key());
+                case SEED_MATCHES -> sampler.collectSeed(task.key());
                 case MATCH_RANKS -> enrichment.collectRanks(task.key());
             }
             queue.complete(task);

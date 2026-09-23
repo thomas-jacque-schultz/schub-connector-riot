@@ -13,6 +13,7 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestWorker;
+import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 
 // Pas de @Scheduled(fixedDelayString) : il n'accepte que des ms ou de l'ISO-8601, pas « 2s ».
@@ -25,6 +26,7 @@ public class IngestConfiguration implements SchedulingConfigurer {
     private final IngestWorker worker;
     private final MetricScaleService metricScale;
     private final BackgroundCrawler crawler;
+    private final LadderSampler sampler;
 
     @Bean
     public TaskScheduler ingestScheduler() {
@@ -41,5 +43,6 @@ public class IngestConfiguration implements SchedulingConfigurer {
         registrar.addFixedDelayTask(worker::drain, properties.getIngest().getPollInterval());
         registrar.addFixedDelayTask(metricScale::refresh, Duration.ofHours(1));
         registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
+        registrar.addFixedDelayTask(sampler::round, properties.getCrawler().getInterval());
     }
 }
