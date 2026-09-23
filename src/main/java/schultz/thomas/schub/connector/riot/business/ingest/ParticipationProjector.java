@@ -14,6 +14,7 @@ import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.SearchName;
+import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
@@ -35,6 +36,7 @@ public class ParticipationProjector {
     private final KnownAccountIndex knownAccounts;
     private final RawMatchDecoder decoder;
     private final Clock clock;
+    private final MetricScaleService metricScale;
 
     public int project(MatchDetail detail) {
         Instant now = clock.instant();
@@ -83,6 +85,7 @@ public class ParticipationProjector {
         }
         log.info("Couche d'analyse reconstruite : {} parties lues, {} participations écrites.",
                 matchesRead, rowsWritten);
+        metricScale.refresh();
         return new RebuildReport(matchesRead, rowsWritten, unusable, startedAt, clock.instant());
     }
 
