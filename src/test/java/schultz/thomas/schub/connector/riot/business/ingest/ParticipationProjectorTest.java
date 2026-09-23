@@ -13,6 +13,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
+import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
@@ -22,11 +24,16 @@ import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
+import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,13 +53,14 @@ class ParticipationProjectorTest {
     @Mock private KnownAccountIndex knownAccounts;
     @Mock private MetricScaleService metricScale;
     @Mock private MongoTemplate mongo;
+    @Mock private MatchEarlyStatsRepository earlyStats;
 
     private ParticipationProjector projector;
 
     @BeforeEach
     void setUp() {
         projector = new ParticipationProjector(matches, participations, knownAccounts,
-                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo);
+                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo, earlyStats);
     }
 
     @Test
@@ -128,6 +136,87 @@ class ParticipationProjectorTest {
         assertThat(rapport.participationsWritten()).isEqualTo(10);
         assertThat(rapport.unusableMatches()).isEqualTo(1);
         verify(participations, never()).deleteAll();
+    }
+
+    @Test
+    @DisplayName("vision, survie et objectifs sont projetés bruts, avec les dégâts de toute l'équipe pour la part")
+    void projetteLaPerformance() {
+        projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
+
+        MatchParticipation top = ligne(TOP_BLEU);
+        assertThat(top.performance()).isEqualTo(new MatchParticipation.Performance(12, 4, 3, 95, 5200, 2, 1800,
+                15272 + 22035 + 20062 + 15985 + 12754, 5));
+    }
+
+    @Test
+    @DisplayName("l'adversaire direct est l'autre joueur du même poste, et l'écart de plaques se lit sans timeline")
+    void trouveLAdversaireDirect() {
+        projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
+
+        MatchParticipation.Laning laning = ligne(TOP_BLEU).laning();
+        assertThat(laning.opponentPuuid()).isEqualTo(TOP_ROUGE);
+        assertThat(laning.platesDiff()).isEqualTo(3);
+        assertThat(laning.goldDiffAt15()).isNull();
+    }
+
+    @Test
+    @DisplayName("avec les chiffres à 15 min des deux, les écarts d'or, de CS, d'xp et de kills sont projetés")
+    void projetteLesEcartsA15() {
+        when(earlyStats.findById(MATCH)).thenReturn(Optional.of(new MatchEarlyStats(MATCH, Map.of(
+                TOP_BLEU, new MatchInsights.At15(6000, 7000, 130, 4000, 2, 1, 0),
+                TOP_ROUGE, new MatchInsights.At15(5200, 6500, 118, 3000, 1, 2, 1)), null, MatchEarlyStats.CURRENT_VERSION)));
+
+        projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
+
+        MatchParticipation.Laning laning = ligne(TOP_BLEU).laning();
+        assertThat(laning.goldAt15()).isEqualTo(6000);
+        assertThat(laning.goldDiffAt15()).isEqualTo(800);
+        assertThat(laning.csDiffAt15()).isEqualTo(12);
+        assertThat(laning.xpDiffAt15()).isEqualTo(500);
+        assertThat(laning.killsDiffAt15()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("deux joueurs au même poste dans une équipe : pas d'adversaire plutôt qu'un faux")
+    void pasDAdversaireSurPosteEnDouble() {
+        MatchParticipant a = joueur("a", TeamPosition.TOP, 100);
+        MatchParticipant b = joueur("b", TeamPosition.TOP, 100);
+        MatchParticipant c = joueur("c", TeamPosition.TOP, 200);
+        MatchParticipant d = joueur("d", TeamPosition.UNKNOWN, 100);
+        MatchParticipant e = joueur("e", TeamPosition.UNKNOWN, 200);
+
+        assertThat(ParticipationProjector.adversaires(List.of(a, b, c, d, e))).isEmpty();
+    }
+
+    private static final String MATCH = "EUW1_7987650481";
+    private static final String TOP_BLEU = "WXlEt6t1";
+    private static final String TOP_ROUGE = "yVI0urZP";
+
+    private static Document partieEnrichie() {
+        Document brut = Fixtures.document("match-ranked-solo.json");
+        List<Document> joueurs = brut.get("info", Document.class).getList("participants", Document.class);
+        for (Document joueur : joueurs) {
+            if (joueur.getString("puuid").startsWith(TOP_BLEU)) {
+                joueur.append("wardsPlaced", 12).append("wardsKilled", 4).append("detectorWardsPlaced", 3)
+                        .append("totalTimeSpentDead", 95).append("damageDealtToTurrets", 5200)
+                        .append("turretTakedowns", 2).append("damageDealtToEpicMonsters", 1800)
+                        .append("challenges", new Document("turretPlatesTaken", 5));
+                joueur.put("puuid", TOP_BLEU);
+            } else if (joueur.getString("puuid").startsWith(TOP_ROUGE)) {
+                joueur.append("challenges", new Document("turretPlatesTaken", 2));
+                joueur.put("puuid", TOP_ROUGE);
+            }
+        }
+        return brut;
+    }
+
+    private MatchParticipation ligne(String puuid) {
+        return capture().stream().filter(row -> row.puuid().equals(puuid)).findFirst().orElseThrow();
+    }
+
+    private static MatchParticipant joueur(String puuid, TeamPosition poste, int equipe) {
+        return new MatchParticipant(puuid, null, null, 1, "X", poste, equipe, true, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                List.of(), false);
     }
 
     @SuppressWarnings("unchecked")

@@ -45,6 +45,14 @@ public record RiotMatchResponse(Metadata metadata, Info info) {
             int totalDamageDealtToChampions,
             int totalDamageTaken,
             int visionScore,
+            int wardsPlaced,
+            int wardsKilled,
+            int detectorWardsPlaced,
+            int totalTimeSpentDead,
+            int damageDealtToTurrets,
+            int turretTakedowns,
+            int damageDealtToEpicMonsters,
+            Challenges challenges,
             int summoner1Id,
             int summoner2Id,
             int item0,
@@ -60,6 +68,10 @@ public record RiotMatchResponse(Metadata metadata, Info info) {
         public List<Integer> items() {
             return List.of(item0, item1, item2, item3, item4, item5, item6);
         }
+    }
+
+    // challenges est absent de certains modes, et Riot en change le contenu sans prévenir.
+    public record Challenges(Integer turretPlatesTaken) {
     }
 
     public record Team(int teamId, boolean win, List<Ban> bans, Map<String, Objective> objectives) {

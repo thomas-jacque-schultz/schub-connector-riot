@@ -46,14 +46,27 @@ public record MatchParticipation(
         Integer teamKills,
         Integer teamDeaths,
         boolean afk,
+        Performance performance,
+        Laning laning,
         Integer projectionVersion,
         Instant projectedAt
 ) {
 
     // À incrémenter quand un champ dérivé du brut change : le démarrage reprojette alors tout.
-    public static final int PROJECTION_VERSION = 2;
+    public static final int PROJECTION_VERSION = 3;
 
     public static final String COLLECTION = "riot_participation";
+
+    public record Performance(int wardsPlaced, int wardsKilled, int controlWardsPlaced, int timeDeadSeconds,
+                              int turretDamage, int turretTakedowns, int epicMonsterDamage,
+                              int teamDamageToChampions, Integer platesTaken) {
+    }
+
+    // Face à l'adversaire direct : l'autre joueur du même poste. Chiffres à 15 min absents sans timeline.
+    public record Laning(String opponentPuuid, Integer platesDiff, Integer goldAt15, Integer csAt15, Integer xpAt15,
+                         Integer killsAt15, Integer deathsAt15, Integer goldDiffAt15, Integer csDiffAt15,
+                         Integer xpDiffAt15, Integer killsDiffAt15) {
+    }
 
     public static String idOf(String puuid, String matchId) {
         return puuid + "#" + matchId;

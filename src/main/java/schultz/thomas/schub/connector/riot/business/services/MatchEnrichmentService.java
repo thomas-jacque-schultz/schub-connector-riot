@@ -13,6 +13,7 @@ import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
+import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.CachedTimeline;
@@ -49,6 +50,7 @@ public class MatchEnrichmentService {
     private final CachedTimelineRepository timelines;
     private final CachedTimelineDigestRepository digests;
     private final MatchDetailService matchDetailService;
+    private final ParticipationProjector projector;
     private final MatchRankSnapshotRepository rankSnapshots;
     private final MatchEarlyStatsRepository earlyStats;
     private final RiotApiClient riotApiClient;
@@ -95,7 +97,7 @@ public class MatchEnrichmentService {
         riotApiClient.timeline(matchId).ifPresentOrElse(
                 raw -> {
                     timelines.save(new CachedTimeline(matchId, raw, clock.instant()));
-                    earlyStats.save(debut(matchId, raw));
+                    enregistreDebut(matchId, raw);
                 },
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
     }
@@ -110,7 +112,7 @@ public class MatchEnrichmentService {
                 raw -> {
                     org.bson.Document resume = TimelineDigest.of(raw);
                     digests.save(new CachedTimelineDigest(matchId, resume, clock.instant()));
-                    earlyStats.save(debut(matchId, resume));
+                    enregistreDebut(matchId, resume);
                 },
                 () -> log.warn("Timeline introuvable chez Riot : {}", matchId));
     }
@@ -119,7 +121,12 @@ public class MatchEnrichmentService {
     private void recalculeDebut(String matchId) {
         timelines.findById(matchId).map(CachedTimeline::raw)
                 .or(() -> digests.findById(matchId).map(CachedTimelineDigest::raw))
-                .ifPresent(timeline -> earlyStats.save(debut(matchId, timeline)));
+                .ifPresent(timeline -> enregistreDebut(matchId, timeline));
+    }
+
+    private void enregistreDebut(String matchId, Map<String, Object> timeline) {
+        earlyStats.save(debut(matchId, timeline));
+        projector.reproject(matchId);
     }
 
     public int recalculePerimes() {

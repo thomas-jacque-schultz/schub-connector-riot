@@ -76,7 +76,7 @@ class ParticipationStatsServiceTest {
                 "Pseudo", "TAG", "pseudo", 126, "Jayce", TeamPosition.MIDDLE, win, side, 1800,
                 440, QueueKind.RANKED_FLEX, "16.18.1.1", "16.18", "EUW1", QUAND, true,
                 5, 2, 3, 150, 12000, 20000, 18000, 25, 20, 18, false,
-                MatchParticipation.PROJECTION_VERSION, QUAND);
+                null, null, MatchParticipation.PROJECTION_VERSION, QUAND);
     }
 
     @Test

@@ -10,7 +10,9 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
+import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
@@ -18,12 +20,16 @@ import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.SearchName;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
+import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,17 +50,27 @@ public class ParticipationProjector {
     private final Clock clock;
     private final MetricScaleService metricScale;
     private final MongoTemplate mongo;
+    private final MatchEarlyStatsRepository earlyStats;
 
-    public int project(MatchDetail detail) {
-        Instant now = clock.instant();
+    public int project(Document raw) {
+        RiotMatchResponse response = decoder.decode(raw);
+        MatchDetail detail = decoder.toDetail(response);
         Map<Integer, int[]> equipes = new HashMap<>();
         for (MatchParticipant participant : detail.participants()) {
-            int[] totaux = equipes.computeIfAbsent(participant.teamId(), id -> new int[2]);
+            int[] totaux = equipes.computeIfAbsent(participant.teamId(), id -> new int[3]);
             totaux[0] += participant.kills();
             totaux[1] += participant.deaths();
+            totaux[2] += participant.damageToChampions();
         }
+        Map<String, RiotMatchResponse.Participant> bruts = new HashMap<>();
+        if (response.info().participants() != null) {
+            response.info().participants().forEach(brut -> bruts.put(brut.puuid(), brut));
+        }
+        Contexte contexte = new Contexte(detail, equipes, bruts,
+                earlyStats.findById(detail.matchId()).map(MatchEarlyStats::byPuuid).orElse(Map.of()),
+                adversaires(detail.participants()), clock.instant());
         List<MatchParticipation> rows = detail.participants().stream()
-                .map(participant -> toParticipation(detail, participant, equipes.get(participant.teamId()), now))
+                .map(participant -> toParticipation(contexte, participant))
                 .toList();
         if (!rows.isEmpty()) {
             participations.saveAll(rows);
@@ -64,8 +80,14 @@ public class ParticipationProjector {
     }
 
     public int project(CachedMatch cached) {
-        return project(decoder.toDetail(cached.raw()));
+        return project(cached.raw());
     }
+
+    // Les chiffres à 15 min arrivent avec la timeline, souvent après la partie : on reprojette alors.
+    public void reproject(String matchId) {
+        matches.findById(matchId).filter(cached -> cached.raw() != null).ifPresent(this::project);
+    }
+
 
     public boolean outdated() {
         return participations.existsByProjectionVersionNot(MatchParticipation.PROJECTION_VERSION);
@@ -149,8 +171,9 @@ public class ParticipationProjector {
                 row.startedAt(), KnownAccountSource.PARTICIPATION);
     }
 
-    private MatchParticipation toParticipation(MatchDetail detail, MatchParticipant participant,
-                                               int[] equipe, Instant now) {
+    private MatchParticipation toParticipation(Contexte contexte, MatchParticipant participant) {
+        MatchDetail detail = contexte.detail();
+        int[] equipe = contexte.equipes().get(participant.teamId());
         return new MatchParticipation(
                 MatchParticipation.idOf(participant.puuid(), detail.matchId()),
                 participant.puuid(),
@@ -182,9 +205,75 @@ public class ParticipationProjector {
                 equipe[0],
                 equipe[1],
                 participant.afk(),
+                performance(contexte.bruts().get(participant.puuid()), equipe[2]),
+                laning(contexte, participant),
                 MatchParticipation.PROJECTION_VERSION,
-                now);
+                contexte.now());
     }
+
+    private static MatchParticipation.Performance performance(RiotMatchResponse.Participant brut, int degatsEquipe) {
+        if (brut == null) {
+            return null;
+        }
+        return new MatchParticipation.Performance(brut.wardsPlaced(), brut.wardsKilled(), brut.detectorWardsPlaced(),
+                brut.totalTimeSpentDead(), brut.damageDealtToTurrets(), brut.turretTakedowns(),
+                brut.damageDealtToEpicMonsters(), degatsEquipe, plaques(brut));
+    }
+
+    private static MatchParticipation.Laning laning(Contexte contexte, MatchParticipant moi) {
+        MatchParticipant adversaire = contexte.adversaires().get(moi.puuid());
+        MatchInsights.At15 mien = contexte.a15().get(moi.puuid());
+        if (adversaire == null && mien == null) {
+            return null;
+        }
+        MatchInsights.At15 sien = adversaire == null ? null : contexte.a15().get(adversaire.puuid());
+        boolean face = mien != null && sien != null;
+        return new MatchParticipation.Laning(
+                adversaire == null ? null : adversaire.puuid(),
+                adversaire == null ? null : ecart(plaques(contexte.bruts().get(moi.puuid())),
+                        plaques(contexte.bruts().get(adversaire.puuid()))),
+                mien == null ? null : mien.gold(),
+                mien == null ? null : mien.cs(),
+                mien == null ? null : mien.xp(),
+                mien == null ? null : mien.kills(),
+                mien == null ? null : mien.deaths(),
+                face ? mien.gold() - sien.gold() : null,
+                face ? mien.cs() - sien.cs() : null,
+                face ? mien.xp() - sien.xp() : null,
+                face ? mien.kills() - sien.kills() : null);
+    }
+
+    // Un seul joueur par poste de chaque côté, sinon pas d'adversaire : postes inconnus ou en double.
+    static Map<String, MatchParticipant> adversaires(List<MatchParticipant> participants) {
+        Map<TeamPosition, List<MatchParticipant>> parPoste = new HashMap<>();
+        participants.stream()
+                .filter(participant -> participant.position() != null && participant.position() != TeamPosition.UNKNOWN)
+                .forEach(participant -> parPoste.computeIfAbsent(participant.position(), poste -> new ArrayList<>())
+                        .add(participant));
+        Map<String, MatchParticipant> adversaires = new HashMap<>();
+        parPoste.values().forEach(face -> {
+            if (face.size() == 2 && face.get(0).teamId() != face.get(1).teamId()) {
+                adversaires.put(face.get(0).puuid(), face.get(1));
+                adversaires.put(face.get(1).puuid(), face.get(0));
+            }
+        });
+        return adversaires;
+    }
+
+    // Les plaques tombent à 14:00 : le total de fin de partie est celui de la phase de laning.
+    private static Integer plaques(RiotMatchResponse.Participant brut) {
+        return brut == null || brut.challenges() == null ? null : brut.challenges().turretPlatesTaken();
+    }
+
+    private static Integer ecart(Integer moi, Integer lui) {
+        return moi == null || lui == null ? null : moi - lui;
+    }
+
+    private record Contexte(MatchDetail detail, Map<Integer, int[]> equipes,
+                            Map<String, RiotMatchResponse.Participant> bruts, Map<String, MatchInsights.At15> a15,
+                            Map<String, MatchParticipant> adversaires, Instant now) {
+    }
+
 
     private String patchOf(String gameVersion) {
         if (gameVersion == null || gameVersion.isBlank()) {
