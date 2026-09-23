@@ -5,8 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 
 import java.util.List;
 import java.util.Map;
@@ -42,10 +40,10 @@ class MatchEnrichmentServiceTest {
                         image(900_000, 6100, 5300, List.of(kill(899_000, 2, 1, List.of(1)))),
                         image(960_000, 6700, 5900, List.of(kill(930_000, 1, 2, List.of()))))));
 
-        Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw, List.of());
+        Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw);
 
-        assertThat(a15.get("p1")).isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 1, 1, null, null));
-        assertThat(a15.get("p2")).isEqualTo(new MatchInsights.At15(5300, 6500, 95, 4100, 1, 1, 0, null, null));
+        assertThat(a15.get("p1")).isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 1, 1));
+        assertThat(a15.get("p2")).isEqualTo(new MatchInsights.At15(5300, 6500, 95, 4100, 1, 1, 0));
     }
 
     @Test
@@ -54,7 +52,7 @@ class MatchEnrichmentServiceTest {
         Document raw = new Document("metadata", new Document("participants", List.of("p1", "p2")))
                 .append("info", new Document("frames", List.of(image(0, 500, 500, List.of()))));
 
-        assertThat(MatchEnrichmentService.a15(raw, List.of())).isEmpty();
+        assertThat(MatchEnrichmentService.a15(raw)).isEmpty();
     }
 
     @Test
@@ -68,46 +66,8 @@ class MatchEnrichmentServiceTest {
         Map<String, Object> raw = Map.of("metadata", Map.of("participants", List.of("p1")),
                 "info", Map.of("frames", List.of(image)));
 
-        assertThat(MatchEnrichmentService.a15(raw, List.of()).get("p1"))
-                .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0, null, null));
+        assertThat(MatchEnrichmentService.a15(raw).get("p1"))
+                .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0));
     }
 
-    @Test
-    @DisplayName("Gank avant 15:00 : subi par le mort, réussi pour ceux qui tuent avec leur jungler")
-    void ganksSubis() {
-        List<String> puuids = List.of("top-bleu", "jgl-bleu", "top-rouge", "jgl-rouge");
-        List<MatchParticipant> participants = List.of(
-                joueur("top-bleu", TeamPosition.TOP, 100), joueur("jgl-bleu", TeamPosition.JUNGLE, 100),
-                joueur("top-rouge", TeamPosition.TOP, 200), joueur("jgl-rouge", TeamPosition.JUNGLE, 200));
-        Document raw = new Document("metadata", new Document("participants", puuids))
-                .append("info", new Document("frames", List.of(
-                        image(0, 500, 500, List.of(
-                                kill(300_000, 4, 1, List.of()),
-                                kill(400_000, 3, 1, List.of(4)),
-                                kill(500_000, 3, 1, List.of()),
-                                kill(600_000, 2, 3, List.of(1)))),
-                        quatreJoueurs(image(900_000, 6000, 6000, List.of(kill(910_000, 4, 1, List.of())))))));
-
-        Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw, participants);
-
-        assertThat(a15.get("top-bleu").ganksSuffered()).isEqualTo(2);
-        assertThat(a15.get("top-rouge").ganksSuffered()).isEqualTo(1);
-        assertThat(a15.get("jgl-bleu").ganksSuffered()).isZero();
-
-        assertThat(a15.get("jgl-rouge").ganksSucceeded()).isEqualTo(2);
-        assertThat(a15.get("top-rouge").ganksSucceeded()).isEqualTo(1);
-        assertThat(a15.get("jgl-bleu").ganksSucceeded()).isEqualTo(1);
-        assertThat(a15.get("top-bleu").ganksSucceeded()).isEqualTo(1);
-    }
-
-    private static Document quatreJoueurs(Document image) {
-        Document frames = image.get("participantFrames", Document.class);
-        frames.append("3", frames.get("1")).append("4", frames.get("2"));
-        return image;
-    }
-
-    private static MatchParticipant joueur(String puuid, TeamPosition position, int teamId) {
-        return new MatchParticipant(puuid, puuid, "EUW", 1, "Champion", position, teamId, false,
-                0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 14, List.of(), false);
-    }
 }
