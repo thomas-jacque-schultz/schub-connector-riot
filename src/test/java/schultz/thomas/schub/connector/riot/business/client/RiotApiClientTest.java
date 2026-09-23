@@ -101,6 +101,35 @@ class RiotApiClientTest {
     }
 
     @Test
+    @DisplayName("une page de classement par division part sur la plateforme, avec son numéro")
+    void litUnePageDeClassement() {
+        platformServer.expect(requestTo(
+                        "https://euw1.api.riotgames.com/lol/league/v4/entries/RANKED_SOLO_5x5/GOLD/II?page=3"))
+                .andRespond(withSuccess("""
+                        [{"puuid":"p1","queueType":"RANKED_SOLO_5x5","tier":"GOLD","rank":"II","leaguePoints":90}]""",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(client.ladderPage("RANKED_SOLO_5x5", "GOLD", "II", 3))
+                .extracting(entree -> entree.puuid() + " " + entree.tier() + " " + entree.rank())
+                .containsExactly("p1 GOLD II");
+        platformServer.verify();
+    }
+
+    @Test
+    @DisplayName("une ligue au sommet reporte son palier et sa file sur chaque entrée, qui ne les portent pas")
+    void reporteLePalierDeLaLigue() {
+        platformServer.expect(requestTo(
+                        "https://euw1.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5"))
+                .andRespond(withSuccess("""
+                        {"tier":"CHALLENGER","queue":"RANKED_SOLO_5x5","entries":[{"puuid":"c1","rank":"I","leaguePoints":4439}]}""",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(client.apexLeague("RANKED_SOLO_5x5", "CHALLENGER"))
+                .extracting(entree -> entree.puuid() + " " + entree.tier() + " " + entree.queueType() + " " + entree.leaguePoints())
+                .containsExactly("c1 CHALLENGER RANKED_SOLO_5x5 4439");
+    }
+
+    @Test
     @DisplayName("un 404 est une absence, pas une panne")
     void traiteUn404CommeUneAbsence() {
         regionalServer.expect(requestTo(
