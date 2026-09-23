@@ -1,13 +1,6 @@
 package schultz.thomas.schub.connector.riot.data.model.riot;
 
-/**
- * Forme brute de {@code league-v4} — route <strong>plateforme</strong>.
- *
- * <p>Relevé le 18-09 sur {@code /lol/league/v4/entries/by-puuid/{puuid}} : la réponse porte
- * désormais le {@code puuid} et plus de {@code summonerId}. Le détour par {@code summoner-v4}
- * qu'imposaient les anciens exemples n'a plus lieu d'être — c'est un appel économisé par
- * joueur et par relevé.</p>
- */
+// league-v4 by-puuid rend le puuid et plus de summonerId (relevé le 18-09) : pas de détour par summoner-v4.
 public record RiotLeagueEntryResponse(
         String puuid,
         String queueType,

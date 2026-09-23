@@ -13,7 +13,6 @@ import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogServ
 
 import java.util.Map;
 
-/** Le catalogue des champions, figé à une version du jeu. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Champions", description = "Catalogue Data Dragon, figé par version.")

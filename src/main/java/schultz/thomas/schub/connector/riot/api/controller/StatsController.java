@@ -19,12 +19,7 @@ import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsServ
 
 import java.util.List;
 
-/**
- * Les comptes tirés des participations collectées.
- *
- * <p>Trois POST pour des lectures : la liste des puuids qui les paramètre ne tient pas dans une
- * URL, et un puuid n'a rien à faire dans un journal d'accès.</p>
- */
+// POST pour des lectures : la liste de puuids ne tient pas dans une URL et n'a rien à faire dans un journal d'accès.
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/stats")

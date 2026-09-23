@@ -3,24 +3,11 @@ package schultz.thomas.schub.connector.riot.data.model.riot;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Forme brute de {@code match-v5} — route <strong>régionale</strong>.
- *
- * <p>Riot rend près de 80 ko par partie et cent cinquante champs par participant. On ne
- * déclare ici que ce qu'on garde : Jackson ignore le reste, et ce qui n'est pas déclaré ne
- * finit pas en base.</p>
- */
 public record RiotMatchResponse(Metadata metadata, Info info) {
 
     public record Metadata(String dataVersion, String matchId, List<String> participants) {
     }
 
-    /**
-     * @param gameDuration     en secondes depuis le patch 11.20, en millisecondes avant.
-     *                         {@code gameEndTimestamp} sert à trancher : il n'existe que dans
-     *                         le cas « secondes ».
-     * @param endOfGameResult  {@code GameComplete}, ou autre chose pour un remake.
-     */
     public record Info(
             long gameId,
             int queueId,
@@ -77,7 +64,7 @@ public record RiotMatchResponse(Metadata metadata, Info info) {
     public record Team(int teamId, boolean win, List<Ban> bans, Map<String, Objective> objectives) {
     }
 
-    /** {@code championId} vaut -1 quand personne n'a banni à ce tour. */
+    // -1 quand personne n'a banni à ce tour.
     public record Ban(int championId, int pickTurn) {
     }
 

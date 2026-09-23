@@ -27,19 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-/**
- * Le seul point du connecteur qui parle à l'API Riot.
- *
- * <h2>Le routage, rendu impossible à confondre</h2>
- *
- * <p>Deux clients injectés, nommés par leur route. {@code account-v1} et {@code match-v5} sont
- * <strong>régionaux</strong> ({@code europe}) ; {@code league-v4} et
- * {@code champion-mastery-v4} sont sur la <strong>plateforme</strong> ({@code euw1}). Vérifié
- * le 18-09 : se tromper d'hôte donne un 403, qui ressemble à s'y méprendre à une clé invalide.</p>
- *
- * <p>Ce client ne connaît aucune notion de domaine : il rend les formes brutes de Riot, et
- * ce sont les services qui traduisent.</p>
- */
+// account-v1 et match-v5 : route régionale (europe). league-v4 et champion-mastery-v4 : plateforme (euw1).
+// Mauvais hôte = 403, qui ressemble à une clé invalide (vérifié le 18-09).
 @Slf4j
 @Component
 public class RiotApiClient {
@@ -70,27 +59,19 @@ public class RiotApiClient {
         this.properties = properties;
     }
 
-    /** {@code account-v1} — régional. {@code Optional.empty()} si ce Riot ID n'existe pas. */
     public Optional<RiotAccountResponse> accountByRiotId(String gameName, String tagLine) {
         return call(regional, "account-v1 by-riot-id", ACCOUNT, uri -> uri
                 .path("/riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}")
                 .build(gameName, tagLine));
     }
 
-    /** {@code account-v1} — régional. Le Riot ID <em>courant</em> d'un puuid. */
     public Optional<RiotAccountResponse> accountByPuuid(String puuid) {
         return call(regional, "account-v1 by-puuid", ACCOUNT, uri -> uri
                 .path("/riot/account/v1/accounts/by-puuid/{puuid}")
                 .build(puuid));
     }
 
-    /**
-     * {@code match-v5} — régional. Une page d'identifiants de parties.
-     *
-     * @param startTime borne basse. Riot l'attend en <strong>secondes</strong> depuis l'époque,
-     *                  là où tout le reste de son API est en millisecondes ; c'est une source
-     *                  d'erreur classique, et elle est silencieuse.
-     */
+    // startTime en secondes depuis l'époque, contrairement au reste de l'API Riot (millisecondes).
     public List<String> matchIds(String puuid, Instant startTime, int start, int count) {
         return call(regional, "match-v5 ids", MATCH_IDS, uri -> {
             uri.path("/lol/match/v5/matches/by-puuid/{puuid}/ids")
@@ -103,40 +84,26 @@ public class RiotApiClient {
         }).orElseGet(List::of);
     }
 
-    /**
-     * {@code match-v5} — régional. Le JSON <strong>intégral</strong> d'une partie.
-     *
-     * <p>Non typé volontairement : ce qui n'est pas déclaré ne serait pas stocké, et Riot ne
-     * garde pas l'historique indéfiniment. La lecture typée se fait à la relecture, depuis le
-     * stocké — ce qui rend tout changement de modèle rejouable sans un seul appel.</p>
-     */
+    // JSON non typé : ce qui n'est pas déclaré serait perdu, et Riot ne garde pas l'historique.
     public Optional<Document> match(String matchId) {
         return call(regional, "match-v5 match", MATCH, uri -> uri
                 .path("/lol/match/v5/matches/{matchId}")
                 .build(matchId)).map(Document::new);
     }
 
-    /** {@code league-v4} — plateforme. Une entrée par file classée jouée. */
     public List<RiotLeagueEntryResponse> leagueEntries(String puuid) {
         return call(platform, "league-v4 entries", LEAGUE_ENTRIES, uri -> uri
                 .path("/lol/league/v4/entries/by-puuid/{puuid}")
                 .build(puuid)).orElseGet(List::of);
     }
 
-    /** {@code champion-mastery-v4} — plateforme. Toutes les maîtrises, du plus joué au moins joué. */
     public List<RiotChampionMasteryResponse> masteries(String puuid) {
         return call(platform, "champion-mastery-v4", MASTERIES, uri -> uri
                 .path("/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}")
                 .build(puuid)).orElseGet(List::of);
     }
 
-    /**
-     * Un appel, quota tenu et 429 respecté.
-     *
-     * <p>Le 429 n'est pas traité comme une erreur mais comme une instruction : on suspend, puis
-     * on reprend. Réessayer immédiatement ferait empirer la situation, puisque les requêtes
-     * refusées comptent elles aussi dans le quota.</p>
-     */
+    // Un 429 suspend puis reprend : réessayer aussitôt aggrave, les requêtes refusées comptent dans le quota.
     private <T> Optional<T> call(RestClient client, String label, ParameterizedTypeReference<T> type,
                                  Function<UriBuilder, URI> uriFunction) {
         requireKey(label);
@@ -192,10 +159,7 @@ public class RiotApiClient {
         }
     }
 
-    /**
-     * Riot renvoie {@code Retry-After} en secondes (vérifié : {@code retry-after: 2}).
-     * Absent ou illisible, on retombe sur la fenêtre courte plutôt que de boucler sans attendre.
-     */
+    // Retry-After en secondes (vérifié : retry-after: 2).
     private Duration retryAfter(HttpHeaders headers) {
         String header = headers.getFirst(HttpHeaders.RETRY_AFTER);
         if (header != null) {
@@ -208,7 +172,6 @@ public class RiotApiClient {
         return properties.getQuota().getBurstWindow();
     }
 
-    /** Les deux méprises les plus coûteuses, nommées dans le message plutôt que devinées. */
     private String explain(int status) {
         return switch (status) {
             case 401, 403 -> " — clé absente, expirée, ou mauvais routage (régional vs plateforme).";

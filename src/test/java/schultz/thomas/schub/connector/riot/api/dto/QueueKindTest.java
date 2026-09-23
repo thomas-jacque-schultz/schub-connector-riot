@@ -9,10 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class QueueKindTest {
 
-    /**
-     * Les identifiants viennent de la liste officielle de Riot (queues.json), relevée le
-     * 22-09-2026. Les quatre premiers avaient en plus été constatés sur des comptes EUW.
-     */
+    // Identifiants de la liste officielle queues.json de Riot, relevée le 22-09-2026.
     @ParameterizedTest
     @CsvSource({
             "400, NORMAL_DRAFT",
@@ -42,7 +39,6 @@ class QueueKindTest {
         assertThat(QueueKind.fromQueueId(queueId)).isEqualTo(attendu);
     }
 
-    /** C'est le point du regroupement : l'arène a deux files, Swarm en a quatre. */
     @ParameterizedTest
     @CsvSource({
             "1700, ARENA",

@@ -25,16 +25,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * Politique n°1 — <strong>permanent, jamais redemandé</strong>.
- *
- * <p>Une partie terminée est immuable : la redemander ne peut, par construction, rien apporter.
- * Il n'y a donc aucun chemin de code qui rappelle Riot pour une partie déjà en base — c'est
- * l'exigence « ce qui a été pull un jour ne doit pas l'être une deuxième fois », prise au mot.</p>
- *
- * <p>C'est aussi la seule copie de cette donnée dans tout Schub : le cœur ne stocke aucune
- * partie. Deux copies, c'est deux vérités et une divergence garantie.</p>
- */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -48,7 +38,6 @@ public class MatchDetailService {
     private final RiotProperties properties;
     private final Clock clock;
 
-    /** Le détail d'une partie : du cache s'il y est, de Riot une seule fois sinon. */
     public Optional<MatchDetail> detail(String matchId) {
         Optional<CachedMatch> cached = matches.findById(matchId);
         if (cached.isPresent()) {
@@ -57,14 +46,6 @@ public class MatchDetailService {
         return fetchAndStore(matchId);
     }
 
-    /**
-     * Les détails d'un lot de parties, en bornant le nombre d'appels sortants.
-     *
-     * <p>La borne n'est pas une optimisation : sans elle, une première constitution d'historique
-     * à mille parties ferait pendre la requête du cœur pendant vingt minutes, le temps que le
-     * quota s'écoule. Ce qui dépasse est rendu comme {@code pending} et le prochain appel le
-     * reprendra — une réponse partielle annoncée vaut mieux qu'un trou silencieux.</p>
-     */
     public MatchDetailsResponse details(List<String> matchIds) {
         Set<String> requested = new LinkedHashSet<>(matchIds);
         List<MatchDetail> found = new ArrayList<>(matches.findByMatchIdIn(requested).stream()
@@ -90,7 +71,6 @@ public class MatchDetailService {
             try {
                 fetchAndStore(matchId).ifPresentOrElse(found::add, () -> unavailable.add(matchId));
             } catch (RiotQuotaExceededException | RiotKeyMissingException interrupted) {
-                // Le quota est épuisé ou la clé absente : inutile d'insister sur les suivantes.
                 log.info("Récupération des détails interrompue : {}", interrupted.getMessage());
                 pending.add(matchId);
                 budget = 0;
@@ -102,13 +82,6 @@ public class MatchDetailService {
         return new MatchDetailsResponse(List.copyOf(found), List.copyOf(pending), List.copyOf(unavailable));
     }
 
-    /**
-     * Récupère une partie, la normalise, la range — et date les renvois qui la référencent.
-     *
-     * <p>Dater les renvois ici plutôt qu'à l'ingestion garantit qu'une partie récupérée par
-     * n'importe quel chemin renseigne l'historique : sans cela, une partie demandée à l'unité
-     * laisserait son renvoi sans date et serait indéfiniment considérée comme « à récupérer ».</p>
-     */
     private Optional<MatchDetail> fetchAndStore(String matchId) {
         return riotApiClient.match(matchId).map(raw -> {
             MatchDetail detail = decoder.toDetail(raw);

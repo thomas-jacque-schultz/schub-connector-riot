@@ -18,12 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 
-/**
- * Authentifie les appels venant des autres services Schub par un secret partagé.
- *
- * <p>Tous les services du maillage portent le même filtre : aucun n'est joignable
- * sans l'en-tête, y compris depuis l'overlay.</p>
- */
 @Slf4j
 @Component
 public class InternalSecretFilter extends OncePerRequestFilter {
@@ -33,14 +27,7 @@ public class InternalSecretFilter extends OncePerRequestFilter {
     @Value("${schub.internal-secret}")
     private String internalSecret;
 
-    /**
-     * La sonde de santé reste joignable sans secret.
-     *
-     * <p>Sans cette exemption, le filtre rejette {@code /actuator/health} avant que le
-     * {@code permitAll} de la configuration de sécurité ne s'applique : Docker ne peut alors
-     * jamais déclarer le service sain, et tout ce qui l'attend reste à quai. La sonde n'expose
-     * que le statut — le détail est masqué par défaut.</p>
-     */
+    // Le filtre passe avant le permitAll de SecurityConfig : sans cette exemption, Docker ne voit jamais le service sain.
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return request.getRequestURI().startsWith("/actuator/health");
@@ -64,7 +51,6 @@ public class InternalSecretFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     }
 
-    /** Comparaison à temps constant : une comparaison naïve fuit la longueur du préfixe correct. */
     private boolean matches(String provided) {
         if (provided == null) {
             return false;

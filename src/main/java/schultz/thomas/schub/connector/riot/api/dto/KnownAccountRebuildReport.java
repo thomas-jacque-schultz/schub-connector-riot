@@ -4,10 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
 
-/**
- * @param accountsRead     comptes distincts vus dans {@code riot_participation}
- * @param accountsWritten  ceux dont l'entrée était absente ou plus ancienne
- */
 @Schema(description = "Reprojection des participations dans l'index des comptes connus.")
 public record KnownAccountRebuildReport(
         int accountsRead,

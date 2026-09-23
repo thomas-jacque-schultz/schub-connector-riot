@@ -1,12 +1,5 @@
 package schultz.thomas.schub.connector.riot.business.search;
 
-/**
- * Distance d'édition <strong>avec transposition</strong> (Damerau-Levenshtein restreint).
- *
- * <p>La transposition compte pour une faute et non deux, parce que c'est la faute de frappe la
- * plus fréquente : {@code thomsa} pour {@code thomas} doit ressembler à {@code thomas} plus
- * qu'à {@code thoreau}, ce qu'une distance sans transposition ne dit pas.</p>
- */
 final class EditDistance {
 
     private EditDistance() {

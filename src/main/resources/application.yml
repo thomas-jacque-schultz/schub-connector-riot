@@ -5,37 +5,18 @@ spring:
     name: connector.riot
   data:
     mongodb:
-      # Base `riot`, prévue dès la découpe en microservices. Ce connecteur est, avec Discord,
-      # l'un des deux seuls à posséder une base : il détient un état propre à sa plateforme —
-      # le cache — et non du domaine. « Ce qui a été pull un jour ne doit pas l'être une
-      # deuxième fois » est une exigence d'architecture, et c'est elle qui justifie cette base.
-      #
-      # Utilisateur propre à sa base, à créer par `task db:init` : aucun service applicatif
-      # n'a les identifiants root depuis le 17-09.
       uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST:schub-mongo}:27017/${MONGO_DB:riot}?authSource=${MONGO_DB:riot}
-      # Spring Boot laisse la création des index à false par défaut : sans cette ligne, les
-      # @Indexed et @CompoundIndex des modèles ne sont que de la documentation, et la recherche
-      # balaie la collection à chaque frappe.
+      # Sans ceci, @Indexed et @CompoundIndex sont inertes (défaut Boot : false).
       auto-index-creation: true
 
 server:
   port: 8080
 
-# Secret partagé par tous les services Schub. Aucun appel entre services sans lui.
 schub:
   internal-secret: ${SCHUB_INTERNAL_SECRET:change-me-internal-secret}
 
-# Comment joindre l'API Riot. La clé vient du secret Docker RIOT_API_KEY, monté sous
-# /run/secrets/ et repris par le configtree déclaré plus haut. Elle n'est jamais dans le dépôt.
-#
-# Clé vide = connecteur en veille : aucune requête sortante, mais le cache déjà constitué
-# reste servi — une partie terminée reste vraie sans clé.
-#
-# ATTENTION AU ROUTAGE. Riot expose deux familles d'hôtes :
-#   - `region` (europe)   -> account-v1 et match-v5
-#   - `platform` (euw1)   -> league-v4 et champion-mastery-v4
-# Les confondre donne des 403/404 qui ressemblent à des bugs de code. Vérifié le 18-09 :
-# account-v1 et match-v5 appelés sur euw1 répondent 403.
+# region (europe) : account-v1, match-v5. platform (euw1) : league-v4, champion-mastery-v4.
+# Mauvais hôte = 403 (vérifié le 18-09).
 riot:
   api-key: ${RIOT_API_KEY:}
   region: ${RIOT_REGION:europe}
@@ -45,48 +26,25 @@ riot:
   connect-timeout: 3s
   read-timeout: 10s
 
-  # Les deux fenêtres d'une clé de développement, relevées dans l'en-tête X-App-Rate-Limit
-  # de l'API réelle : `100:120,20:1`. Les tenir ensemble EST l'étalement du premier
-  # remplissage — la fenêtre longue impose d'elle-même un appel toutes les 1,2 s en moyenne.
-  # Une clé de production aura d'autres bornes : ces valeurs sont faites pour être changées
-  # sans toucher au code.
+  # Fenêtres d'une clé de développement (X-App-Rate-Limit : 100:120,20:1).
   quota:
     burst-requests: 20
     burst-window: 1s
     sustained-requests: 100
     sustained-window: 2m
-    # Riot compte à sa façon et son horloge n'est pas la nôtre : viser exactement la limite,
-    # c'est la dépasser.
     safety-margin: 2
     max-retries-on429: 3
     max-retry-after: 3m
-    # Deux voies, deux délais. La collecte a tout son temps ; un appel interactif a pour budget
-    # le read-timeout du cœur (5 s) moins l'appel à Riot lui-même — au-delà, le cœur voit une
-    # expiration réseau et croit le connecteur en panne alors qu'il est occupé.
     acquire-timeout: 5m
+    # Sous le read-timeout du cœur (5 s), moins l'appel à Riot lui-même.
     interactive-timeout: 2s
-    # Passé ce délai de cession, une tâche de collecte reprend sa place dans la file même si des
-    # appels interactifs attendent : c'est ce qui l'empêche d'être affamée.
     bulk-yield: 10s
-    # Créneaux de la fenêtre soutenue que la collecte ne prend jamais : céder du temps ne suffit
-    # pas, elle consomme les 98 créneaux en vingt secondes et il ne reste plus rien à céder.
-    # 10 sur 98, soit 10 % du débit de collecte (49 -> 44 appels/minute) ; une part du même
-    # compteur, jamais un supplément.
     interactive-reserve: 10
-    # Sans demande interactive depuis ce délai, la collecte reprend la réserve — sauf un créneau,
-    # celui qui garantit que la demande suivante soit servie tout de suite et réarme le reste.
     interactive-reserve-idle: 1m
 
-  # Quatre natures de données, quatre politiques. Les confondre donne soit du gaspillage de
-  # quota, soit des chiffres faux.
   cache:
-    # Une partie peut apparaître dans l'historique avec du retard : on repart du dernier
-    # relevé MOINS cette durée, et on dédoublonne sur le matchId. Le recouvrement coûte une
-    # lecture Mongo ; son absence coûte des parties manquantes, qu'on ne voit jamais puisqu'on
-    # ignore qu'elles existent.
+    # Une partie peut apparaître dans l'historique avec du retard.
     history-overlap: 1h
-    # En deçà, une lecture se sert du cache sans rappeler Riot : sans cela, afficher une page
-    # d'équipe déclencherait cinq synchronisations à chaque rechargement.
     history-freshness: 15m
     history-depth: 365d
     ranking-ttl: 1h
@@ -94,20 +52,13 @@ riot:
     game-version-ttl: 6h
     id-page-size: 100
     max-id-pages: 50
-    # Sans cette borne, une première synchronisation à mille parties ferait pendre la requête
-    # du cœur vingt minutes, le temps que le quota s'écoule.
     max-details-per-call: 60
 
-  # La file d'ingestion. Un premier remplissage coûte un appel par partie et Riot en garde
-  # environ mille par joueur : compter dessus dans le temps d'une requête HTTP n'a pas de sens.
-  # La file vit en Mongo — un ingest de deux heures sera interrompu, et une file mémoire
-  # perdrait le reste sans qu'on sache ce qui manque.
   ingest:
     enabled: ${RIOT_INGEST_ENABLED:true}
     poll-interval: 2s
     batch-size: 25
-    # DOIT dépasser quota.acquire-timeout : une tâche qui attend légitimement son tour de
-    # quota se ferait sinon voler par le rattrapage des tâches orphelines.
+    # Doit dépasser quota.acquire-timeout.
     lease: 15m
     max-attempts: 5
     retry-backoff: 1m

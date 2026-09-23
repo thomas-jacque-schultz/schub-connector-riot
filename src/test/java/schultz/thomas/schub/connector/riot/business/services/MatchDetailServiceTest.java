@@ -32,11 +32,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Politique n°1 : une partie terminée est récupérée une fois, et une seule.
- *
- * <p>C'est l'exigence qui justifie à elle seule que ce connecteur possède une base.</p>
- */
 @ExtendWith(MockitoExtension.class)
 class MatchDetailServiceTest {
 
@@ -70,7 +65,6 @@ class MatchDetailServiceTest {
         Optional<MatchDetail> resultat = service.detail(MATCH_ID);
 
         assertThat(resultat).contains(partie);
-        // Le cœur de l'exigence : aucun appel sortant, aucun quota consommé.
         verify(riotApiClient, never()).match(anyString());
     }
 
@@ -101,8 +95,6 @@ class MatchDetailServiceTest {
 
         service.detail(MATCH_ID);
 
-        // Sans cela, le renvoi resterait éternellement « à récupérer » et serait redemandé
-        // à chaque synchronisation.
         verify(playerMatches).saveAll(List.of(sansDate.playedAt(partie.startedAt())));
     }
 
@@ -118,7 +110,6 @@ class MatchDetailServiceTest {
         MatchDetailsResponse reponse = service.details(List.of("EUW1_A", "EUW1_B", "EUW1_C"));
 
         assertThat(reponse.matches()).hasSize(1);
-        // Une réponse partielle annoncée vaut mieux qu'une requête qui pend cinq minutes.
         assertThat(reponse.pending()).containsExactly("EUW1_B", "EUW1_C");
         verify(riotApiClient, never()).match("EUW1_B");
     }

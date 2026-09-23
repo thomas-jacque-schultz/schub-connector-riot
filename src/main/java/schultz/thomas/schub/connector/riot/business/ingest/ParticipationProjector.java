@@ -23,10 +23,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Construit la couche d'analyse depuis {@code riot_match}. Aucun appel sortant n'est possible
- * d'ici, et c'est la garantie recherchée : changer le modèle ne coûte qu'une reconstruction.
- */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -40,12 +36,6 @@ public class ParticipationProjector {
     private final RawMatchDecoder decoder;
     private final Clock clock;
 
-    /**
-     * Projette les <strong>dix</strong> participants, pas seulement le joueur demandeur.
-     *
-     * <p>La partie est déjà payée : restreindre la projection obligerait à la refaire le jour
-     * où un coéquipier lie son compte, et c'est le seul moment où l'information est gratuite.</p>
-     */
     public int project(MatchDetail detail) {
         Instant now = clock.instant();
         List<MatchParticipation> rows = detail.participants().stream()
@@ -62,7 +52,6 @@ public class ParticipationProjector {
         return project(decoder.toDetail(cached.raw()));
     }
 
-    /** Reconstruction complète. Purge d'abord : un modèle qui perd un champ laisserait sinon des restes. */
     public RebuildReport rebuildAll() {
         Instant startedAt = clock.instant();
         participations.deleteAll();

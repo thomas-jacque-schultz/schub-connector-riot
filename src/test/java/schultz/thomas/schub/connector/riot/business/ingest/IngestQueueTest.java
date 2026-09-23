@@ -27,7 +27,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Ce qui échoue en silence : le doublon, le 429, et la tâche abandonnée par un ouvrier mort. */
 @ExtendWith(MockitoExtension.class)
 class IngestQueueTest {
 
@@ -50,8 +49,6 @@ class IngestQueueTest {
         when(mongo.insert(any(IngestTask.class)))
                 .thenThrow(new DuplicateKeyException("déjà en file"));
 
-        // Le doublon est écarté par l'unicité de _id, pas par une vérification qu'on pourrait
-        // oublier d'écrire.
         assertThat(queue.enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_1", "p1", 1L)).isFalse();
     }
 
@@ -61,8 +58,6 @@ class IngestQueueTest {
         queue.claim(Duration.ofMinutes(15));
 
         String requête = captureQuery().getQueryObject().toString();
-        // Sans cette clause, une tâche réclamée par un processus tué resterait RUNNING pour
-        // toujours : perdue, et invisible puisque les compteurs la diraient « en cours ».
         assertThat(requête).contains("RUNNING").contains("leaseUntil").contains("$lt");
         assertThat(requête).contains("PENDING");
     }
@@ -84,8 +79,6 @@ class IngestQueueTest {
 
         String mise = captureUpdate().getUpdateObject().toString();
         assertThat(mise).contains("PENDING");
-        // Compter le quota comme un échec écarterait la tâche pour une raison qui ne la
-        // concerne pas.
         assertThat(mise).doesNotContain("attempts");
     }
 

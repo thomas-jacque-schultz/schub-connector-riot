@@ -23,11 +23,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Résoudre appelle Riot à chaque fois, et laisse une observation datée derrière soi : c'est ce
- * qui fait qu'un compte vérifié devient trouvable, pour tout le monde et pas seulement pour
- * celui qui l'a demandé.
- */
 @ExtendWith(MockitoExtension.class)
 class PlayerIdentityServiceTest {
 

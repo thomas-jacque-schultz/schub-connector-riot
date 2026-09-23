@@ -15,10 +15,7 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.Optional;
 
-/**
- * L'ouvrier — un seul : le limiteur est le goulot par construction, paralléliser ne ferait que
- * compliquer la comptabilité du quota. Le pool est fixé à un thread dans IngestConfiguration.
- */
+// Un seul ouvrier : le limiteur est le goulot, paralléliser ne ferait que compliquer le quota.
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -30,7 +27,6 @@ public class IngestWorker {
     private final MatchDetailService matchDetailService;
     private final RiotProperties properties;
 
-    /** Tout ce qui part d'ici emprunte la voie de collecte, qui cède le pas à l'interactif. */
     public void drain() {
         QuotaLaneContext.runAsBulk(this::drainTasks);
     }
@@ -49,7 +45,6 @@ public class IngestWorker {
         }
     }
 
-    /** @return {@code false} pour arrêter le tour : ce qui a bloqué bloquera la tâche suivante. */
     private boolean run(IngestTask task, RiotProperties.Ingest config) {
         try {
             switch (task.type()) {
@@ -59,8 +54,6 @@ public class IngestWorker {
             queue.complete(task);
             return true;
         } catch (RiotQuotaExceededException saturated) {
-            // Le limiteur a déjà encaissé le Retry-After. La tâche n'est pas fautive : la
-            // compter en échec l'écarterait pour une raison qui ne la concerne pas.
             queue.release(task, config.getQuotaBackoff());
             log.info("Quota saturé, ingestion suspendue : {}", saturated.getMessage());
             return false;
@@ -82,10 +75,7 @@ public class IngestWorker {
                 relevé.seen().size(), relevé.created(), queued);
     }
 
-    /**
-     * Une partie introuvable est consommée, pas retentée : Riot ne garde qu'environ mille
-     * parties par joueur, et insister sur ce qu'il a purgé ne ferait que brûler du quota.
-     */
+    // Riot ne garde qu'environ mille parties par joueur : une partie introuvable est consommée, pas retentée.
     private void collectDetail(IngestTask task) {
         if (matchDetailService.detail(task.key()).isEmpty()) {
             log.warn("Partie introuvable chez Riot, probablement purgée : {}", task.key());

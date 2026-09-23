@@ -33,16 +33,6 @@ import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Ce qu'on peut savoir d'un joueur : qui il est, ce qu'il a joué, où il en est.
- *
- * <p>Les routes sont nommées en vocabulaire de domaine et non en décalque de l'API Riot :
- * l'appelant demande les <em>parties</em> d'un <em>joueur</em>, il n'a pas à savoir que cela
- * s'appelle {@code match-v5} ni que c'est sur une route régionale.</p>
- *
- * <p>Protégées comme le reste du maillage par {@code X-Internal-Secret} ; seul
- * {@code GET /actuator/health} est ouvert.</p>
- */
 @Validated
 @RestController
 @RequiredArgsConstructor

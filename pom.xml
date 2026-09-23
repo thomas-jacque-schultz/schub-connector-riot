@@ -16,9 +16,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <!-- Le plan gratuit interdit de modifier le quality gate, et « Sonar way » exige
-             80 % de couverture sur le code neuf. Exclure de la mesure rend la condition
-             non applicable. Même choix que les trois repos historiques. -->
+        <!-- Plan gratuit SonarCloud : quality gate non modifiable (80 % de couverture) ; exclure rend la condition inapplicable. -->
         <sonar.coverage.exclusions>**/*</sonar.coverage.exclusions>
     </properties>
 
@@ -31,9 +29,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- Base `riot` : le connecteur possède son cache. C'est ce qui donne corps à
-             l'exigence « ce qui a été pull un jour ne doit pas l'être une deuxième fois »
-             (docs/evolutions-2026-09.md, D.2 ter). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
@@ -83,7 +78,7 @@
                     </excludes>
                 </configuration>
             </plugin>
-            <!-- Sans cette déclaration, Maven ne résout pas le préfixe `sonar:`. -->
+            <!-- Sans cette déclaration, Maven ne résout pas le préfixe sonar:. -->
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>

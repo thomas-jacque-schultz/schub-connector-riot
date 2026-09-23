@@ -33,16 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * Les comptes tirés de {@code riot_participation}, et rien d'autre.
- *
- * <p>Le calcul est ici parce que la donnée est ici : sortir dix mille participations sur HTTP
- * pour les compter ailleurs coûterait le transfert à chaque affichage d'écran. Ce qui reste au
- * cœur, c'est ce que ces comptes veulent dire.</p>
- *
- * <p>Tous les regroupements attaquent {@code puuid} en premier : c'est l'index
- * {@code puuid_startedAt} qui porte le filtre, et aucune agrégation ne balaie la collection.</p>
- */
 @Service
 @RequiredArgsConstructor
 public class ParticipationStatsService {
@@ -110,15 +100,7 @@ public class ParticipationStatsService {
         return rendus;
     }
 
-    /**
-     * Les files, repliées sur le mode de jeu qu'elles désignent.
-     *
-     * <p>Le regroupement Mongo porte sur le {@code queueId} et non sur le {@code queue} stocké :
-     * l'identifiant est la donnée brute, il ne change jamais, alors que le nom est une lecture —
-     * compléter {@link QueueKind} corrige donc aussi les participations déjà projetées, sans
-     * rejouer l'analyse. Le repli se fait ici parce que plusieurs identifiants donnent le même
-     * mode : 1700 et 1710 sont tous deux l'arène, et les compter à part n'apprend rien.</p>
-     */
+    // Regroupé sur queueId, pas sur le nom stocké : compléter QueueKind corrige ainsi les anciennes parties.
     private static List<ParticipationBucket> parMode(List<ParticipationBucket> buckets) {
         Map<String, ParticipationBucket> parCle = new LinkedHashMap<>();
         for (ParticipationBucket bucket : buckets) {
@@ -165,7 +147,6 @@ public class ParticipationStatsService {
         return a.isAfter(b) ? a : b;
     }
 
-    /** Une clé qui n'est pas un nombre ne peut venir que d'un document abîmé : file inconnue. */
     private static int queueId(String key) {
         try {
             return Integer.parseInt(key);
@@ -230,11 +211,6 @@ public class ParticipationStatsService {
                 assemble(retenus, Set.copyOf(propres)));
     }
 
-    /**
-     * Le {@code $group} ci-dessus compte des participations, pas des joueurs distincts : deux
-     * documents pour le même puuid dans la même partie le feraient compter deux fois. L'identité
-     * {@code puuid#matchId} l'interdit, et c'est elle qui rend ce compte exact.
-     */
     private List<SharedMatch> assemble(List<String> matchIds, Set<String> demandes) {
         if (matchIds.isEmpty()) {
             return List.of();
