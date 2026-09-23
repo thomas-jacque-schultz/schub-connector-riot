@@ -4,6 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Data
 @ConfigurationProperties(prefix = "riot")
@@ -32,6 +34,8 @@ public class RiotProperties {
     private final Crawler crawler = new Crawler();
 
     private final Sampling sampling = new Sampling();
+
+    private final Ladder ladder = new Ladder();
 
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
@@ -114,6 +118,17 @@ public class RiotProperties {
 
         // Au-delà, elle se suspend d'elle-même et le signale.
         private long storageAlertBytes = 2_000_000_000_000L;
+    }
+
+    // Répartition des joueurs classés par palier, en %. Elle change à chaque saison : à mettre à jour au reset.
+    @Data
+    public static class Ladder {
+
+        private String label = "EUW solo, relevé du 2026-09-23";
+
+        private Map<String, Double> shares = new HashMap<>(Map.of(
+                "IRON", 3.96, "BRONZE", 16.58, "SILVER", 21.46, "GOLD", 23.62, "PLATINUM", 17.68,
+                "EMERALD", 12.22, "DIAMOND", 3.69, "MASTER_PLUS", 0.80));
     }
 
     @Data

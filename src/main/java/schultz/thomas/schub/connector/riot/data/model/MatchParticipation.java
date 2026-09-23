@@ -48,6 +48,7 @@ public record MatchParticipation(
         boolean afk,
         Performance performance,
         Laning laning,
+        RankAtGame rank,
         Integer projectionVersion,
         Instant projectedAt
 ) {
@@ -56,6 +57,10 @@ public record MatchParticipation(
     public static final int PROJECTION_VERSION = 3;
 
     public static final String COLLECTION = "riot_participation";
+
+    // estimated : rang de la graine qui a fait collecter la partie, pas celui du joueur.
+    public record RankAtGame(String tier, String division, boolean estimated) {
+    }
 
     public record Performance(int wardsPlaced, int wardsKilled, int controlWardsPlaced, int timeDeadSeconds,
                               int turretDamage, int turretTakedowns, int epicMonsterDamage,
