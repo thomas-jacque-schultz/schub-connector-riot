@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyIterable;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,17 +56,16 @@ class KnownAccountIndexTest {
 
     @SuppressWarnings("unchecked")
     private List<KnownAccount> ecrits() {
-        ArgumentCaptor<Iterable<KnownAccount>> captor = ArgumentCaptor.forClass(Iterable.class);
-        verify(accounts).saveAll(captor.capture());
-        List<KnownAccount> ecrits = new ArrayList<>();
-        captor.getValue().forEach(ecrits::add);
-        return ecrits;
+        ArgumentCaptor<List<KnownAccount>> captor = ArgumentCaptor.forClass(List.class);
+        verify(accounts).saveIfNewer(captor.capture());
+        return new ArrayList<>(captor.getValue());
     }
 
     @Test
     @DisplayName("une résolution écrit l'identité du jour, datée de l'appel")
     void enregistreUneResolution() {
         when(accounts.findAllById(anyIterable())).thenReturn(List.of());
+        when(accounts.saveIfNewer(anyList())).thenReturn(1);
 
         assertThat(index.observeResolution("p1", "Thomas", "EUW")).isTrue();
 
@@ -85,7 +85,7 @@ class KnownAccountIndexTest {
                         KnownAccountSource.RESOLUTION)));
 
         assertThat(index.observeAll(List.of(partie("p1", "AncienPseudo", IL_Y_A_DEUX_ANS)))).isZero();
-        verify(accounts, never()).saveAll(anyIterable());
+        verify(accounts, never()).saveIfNewer(anyList());
     }
 
     @Test
@@ -106,7 +106,7 @@ class KnownAccountIndexTest {
                 partie(null, "Thomas", MAINTENANT),
                 partie("p1", "Thomas", null),
                 partie("p2", "   ", MAINTENANT)))).isZero();
-        verify(accounts, never()).saveAll(anyIterable());
+        verify(accounts, never()).saveIfNewer(anyList());
     }
 
     @Test
@@ -119,6 +119,7 @@ class KnownAccountIndexTest {
                         .append("tagLine", "EUW")
                         .append("observedAt", Date.from(HIER))));
         when(accounts.findAllById(anyIterable())).thenReturn(List.of());
+        when(accounts.saveIfNewer(anyList())).thenReturn(1);
 
         assertThat(index.rebuildFromParticipations().accountsWritten()).isEqualTo(1);
 

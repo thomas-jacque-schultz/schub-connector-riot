@@ -27,7 +27,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
-// Une observation n'est retenue que si elle est plus récente : l'ordre des écritures est indifférent.
+// Une observation n'est retenue que si elle est plus récente, vérifié par Mongo à l'écriture : l'ordre des écritures
+// est indifférent, même avec plusieurs ouvriers.
 // La reconstruction rejoue sans purger : les résolutions n'existent nulle part ailleurs.
 @Slf4j
 @RequiredArgsConstructor
@@ -65,10 +66,7 @@ public class KnownAccountIndex {
                 .map(Observation::toAccount)
                 .toList();
 
-        if (!aEcrire.isEmpty()) {
-            accounts.saveAll(aEcrire);
-        }
-        return aEcrire.size();
+        return aEcrire.isEmpty() ? 0 : accounts.saveIfNewer(aEcrire);
     }
 
     public KnownAccountRebuildReport rebuildFromParticipations() {

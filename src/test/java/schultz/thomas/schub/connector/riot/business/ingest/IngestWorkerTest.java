@@ -57,7 +57,8 @@ class IngestWorkerTest {
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                enrichment, rankingService, new RiotProperties(), crawler, sampler);
+                enrichment, rankingService, new RiotProperties(), crawler, sampler,
+                new IngestThroughput(java.time.Clock.systemUTC()));
     }
 
     @Test

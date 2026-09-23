@@ -17,7 +17,7 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.Optional;
 
-// Un seul ouvrier : le limiteur est le goulot, paralléliser ne ferait que compliquer le quota.
+// Plusieurs ouvriers (riot.ingest.workers) : la prise de tâche est atomique, chaque tâche n'a qu'un preneur.
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -32,6 +32,7 @@ public class IngestWorker {
     private final RiotProperties properties;
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
+    private final IngestThroughput throughput;
 
     public void drain() {
         QuotaLaneContext.runAsBulk(this::drainTasks);
@@ -64,6 +65,7 @@ public class IngestWorker {
                 case MATCH_RANKS -> enrichment.collectRanks(task.key());
             }
             queue.complete(task);
+            throughput.record();
             return true;
         } catch (RiotQuotaExceededException saturated) {
             queue.release(task, config.getQuotaBackoff());

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import schultz.thomas.schub.connector.riot.business.quota.MethodRateLimiter;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.business.quota.Sleeper;
 
@@ -23,6 +24,11 @@ public class QuotaConfiguration {
     @Bean
     public Sleeper riotSleeper() {
         return duration -> Thread.sleep(duration.toMillis());
+    }
+
+    @Bean
+    public MethodRateLimiter methodRateLimiter(Clock riotClock, Sleeper riotSleeper) {
+        return new MethodRateLimiter(properties.getQuota().getMethods(), riotClock, riotSleeper);
     }
 
     @Bean

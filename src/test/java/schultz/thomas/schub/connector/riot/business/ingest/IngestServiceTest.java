@@ -53,7 +53,7 @@ class IngestServiceTest {
         limiter = new RiotRateLimiter(properties.getQuota(), clock, duration -> {
             throw new UnsupportedOperationException("Le statut ne doit rien attendre.");
         });
-        service = new IngestService(queue, tasks, matches, limiter, properties, clock);
+        service = new IngestService(queue, tasks, matches, limiter, new IngestThroughput(clock), properties, clock);
     }
 
     @Test

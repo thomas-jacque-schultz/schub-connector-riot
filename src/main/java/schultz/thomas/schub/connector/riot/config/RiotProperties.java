@@ -1,10 +1,13 @@
 package schultz.thomas.schub.connector.riot.config;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -76,12 +79,37 @@ public class RiotProperties {
         private int interactiveReserve = 10;
 
         private Duration interactiveReserveIdle = Duration.ofMinutes(1);
+
+        // Limites propres à chaque route, relevées sur le portail développeur le 2026-09-23. Une route absente
+        // n'a que la limite de l'application.
+        private Map<String, List<Window>> methods = new HashMap<>(Map.of(
+                RiotMethods.MATCH, List.of(new Window(2000, Duration.ofSeconds(10))),
+                RiotMethods.MATCH_IDS, List.of(new Window(2000, Duration.ofSeconds(10))),
+                RiotMethods.TIMELINE, List.of(new Window(2000, Duration.ofSeconds(10))),
+                RiotMethods.LEAGUE_DIVISION, List.of(new Window(50, Duration.ofSeconds(10))),
+                RiotMethods.LEAGUE_APEX, List.of(new Window(30, Duration.ofSeconds(10)),
+                        new Window(500, Duration.ofMinutes(10))),
+                RiotMethods.ACCOUNT, List.of(new Window(1000, Duration.ofMinutes(1)))));
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Window {
+
+        private int requests;
+
+        private Duration window;
     }
 
     @Data
     public static class Ingest {
 
         private boolean enabled = true;
+
+        // Chaque ouvrier attend Riot en série : le débit tient au nombre d'ouvriers bien avant le quota d'une clé
+        // de production. C'est le volume stocké (≈ 44 ko par partie) qui le borne.
+        private int workers = 1;
 
         private Duration pollInterval = Duration.ofSeconds(2);
 
