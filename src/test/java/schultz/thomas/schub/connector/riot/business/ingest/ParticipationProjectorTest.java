@@ -25,7 +25,11 @@ import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchLobbyRepository;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.data.model.MatchLobby;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
 import schultz.thomas.schub.connector.riot.support.TestClock;
@@ -54,13 +58,15 @@ class ParticipationProjectorTest {
     @Mock private MetricScaleService metricScale;
     @Mock private MongoTemplate mongo;
     @Mock private MatchEarlyStatsRepository earlyStats;
+    @Mock private RankHistory rankHistory;
+    @Mock private MatchLobbyRepository lobbies;
 
     private ParticipationProjector projector;
 
     @BeforeEach
     void setUp() {
         projector = new ParticipationProjector(matches, participations, knownAccounts,
-                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo, earlyStats);
+                new RawMatchDecoder(new MatchMapper()), new TestClock(MAINTENANT), metricScale, mongo, earlyStats, rankHistory, lobbies);
     }
 
     @Test
@@ -186,6 +192,19 @@ class ParticipationProjectorTest {
         MatchParticipant e = joueur("e", TeamPosition.UNKNOWN, 200);
 
         assertThat(ParticipationProjector.adversaires(List.of(a, b, c, d, e))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("un rang relevé à la date de la partie l'emporte ; les autres prennent le rang estimé de la partie")
+    void figeLeRangDeLaPartie() {
+        when(rankHistory.rankAt(any(), any(), any())).thenReturn(Map.of(TOP_BLEU,
+                new RankSpan("s", TOP_BLEU, QueueKind.RANKED_SOLO, "PLATINUM", "II", 10, MAINTENANT, MAINTENANT)));
+        when(lobbies.findById(MATCH)).thenReturn(Optional.of(new MatchLobby(MATCH, "graine", "GOLD", "I", MAINTENANT)));
+
+        projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
+
+        assertThat(ligne(TOP_BLEU).rank()).isEqualTo(new MatchParticipation.RankAtGame("PLATINUM", "II", false));
+        assertThat(ligne(TOP_ROUGE).rank()).isEqualTo(new MatchParticipation.RankAtGame("GOLD", "I", true));
     }
 
     private static final String MATCH = "EUW1_7987650481";

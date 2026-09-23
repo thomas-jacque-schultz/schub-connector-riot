@@ -17,6 +17,7 @@ import schultz.thomas.schub.connector.riot.data.model.CachedRanking;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -87,6 +88,32 @@ public class RankHistory {
             }
         }
         return paliers;
+    }
+
+    // Le rang tenu à cet instant : la plage qui le couvre, sinon la plus proche à moins de la tolérance. Solo, flex à défaut.
+    public Map<String, RankSpan> rankAt(Collection<String> puuids, Instant instant, Duration tolerance) {
+        Query query = Query.query(Criteria.where("puuid").in(puuids).and("queue").in(FILES)
+                .and("lastSeenAt").gte(instant.minus(tolerance))
+                .and("firstSeenAt").lte(instant.plus(tolerance)));
+        Map<String, RankSpan> retenues = new HashMap<>();
+        for (RankSpan span : mongo.find(query, RankSpan.class)) {
+            retenues.merge(span.puuid(), span, (a, b) -> meilleure(a, b, instant));
+        }
+        return retenues;
+    }
+
+    private static RankSpan meilleure(RankSpan a, RankSpan b, Instant instant) {
+        if (a.queue() != b.queue()) {
+            return a.queue() == QueueKind.RANKED_SOLO ? a : b;
+        }
+        return distance(a, instant) <= distance(b, instant) ? a : b;
+    }
+
+    private static long distance(RankSpan span, Instant instant) {
+        if (instant.isBefore(span.firstSeenAt())) {
+            return Duration.between(instant, span.firstSeenAt()).toSeconds();
+        }
+        return instant.isAfter(span.lastSeenAt()) ? Duration.between(span.lastSeenAt(), instant).toSeconds() : 0;
     }
 
     public long backfillIfEmpty() {

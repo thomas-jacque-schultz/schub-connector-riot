@@ -4,9 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
@@ -15,15 +18,19 @@ import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
+import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
+import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
+import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
 
 import java.util.List;
 
@@ -37,6 +44,7 @@ public class StatsController {
     private final ParticipationStatsService statsService;
     private final MetricScaleService metricScale;
     private final MatchEnrichmentService enrichment;
+    private final ReferenceService references;
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """
@@ -96,6 +104,22 @@ public class StatsController {
     @PostMapping("/match-insights")
     public List<MatchInsights> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
         return enrichment.insights(request.matchIds());
+    }
+
+    @Operation(summary = "Répartition des métriques à un poste, par palier et sur tout le ladder",
+            description = """
+                    Recalculée chaque jour sur les deux derniers patchs, parties classées solo et flex.
+                    Avec `patch`, la référence de ce patch s'il y en a une, sinon la plus récente. Avec
+                    `tier`, seulement la grille de ce palier (plus celle du ladder) : c'est ce qu'il
+                    faut pour noter un joueur, et vingt fois moins lourd.""")
+    @GetMapping("/references/{position}")
+    public ReferenceGrid referenceGrid(@PathVariable TeamPosition position,
+                                       @RequestParam(defaultValue = ReferenceService.MEAN) String scope,
+                                       @RequestParam(required = false) String patch,
+                                       @RequestParam(required = false) String tier) {
+        return (patch == null ? references.latest(scope, position.name()) : references.forPatch(scope, position.name(), patch))
+                .map(reference -> references.toGrid(reference, tier))
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce poste."));
     }
 
     @Operation(summary = "Référentiels du radar pour des joueurs à un poste",

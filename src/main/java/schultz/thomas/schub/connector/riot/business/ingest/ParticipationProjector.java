@@ -18,6 +18,7 @@ import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.SearchName;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
@@ -25,9 +26,11 @@ import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
+import schultz.thomas.schub.connector.riot.data.repository.MatchLobbyRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +45,7 @@ import java.util.Set;
 public class ParticipationProjector {
 
     private static final int REBUILD_PAGE = 200;
+    static final Duration RANG_TOLERANCE = Duration.ofDays(30);
 
     private final CachedMatchRepository matches;
     private final MatchParticipationRepository participations;
@@ -51,6 +55,8 @@ public class ParticipationProjector {
     private final MetricScaleService metricScale;
     private final MongoTemplate mongo;
     private final MatchEarlyStatsRepository earlyStats;
+    private final RankHistory rankHistory;
+    private final MatchLobbyRepository lobbies;
 
     public int project(Document raw) {
         RiotMatchResponse response = decoder.decode(raw);
@@ -68,7 +74,7 @@ public class ParticipationProjector {
         }
         Contexte contexte = new Contexte(detail, equipes, bruts,
                 earlyStats.findById(detail.matchId()).map(MatchEarlyStats::byPuuid).orElse(Map.of()),
-                adversaires(detail.participants()), clock.instant());
+                adversaires(detail.participants()), rangs(detail), clock.instant());
         List<MatchParticipation> rows = detail.participants().stream()
                 .map(participant -> toParticipation(contexte, participant))
                 .toList();
@@ -207,6 +213,7 @@ public class ParticipationProjector {
                 participant.afk(),
                 performance(contexte.bruts().get(participant.puuid()), equipe[2]),
                 laning(contexte, participant),
+                contexte.rangs().get(participant.puuid()),
                 MatchParticipation.PROJECTION_VERSION,
                 contexte.now());
     }
@@ -243,6 +250,19 @@ public class ParticipationProjector {
                 face ? mien.kills() - sien.kills() : null);
     }
 
+    private Map<String, MatchParticipation.RankAtGame> rangs(MatchDetail detail) {
+        Map<String, MatchParticipation.RankAtGame> rangs = new HashMap<>();
+        if (detail.startedAt() == null) {
+            return rangs;
+        }
+        List<String> puuids = detail.participants().stream().map(MatchParticipant::puuid).toList();
+        rankHistory.rankAt(puuids, detail.startedAt(), RANG_TOLERANCE).forEach((puuid, span) ->
+                rangs.put(puuid, new MatchParticipation.RankAtGame(span.tier(), span.division(), false)));
+        lobbies.findById(detail.matchId()).ifPresent(lobby -> puuids.forEach(puuid -> rangs.putIfAbsent(puuid,
+                new MatchParticipation.RankAtGame(lobby.tier(), lobby.division(), true))));
+        return rangs;
+    }
+
     // Un seul joueur par poste de chaque côté, sinon pas d'adversaire : postes inconnus ou en double.
     static Map<String, MatchParticipant> adversaires(List<MatchParticipant> participants) {
         Map<TeamPosition, List<MatchParticipant>> parPoste = new HashMap<>();
@@ -271,7 +291,8 @@ public class ParticipationProjector {
 
     private record Contexte(MatchDetail detail, Map<Integer, int[]> equipes,
                             Map<String, RiotMatchResponse.Participant> bruts, Map<String, MatchInsights.At15> a15,
-                            Map<String, MatchParticipant> adversaires, Instant now) {
+                            Map<String, MatchParticipant> adversaires,
+                            Map<String, MatchParticipation.RankAtGame> rangs, Instant now) {
     }
 
 

@@ -17,6 +17,7 @@ import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -112,6 +113,19 @@ class RankHistoryTest {
                 .containsEntry("p1", "GOLD")
                 .containsEntry("p2", "SILVER")
                 .doesNotContainKey("p3");
+    }
+
+    @Test
+    @DisplayName("le rang d'une partie : le solo avant le flex, et la plage la plus proche de la date")
+    void rangAuMomentDeLaPartie() {
+        RankSpan flex = new RankSpan("f", "p1", QueueKind.RANKED_FLEX, "DIAMOND", "IV", 0, HIER, AUJOURDHUI);
+        RankSpan ancien = new RankSpan("a", "p1", QueueKind.RANKED_SOLO, "SILVER", "I", 0,
+                HIER.minus(Duration.ofDays(40)), HIER.minus(Duration.ofDays(20)));
+        RankSpan courant = new RankSpan("c", "p1", QueueKind.RANKED_SOLO, "GOLD", "IV", 0, HIER, AUJOURDHUI);
+        when(mongo.find(any(Query.class), eq(RankSpan.class))).thenReturn(List.of(flex, ancien, courant));
+
+        assertThat(history.rankAt(List.of("p1"), HIER.plus(Duration.ofHours(2)), Duration.ofDays(30)))
+                .containsEntry("p1", courant);
     }
 
     private static RankSpan plage(String tier, String division, Instant vu) {
