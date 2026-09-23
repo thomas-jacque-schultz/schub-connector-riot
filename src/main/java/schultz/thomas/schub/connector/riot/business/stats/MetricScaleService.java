@@ -13,13 +13,11 @@ import org.springframework.stereotype.Service;
 import schultz.thomas.schub.connector.riot.api.dto.MetricReference;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.data.model.CachedRanking;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.StoredMetricScale;
-import schultz.thomas.schub.connector.riot.data.repository.CachedRankingRepository;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.data.repository.StoredMetricScaleRepository;
 
 import java.time.Clock;
@@ -31,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
@@ -48,7 +45,7 @@ public class MetricScaleService {
 
     private final MongoTemplate mongo;
     private final StoredMetricScaleRepository store;
-    private final CachedRankingRepository rankings;
+    private final RankHistory history;
     private final Clock clock;
 
     public StoredMetricScale current() {
@@ -156,25 +153,7 @@ public class MetricScaleService {
     }
 
     private Map<String, String> paliers(List<String> puuids) {
-        Map<String, String> paliers = new HashMap<>();
-        for (CachedRanking ranking : rankings.findAllById(puuids)) {
-            palier(ranking.standings()).ifPresent(palier -> paliers.put(ranking.puuid(), palier));
-        }
-        return paliers;
-    }
-
-    static Optional<String> palier(List<RankedStanding> standings) {
-        if (standings == null) {
-            return Optional.empty();
-        }
-        return file(standings, QueueKind.RANKED_SOLO).or(() -> file(standings, QueueKind.RANKED_FLEX));
-    }
-
-    private static Optional<String> file(List<RankedStanding> standings, QueueKind queue) {
-        return standings.stream()
-                .filter(standing -> standing.queue() == queue && standing.tier() != null)
-                .map(RankedStanding::tier)
-                .findFirst();
+        return history.latestTiers(puuids);
     }
 
     private static Criteria faille() {

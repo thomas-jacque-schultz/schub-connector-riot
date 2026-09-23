@@ -25,6 +25,7 @@ public class RankingService {
     private final CachedRankingRepository rankings;
     private final RiotStatsMapper mapper;
     private final RiotProperties properties;
+    private final RankHistory history;
     private final Clock clock;
 
     public List<RankedStanding> rankings(String puuid) {
@@ -41,6 +42,7 @@ public class RankingService {
                     .map(entry -> mapper.toStanding(entry, now))
                     .toList();
             rankings.save(new CachedRanking(puuid, fresh, now));
+            history.record(puuid, fresh);
             return fresh;
         } catch (RuntimeException failure) {
             if (cached.isPresent()) {

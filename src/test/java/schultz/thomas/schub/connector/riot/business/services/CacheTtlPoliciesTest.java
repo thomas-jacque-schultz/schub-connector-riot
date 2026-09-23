@@ -49,6 +49,7 @@ class CacheTtlPoliciesTest {
     @Mock private RiotApiClient riotApiClient;
     @Mock private DataDragonClient dataDragonClient;
     @Mock private CachedRankingRepository rankings;
+    @Mock private RankHistory history;
     @Mock private CachedMasteryRepository masteries;
     @Mock private CachedChampionCatalogRepository catalogs;
     @Mock private CachedGameVersionRepository gameVersions;
@@ -65,7 +66,7 @@ class CacheTtlPoliciesTest {
     }
 
     private RankingService rankingService() {
-        return new RankingService(riotApiClient, rankings, mapper, properties, clock);
+        return new RankingService(riotApiClient, rankings, mapper, properties, history, clock);
     }
 
     private ChampionCatalogService catalogService() {
