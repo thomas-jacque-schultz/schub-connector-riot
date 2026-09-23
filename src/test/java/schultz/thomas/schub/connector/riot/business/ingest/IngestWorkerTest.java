@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,19 +47,20 @@ class IngestWorkerTest {
     @Mock private MatchHistoryService historyService;
     @Mock private MatchDetailService matchDetailService;
     @Mock private MatchEnrichmentService enrichment;
+    @Mock private BackgroundCrawler crawler;
 
     private IngestWorker worker;
 
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                enrichment, new RiotProperties());
+                enrichment, new RiotProperties(), crawler);
     }
 
     @Test
     @DisplayName("un 429 en cours de file rend la tâche et arrête le tour")
     void un429RendLaTacheEtArreteLeTour() {
-        when(queue.claim(any())).thenReturn(Optional.of(detailTask()));
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(detailTask()));
         when(matchDetailService.detail("EUW1_1"))
                 .thenThrow(new RiotQuotaExceededException("saturé", Duration.ofSeconds(2)));
 
@@ -67,13 +69,13 @@ class IngestWorkerTest {
         verify(queue).release(any(IngestTask.class), any(Duration.class));
         verify(queue, never()).fail(any(), anyString(), anyInt(), any());
         verify(queue, never()).complete(any());
-        verify(queue, times(1)).claim(any());
+        verify(queue, times(1)).claim(any(), anyBoolean());
     }
 
     @Test
     @DisplayName("une panne de Riot compte un échec, mais le tour continue")
     void unePanneCompteUnEchecEtLeTourContinue() {
-        when(queue.claim(any()))
+        when(queue.claim(any(), anyBoolean()))
                 .thenReturn(Optional.of(detailTask()))
                 .thenReturn(Optional.empty());
         when(matchDetailService.detail("EUW1_1")).thenThrow(new RiotApiException("Riot muet"));
@@ -81,7 +83,7 @@ class IngestWorkerTest {
         worker.drain();
 
         verify(queue).fail(any(IngestTask.class), eq("Riot muet"), anyInt(), any(Duration.class));
-        verify(queue, times(2)).claim(any());
+        verify(queue, times(2)).claim(any(), anyBoolean());
     }
 
     @Test
@@ -89,7 +91,7 @@ class IngestWorkerTest {
     void unReleveEmpileLesDetails() {
         IngestTask task = new IngestTask("PLAYER_IDS:p1", IngestTaskType.PLAYER_IDS, "p1", "p1",
                 IngestTaskState.RUNNING, Long.MAX_VALUE, MAINTENANT, MAINTENANT, null, 0, null);
-        when(queue.claim(any())).thenReturn(Optional.of(task)).thenReturn(Optional.empty());
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(task)).thenReturn(Optional.empty());
         when(historyService.syncIds("p1")).thenReturn(
                 new IdSyncResult("p1", MAINTENANT, List.of("EUW1_1", "EUW1_2"), 2, MAINTENANT));
 
@@ -103,7 +105,7 @@ class IngestWorkerTest {
     @DisplayName("une partie purgée par Riot est consommée, pas retentée sans fin")
     void unePartiePurgeeEstConsommee() {
         IngestTask task = detailTask();
-        when(queue.claim(any())).thenReturn(Optional.of(task)).thenReturn(Optional.empty());
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(task)).thenReturn(Optional.empty());
         when(matchDetailService.detail("EUW1_1")).thenReturn(Optional.empty());
 
         worker.drain();
@@ -116,7 +118,7 @@ class IngestWorkerTest {
     @DisplayName("l'ouvrier travaille sur la voie de collecte, et la rend en sortant")
     void travailleSurLaVoieDeCollecte() {
         AtomicReference<QuotaLane> vue = new AtomicReference<>();
-        when(queue.claim(any())).thenReturn(Optional.of(detailTask())).thenReturn(Optional.empty());
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(detailTask())).thenReturn(Optional.empty());
         when(matchDetailService.detail("EUW1_1")).thenAnswer(appel -> {
             vue.set(QuotaLaneContext.current());
             return Optional.empty();
@@ -131,5 +133,16 @@ class IngestWorkerTest {
     private IngestTask detailTask() {
         return new IngestTask("MATCH_DETAIL:EUW1_1", IngestTaskType.MATCH_DETAIL, "EUW1_1", "p1",
                 IngestTaskState.RUNNING, 1L, MAINTENANT, MAINTENANT, MAINTENANT, 0, null);
+    }
+
+    @Test
+    @DisplayName("collecte de fond désactivée : l'ouvrier ne réclame que les tâches des joueurs")
+    void collecteDeFondArreteeNestPasServie() {
+        when(crawler.active()).thenReturn(false);
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.empty());
+
+        worker.drain();
+
+        verify(queue).claim(any(), eq(false));
     }
 }
