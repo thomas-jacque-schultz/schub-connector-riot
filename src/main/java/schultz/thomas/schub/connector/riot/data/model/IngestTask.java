@@ -28,6 +28,18 @@ public record IngestTask(
     }
 
     // EUW1_7990209944 : la séquence croît avec le temps à plateforme donnée.
+    // Priorités négatives : la collecte de fond, toujours servie après les demandes des joueurs.
+    public static final long BACKGROUND_PLAYER_PRIORITY = -1;
+    private static final long BACKGROUND_OFFSET = Long.MIN_VALUE / 2;
+
+    public static long backgroundPriority(long priority) {
+        return BACKGROUND_OFFSET + priority;
+    }
+
+    public boolean background() {
+        return priority < 0;
+    }
+
     public static long sequenceOf(String matchId) {
         int separator = matchId.lastIndexOf('_');
         if (separator < 0 || separator == matchId.length() - 1) {

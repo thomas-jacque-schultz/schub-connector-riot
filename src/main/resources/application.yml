@@ -65,6 +65,16 @@ riot:
     quota-backoff: 30s
     idle-backoff: 5m
 
+  # En prod elle tourne toujours ; en dev, RIOT_CRAWLER_SWITCHABLE=true la laisse à l'owner.
+  crawler:
+    switchable: ${RIOT_CRAWLER_SWITCHABLE:false}
+    enabled-by-default: ${RIOT_CRAWLER_ENABLED:true}
+    interval: 1m
+    accounts-per-round: 20
+    backlog: 500
+    refresh-after: 7d
+    storage-alert-bytes: ${RIOT_STORAGE_ALERT_BYTES:2000000000000}
+
 management:
   endpoints:
     web:
