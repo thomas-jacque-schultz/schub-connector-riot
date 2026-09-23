@@ -2,9 +2,11 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
+import org.bson.Document;
+import org.springframework.data.domain.Limit;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
@@ -23,8 +25,10 @@ import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRep
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -39,6 +43,7 @@ public class ParticipationProjector {
     private final RawMatchDecoder decoder;
     private final Clock clock;
     private final MetricScaleService metricScale;
+    private final MongoTemplate mongo;
 
     public int project(MatchDetail detail) {
         Instant now = clock.instant();
@@ -66,40 +71,78 @@ public class ParticipationProjector {
         return participations.existsByProjectionVersionNot(MatchParticipation.PROJECTION_VERSION);
     }
 
+    // Écrase sur place, par plages d'_id : les statistiques restent lisibles pendant toute la reconstruction.
     public RebuildReport rebuildAll() {
         Instant startedAt = clock.instant();
-        participations.deleteAll();
-
-        int matchesRead = 0;
-        int rowsWritten = 0;
-        int unusable = 0;
-        Pageable page = PageRequest.of(0, REBUILD_PAGE);
-
+        Bilan bilan = new Bilan();
+        String apres = "";
         while (true) {
-            Slice<CachedMatch> slice = matches.findAll(page);
-            for (CachedMatch cached : slice.getContent()) {
-                matchesRead++;
-                if (cached.raw() == null) {
-                    unusable++;
-                    continue;
-                }
-                rowsWritten += project(cached);
-            }
-            if (!slice.hasNext()) {
+            List<CachedMatch> lot = matches.findByMatchIdGreaterThanOrderByMatchIdAsc(apres, Limit.of(REBUILD_PAGE));
+            lot.forEach(bilan::projette);
+            if (lot.size() < REBUILD_PAGE) {
                 break;
             }
-            page = slice.nextPageable();
+            apres = lot.getLast().matchId();
         }
+        return termine(bilan, startedAt);
+    }
 
-        if (unusable > 0) {
+    // Seules les lignes d'une version antérieure sont relues : interrompue, elle reprend où elle s'était arrêtée.
+    public RebuildReport upgradeOutdated() {
+        Instant startedAt = clock.instant();
+        Bilan bilan = new Bilan();
+        Set<String> sansBrut = new HashSet<>();
+        while (true) {
+            Query perimees = Query.query(Criteria.where("projectionVersion").ne(MatchParticipation.PROJECTION_VERSION)
+                    .and("matchId").nin(sansBrut)).limit(REBUILD_PAGE * 10);
+            perimees.fields().include("matchId");
+            List<String> ids = mongo.find(perimees, Document.class, MatchParticipation.COLLECTION).stream()
+                    .map(ligne -> ligne.getString("matchId"))
+                    .distinct()
+                    .toList();
+            if (ids.isEmpty()) {
+                break;
+            }
+            Map<String, CachedMatch> stockees = new HashMap<>();
+            matches.findByMatchIdIn(ids).forEach(cached -> stockees.put(cached.matchId(), cached));
+            for (String id : ids) {
+                CachedMatch cached = stockees.getOrDefault(id, new CachedMatch(id, null, null));
+                if (bilan.projette(cached) == 0) {
+                    sansBrut.add(id);
+                }
+            }
+        }
+        return termine(bilan, startedAt);
+    }
+
+    private RebuildReport termine(Bilan bilan, Instant startedAt) {
+        if (bilan.inutilisables > 0) {
             log.warn("{} parties stockées sans JSON brut : antérieures au passage au brut, "
-                    + "elles ne produisent aucune participation et doivent être recollectées.", unusable);
+                    + "elles ne produisent aucune participation et doivent être recollectées.", bilan.inutilisables);
         }
         log.info("Couche d'analyse reconstruite : {} parties lues, {} participations écrites.",
-                matchesRead, rowsWritten);
+                bilan.lues, bilan.ecrites);
         metricScale.refresh();
-        return new RebuildReport(matchesRead, rowsWritten, unusable, startedAt, clock.instant());
+        return new RebuildReport(bilan.lues, bilan.ecrites, bilan.inutilisables, startedAt, clock.instant());
     }
+
+    private final class Bilan {
+        private int lues;
+        private int ecrites;
+        private int inutilisables;
+
+        private int projette(CachedMatch cached) {
+            lues++;
+            if (cached.raw() == null) {
+                inutilisables++;
+                return 0;
+            }
+            int lignes = project(cached);
+            ecrites += lignes;
+            return lignes;
+        }
+    }
+
 
     private static KnownAccountIndex.Observation toObservation(MatchParticipation row) {
         return new KnownAccountIndex.Observation(row.puuid(), row.gameName(), row.tagLine(),

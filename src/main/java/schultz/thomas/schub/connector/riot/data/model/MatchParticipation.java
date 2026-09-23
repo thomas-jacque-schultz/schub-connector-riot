@@ -10,7 +10,7 @@ import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 
 import java.time.Instant;
 
-@Document("riot_participation")
+@Document(MatchParticipation.COLLECTION)
 @CompoundIndex(name = "puuid_startedAt", def = "{'puuid': 1, 'startedAt': -1}")
 @CompoundIndex(name = "puuid_champion", def = "{'puuid': 1, 'championId': 1}")
 @CompoundIndex(name = "puuid_queue", def = "{'puuid': 1, 'queueId': 1}")
@@ -52,6 +52,8 @@ public record MatchParticipation(
 
     // À incrémenter quand un champ dérivé du brut change : le démarrage reprojette alors tout.
     public static final int PROJECTION_VERSION = 2;
+
+    public static final String COLLECTION = "riot_participation";
 
     public static String idOf(String puuid, String matchId) {
         return puuid + "#" + matchId;
