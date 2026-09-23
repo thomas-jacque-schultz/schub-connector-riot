@@ -33,7 +33,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Ce qu'on empile, et le seul chiffre qui réponde à « quand mes données seront-elles prêtes ? ». */
 @ExtendWith(MockitoExtension.class)
 class IngestServiceTest {
 
@@ -68,8 +67,6 @@ class IngestServiceTest {
         int empilées = service.enqueueDetails("p1", List.of("EUW1_DEJA", "EUW1_NEUVE"));
 
         assertThat(empilées).isEqualTo(1);
-        // « Ce qui a été pull un jour ne doit pas l'être une deuxième fois » vaut aussi pour
-        // la file : une tâche qui n'a rien à faire coûte quand même un tour d'ouvrier.
         verify(queue, never()).enqueue(any(), eq("EUW1_DEJA"), anyString(), anyLong());
     }
 
@@ -82,9 +79,6 @@ class IngestServiceTest {
 
         IngestStatus statut = service.status();
 
-        // 100:120 moins deux de marge et dix de réserve interactive : 88 appels par deux
-        // minutes pour la collecte, soit 44 par minute. Annoncer les 49 de la clé promettrait
-        // une échéance que la réserve ne tient pas.
         assertThat(statut.callsPerMinute()).isEqualTo(44.0);
         assertThat(statut.estimatedDrain()).isEqualTo(Duration.ofMinutes(20));
         assertThat(statut.estimatedReadyAt()).isEqualTo(MAINTENANT.plus(Duration.ofMinutes(20)));
@@ -102,8 +96,6 @@ class IngestServiceTest {
         IngestStatus statut = service.status();
 
         assertThat(statut.throttledFor()).isEqualTo(Duration.ofSeconds(30));
-        // 44 tâches = une minute, plus les trente secondes de pénalité. Sans cet ajout,
-        // l'estimation serait optimiste exactement au moment où elle compte.
         assertThat(statut.estimatedDrain()).isEqualTo(Duration.ofSeconds(90));
     }
 
@@ -121,7 +113,6 @@ class IngestServiceTest {
 
         PlayerIngestStatus statut = service.statusOf("p1");
 
-        // Ses 200 parties passeraient en moins de cinq minutes s'il était seul ; il ne l'est pas.
         assertThat(statut.queuedAhead()).isEqualTo(880L);
         assertThat(statut.estimatedRemaining()).isEqualTo(Duration.ofMinutes(20));
         assertThat(statut.estimatedReadyAt()).isEqualTo(MAINTENANT.plus(Duration.ofMinutes(20)));

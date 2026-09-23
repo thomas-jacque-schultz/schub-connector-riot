@@ -26,42 +26,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-/**
- * Chercher un compte <strong>dans notre index</strong>, pas chez Riot.
- *
- * <h2>Ce qu'elle lit, et pourquoi elle ne lit que ça</h2>
- *
- * <p>Elle interroge {@code riot_known_account} seule, jamais l'union de l'index et des
- * participations. Un compte peut être connu de deux façons — croisé en partie, ou confirmé par
- * Riot à la demande de quelqu'un — et l'union obligerait à fusionner deux formes, à dédoublonner
- * sur le {@code puuid} et à concilier deux bornes de résultats à chaque frappe. C'est le genre de
- * recouvrement où un compte finit par tomber entre les deux requêtes, ce qui est précisément le
- * défaut qu'on corrige. Une seule collection, un seul index, un seul classement.</p>
- *
- * <p>Les chiffres, eux, ne sont pas dans l'index : {@code matchCount}, postes et dernière partie
- * sont relus dans {@code riot_participation}, qui en est la seule vérité, et seulement pour les
- * comptes retenus. L'index porte l'identité, les participations portent les faits.</p>
- *
- * <h2>Ce que « approximatif » veut dire ici, exactement</h2>
- *
- * <p>Deux façons d'être candidat, réunies en une seule requête :</p>
- * <ol>
- *   <li><strong>sous-chaîne</strong> du pseudo replié — casse et accents ignorés ;</li>
- *   <li><strong>même début</strong> (trois caractères) et distance d'édition faible, ce qui
- *       rattrape la faute de frappe qui ne partage aucune sous-chaîne avec la cible.</li>
- * </ol>
- *
- * <p>Le second critère est ancré ({@code ^abc}), donc il se sert de l'index sur
- * {@code searchName}. Une saisie de moins de trois caractères n'ouvre que le premier critère.</p>
- */
 @RequiredArgsConstructor
 @Service
 public class PlayerSearchService {
 
-    /** En deçà, un préfixe ne discrimine plus rien et la tolérance aux fautes n'a pas de sens. */
     private static final int LONGUEUR_PREFIXE = 3;
 
-    /** Les comptes observés le plus récemment, avant classement par ressemblance. */
     private static final int CANDIDATS_MAX = 50;
 
     private static final int POSTES_RENDUS = 3;
@@ -100,10 +70,6 @@ public class PlayerSearchService {
                 .limit(CANDIDATS_MAX), KnownAccount.class);
     }
 
-    /**
-     * Un Riot ID ne désigne qu'un compte à la fois : quand deux entrées le portent, la plus
-     * anciennement observée est périmée et l'afficher serait proposer un compte qui n'est plus.
-     */
     private static Collection<KnownAccount> unParRiotId(List<KnownAccount> comptes) {
         Map<String, KnownAccount> parRiotId = new LinkedHashMap<>();
         for (KnownAccount compte : comptes) {
@@ -136,10 +102,6 @@ public class PlayerSearchService {
         return parPuuid;
     }
 
-    /**
-     * Un compte confirmé par Riot et jamais croisé en partie n'a aucun compteur. Zéro partie est
-     * la vérité de nos données, pas une absence de réponse : il s'affiche comme les autres.
-     */
     private PlayerSuggestion toSuggestion(KnownAccount compte, Compteurs compteurs) {
         Compteurs mesures = compteurs == null ? Compteurs.AUCUNE : compteurs;
         return new PlayerSuggestion(
@@ -181,13 +143,6 @@ public class PlayerSearchService {
         static final Compteurs AUCUNE = new Compteurs(0, List.of(), null);
     }
 
-    /**
-     * La saisie découpée une fois : pseudo replié, et le tag s'il a été donné.
-     *
-     * <p>Coller un Riot ID complet est le geste le plus naturel quand on l'a sous les yeux ;
-     * sans ce découpage, {@code Pseudo#TAG} replié donnerait {@code pseudotag} et ne
-     * ressemblerait plus à rien.</p>
-     */
     private record Recherche(String pseudo, String tag) {
 
         static Recherche de(String saisie) {
@@ -227,7 +182,6 @@ public class PlayerSearchService {
             return EditDistance.between(pseudo, candidat) <= toleranceFautes() ? 3 : RANG_ECARTE;
         }
 
-        /** Une faute tous les quatre caractères, au moins une. Au-delà, ce n'est plus le même pseudo. */
         private int toleranceFautes() {
             return Math.max(1, pseudo.length() / 4);
         }

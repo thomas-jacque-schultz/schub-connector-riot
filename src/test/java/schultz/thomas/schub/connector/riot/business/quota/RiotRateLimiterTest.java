@@ -17,12 +17,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * L'étalement des appels, vérifié sans attendre.
- *
- * <p>L'horloge et l'attente sont injectées : le limiteur croit avoir dormi, le test n'a pas
- * perdu une seconde.</p>
- */
 class RiotRateLimiterTest {
 
     private TestClock clock;
@@ -68,9 +62,6 @@ class RiotRateLimiterTest {
     void tientLaFenetreLongue() {
         RiotRateLimiter limiteur = limiteur();
 
-        // 20 appels autorisés sur deux minutes. Les cinq premiers passent d'un bloc, puis la
-        // fenêtre courte les espace ; au 21e, c'est la fenêtre LONGUE qui prend le relais et
-        // l'attente devient de l'ordre de la minute.
         for (int i = 0; i < 20; i++) {
             limiteur.acquire(QuotaLane.BULK);
         }
@@ -93,7 +84,6 @@ class RiotRateLimiterTest {
         }
         assertThat(attentes).isEmpty();
 
-        // 5 - 2 = 3 : le quatrième attend, là où sans marge il serait passé.
         limiteur.acquire(QuotaLane.BULK);
         assertThat(attentes).containsExactly(Duration.ofSeconds(1));
     }
@@ -103,7 +93,6 @@ class RiotRateLimiterTest {
     void respecteRetryAfter() {
         RiotRateLimiter limiteur = limiteur();
 
-        // Valeur relevée sur un vrai 429 provoqué le 18-09 : « retry-after: 2 ».
         limiteur.penalise(Duration.ofSeconds(2));
         limiteur.acquire(QuotaLane.BULK);
 

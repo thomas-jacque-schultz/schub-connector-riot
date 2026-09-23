@@ -10,7 +10,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/** Tout est fermé sauf la sonde de santé, que Docker doit pouvoir appeler. */
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {

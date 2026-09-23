@@ -9,7 +9,6 @@ import schultz.thomas.schub.connector.riot.business.quota.Sleeper;
 
 import java.time.Clock;
 
-/** Câblage de l'étalement des appels. L'horloge et l'attente sont injectées pour être testables. */
 @RequiredArgsConstructor
 @Configuration
 public class QuotaConfiguration {

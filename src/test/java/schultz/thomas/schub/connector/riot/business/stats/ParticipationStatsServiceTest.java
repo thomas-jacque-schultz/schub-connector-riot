@@ -38,7 +38,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Ce que les agrégats comptent, et les cas où compter n'a pas de sens. */
 @ExtendWith(MockitoExtension.class)
 class ParticipationStatsServiceTest {
 

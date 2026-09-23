@@ -38,11 +38,9 @@ class RiotStatsMapperTest {
         RankedStanding standing = mapper.toStanding(entries.get(0), RELEVE);
 
         assertThat(standing.queue()).isEqualTo(QueueKind.RANKED_SOLO);
-        // La donnée de Riot est conservée à côté de sa lecture : le reste est une interprétation.
         assertThat(standing.riotQueueType()).isEqualTo("RANKED_SOLO_5x5");
         assertThat(standing.tier()).isEqualTo("CHALLENGER");
         assertThat(standing.leaguePoints()).isEqualTo(4659);
-        // Un relevé qui tait son âge est un relevé faux : la date accompagne toujours la donnée.
         assertThat(standing.observedAt()).isEqualTo(RELEVE);
     }
 
@@ -73,8 +71,6 @@ class RiotStatsMapperTest {
 
         ChampionCard wukong = catalogue.stream()
                 .filter(card -> "Wukong".equals(card.name())).findFirst().orElseThrow();
-        // L'identifiant textuel « MonkeyKing » n'est pas le nom affiché « Wukong » : c'est
-        // exactement le genre d'inversion qu'on ne voit pas en relisant.
         assertThat(wukong.key()).isEqualTo("MonkeyKing");
         assertThat(wukong.id()).isEqualTo(62);
         assertThat(wukong.iconUrl())

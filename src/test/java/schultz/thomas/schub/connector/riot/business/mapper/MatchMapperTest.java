@@ -52,8 +52,6 @@ class MatchMapperTest {
         MatchParticipant premier = match.participants().get(0);
         assertThat(premier.championName()).isEqualTo("Gragas");
         assertThat(premier.position()).isEqualTo(TeamPosition.TOP);
-        // sbires de voie + monstres neutres, additionnés : c'est le chiffre qu'on lit sur une
-        // fiche de partie, et non l'un des deux pris isolément.
         assertThat(premier.minionsKilled()).isEqualTo(162);
         assertThat(premier.items()).hasSize(7);
     }
@@ -65,8 +63,6 @@ class MatchMapperTest {
                 Fixtures.load("match-ranked-solo.json", RiotMatchResponse.class));
 
         Map<String, Integer> objectifs = match.teams().get(0).objectives();
-        // « atakhan » n'existait pas avant 2025. Une Map plutôt que des champs nommés : un
-        // objectif ajouté par Riot ne doit pas se lire comme un bug de désérialisation.
         assertThat(objectifs).containsKeys("baron", "dragon", "tower", "champion", "atakhan");
         assertThat(match.teams().get(0).bannedChampionIds()).hasSize(5);
     }
@@ -74,9 +70,6 @@ class MatchMapperTest {
     @Test
     @DisplayName("avant le patch 11.20, gameDuration est en millisecondes")
     void tolereLAncienneUniteDeDuree() {
-        // Sans gameEndTimestamp, Riot exprime gameDuration en millisecondes. Confondre les deux
-        // ne lève aucune erreur : la partie dure simplement mille fois trop longtemps, et
-        // toutes les moyennes en sont faussées sans que rien ne le signale.
         RiotMatchResponse ancienne = partieSynthetique(0L, 1_800_000L);
         MatchDetail match = mapper.toDomain(ancienne);
 

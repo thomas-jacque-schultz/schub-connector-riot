@@ -16,14 +16,6 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFo
 
 import java.time.Duration;
 
-/**
- * Traduit un échec de dialogue avec Riot en réponse HTTP honnête.
- *
- * <p>Des statuts distincts et non un 500 général : l'appelant doit pouvoir distinguer « ce
- * joueur n'existe pas » de « le connecteur est occupé », de « le quota est épuisé » et de
- * « Riot est en panne ». Ces cas appellent des conduites différentes, et les confondre ferait
- * réessayer là où il ne faut pas — ou renoncer là où il suffisait d'attendre trois secondes.</p>
- */
 @Slf4j
 @RestControllerAdvice
 public class RiotExceptionHandler {
@@ -35,14 +27,6 @@ public class RiotExceptionHandler {
         return detail;
     }
 
-    /**
-     * Occupé, pas en panne.
-     *
-     * <p>429 et non 503 : le connecteur répond, sa clé est valide, et le créneau manquant est
-     * affaire de secondes. Le taire derrière une expiration réseau était la moitié du défaut
-     * corrigé le 21-09 — l'appelant concluait « indisponible » et conservait un lien non
-     * résolu.</p>
-     */
     @ExceptionHandler(RiotConnectorBusyException.class)
     public ResponseEntity<ProblemDetail> handleBusy(RiotConnectorBusyException exception) {
         log.info("Appel interactif renoncé, connecteur occupé : {}", exception.getMessage());
@@ -52,12 +36,7 @@ public class RiotExceptionHandler {
         return new ResponseEntity<>(detail, retryAfter(exception.getRetryAfter()), HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    /**
-     * Le {@code Retry-After} est répercuté tel que Riot l'a donné.
-     *
-     * <p>Le taire ferait réessayer immédiatement, ce qui empire la situation : les requêtes
-     * refusées comptent elles aussi dans le quota.</p>
-     */
+    // Retry-After répercuté tel quel : un appel refusé compte aussi dans le quota Riot.
     @ExceptionHandler(RiotQuotaExceededException.class)
     public ResponseEntity<ProblemDetail> handleQuota(RiotQuotaExceededException exception) {
         log.warn("Quota Riot épuisé : {}", exception.getMessage());
@@ -67,7 +46,6 @@ public class RiotExceptionHandler {
         return new ResponseEntity<>(detail, retryAfter(exception.getRetryAfter()), HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    /** Pas une panne : une configuration absente. 503 le dit, 500 le cacherait. */
     @ExceptionHandler(RiotKeyMissingException.class)
     public ProblemDetail handleMissingKey(RiotKeyMissingException exception) {
         log.error("Connecteur en veille : {}", exception.getMessage());
@@ -77,7 +55,6 @@ public class RiotExceptionHandler {
         return detail;
     }
 
-    /** 502 plutôt que 500 : la panne est en amont, et l'appelant doit pouvoir le distinguer. */
     @ExceptionHandler(RiotApiException.class)
     public ProblemDetail handleUpstreamFailure(RiotApiException exception) {
         log.warn("Échec du dialogue avec l'API Riot : {}", exception.getMessage());

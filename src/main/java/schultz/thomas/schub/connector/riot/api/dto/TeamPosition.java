@@ -1,12 +1,6 @@
 package schultz.thomas.schub.connector.riot.api.dto;
 
-/**
- * Le poste tenu dans la partie.
- *
- * <p>Riot renvoie {@code teamPosition} en majuscules, et une chaîne vide quand il n'a pas su
- * trancher (remake, partie personnalisée, déconnexion précoce). {@link #UNKNOWN} porte ce cas
- * plutôt que de le laisser remonter en {@code null} chez l'appelant.</p>
- */
+// Riot rend une chaîne vide quand il n'a pas su trancher (remake, custom, déconnexion) : UNKNOWN.
 public enum TeamPosition {
 
     TOP,

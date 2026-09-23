@@ -40,13 +40,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Les trois politiques à durée : rang (1 h), maîtrises (6 h), catalogue (permanent par version).
- *
- * <p>Écrire « un cache » au singulier serait le piège : ces trois données n'ont pas la même
- * nature, et leur appliquer la même règle donnerait soit du gaspillage de quota, soit des
- * chiffres faux.</p>
- */
 @ExtendWith(MockitoExtension.class)
 class CacheTtlPoliciesTest {
 
@@ -80,8 +73,6 @@ class CacheTtlPoliciesTest {
                 properties, clock);
     }
 
-    // --- Rang et LP : TTL 1 h -------------------------------------------------------------
-
     @Test
     @DisplayName("un rang relevé il y a moins d'une heure n'est pas redemandé")
     void leRangTientUneHeure() {
@@ -113,12 +104,8 @@ class CacheTtlPoliciesTest {
         List<RankedStanding> resultat = rankingService().rankings(PUUID);
 
         assertThat(resultat).hasSize(1);
-        // L'appelant lit observedAt et sait ce qu'il affiche : un relevé qui tait son âge est
-        // un relevé faux.
         assertThat(resultat.get(0).observedAt()).isEqualTo(MAINTENANT.minus(Duration.ofHours(3)));
     }
-
-    // --- Maîtrises : TTL 6 h --------------------------------------------------------------
 
     @Test
     @DisplayName("les maîtrises tiennent six heures, puis sont redemandées")
@@ -144,13 +131,10 @@ class CacheTtlPoliciesTest {
                 List.of(mastery(126, 468082), mastery(24, 12000), mastery(62, 900)),
                 MAINTENANT.minus(Duration.ofHours(1)))));
 
-        // Tronquer au stockage ferait relancer un appel pour une donnée déjà payée.
         assertThat(service.masteries(PUUID, 2)).hasSize(2);
         assertThat(service.masteries(PUUID, null)).hasSize(3);
         assertThat(service.masteries(PUUID, 99)).hasSize(3);
     }
-
-    // --- Catalogue : permanent par version -------------------------------------------------
 
     @Test
     @DisplayName("un catalogue déjà connu pour une version n'est JAMAIS retéléchargé")
@@ -160,8 +144,6 @@ class CacheTtlPoliciesTest {
         when(catalogs.findById(id)).thenReturn(Optional.of(
                 new CachedChampionCatalog(id, connu, MAINTENANT.minus(Duration.ofDays(200)))));
 
-        // Deux cents jours plus tard : toujours pas d'appel. Riot publie une nouvelle version,
-        // il ne réécrit pas l'ancienne.
         assertThat(catalogService().catalog("16.18.1")).isEqualTo(connu);
         verify(dataDragonClient, never()).champions(anyString(), anyString());
     }

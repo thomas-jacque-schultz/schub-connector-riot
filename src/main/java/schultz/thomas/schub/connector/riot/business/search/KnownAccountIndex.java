@@ -27,24 +27,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
-/**
- * Ce qui écrit dans {@code riot_known_account} : la seule porte de l'index.
- *
- * <h2>Une observation, pas une mise à jour</h2>
- *
- * <p>Écrire n'est jamais « ce compte s'appelle X » mais « le {@code <date>}, ce compte
- * s'appelait X ». Une observation n'est retenue que si elle est plus récente que celle en
- * place, ce qui rend l'écriture idempotente et l'ordre des observations sans importance — une
- * partie de 2024 reprojetée après une résolution d'aujourd'hui ne peut pas périmer l'index.</p>
- *
- * <h2>Reconstruction</h2>
- *
- * <p>La part venue des participations se reprojette depuis {@code riot_participation}, qui est
- * elle-même reconstructible depuis {@code riot_match} — donc sans un appel à Riot. La part venue
- * des résolutions, elle, <strong>n'existe nulle part ailleurs</strong> : c'est pourquoi la
- * reconstruction ne purge pas, elle rejoue. Purger perdrait les comptes vérifiés qui n'ont
- * jamais été croisés en partie, c'est-à-dire exactement ceux que l'index sert à retenir.</p>
- */
+// Une observation n'est retenue que si elle est plus récente : l'ordre des écritures est indifférent.
+// La reconstruction rejoue sans purger : les résolutions n'existent nulle part ailleurs.
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -56,7 +40,6 @@ public class KnownAccountIndex {
     private final MongoTemplate mongo;
     private final Clock clock;
 
-    /** Riot vient de confirmer ce Riot ID : l'observation est datée de maintenant. */
     public boolean observeResolution(String puuid, String gameName, String tagLine) {
         return observeAll(List.of(new Observation(puuid, gameName, tagLine, clock.instant(),
                 KnownAccountSource.RESOLUTION))) > 0;
@@ -88,7 +71,6 @@ public class KnownAccountIndex {
         return aEcrire.size();
     }
 
-    /** Rejoue les participations dans l'index. Ne purge pas — voir la note de classe. */
     public KnownAccountRebuildReport rebuildFromParticipations() {
         Instant startedAt = clock.instant();
         int lus = 0;
@@ -132,10 +114,6 @@ public class KnownAccountIndex {
                 KnownAccountSource.PARTICIPATION);
     }
 
-    /**
-     * @param observedAt la date de ce qui a été observé — celle de la partie, celle de l'appel —
-     *                   jamais celle de l'écriture.
-     */
     public record Observation(String puuid, String gameName, String tagLine, Instant observedAt,
                               KnownAccountSource source) {
 

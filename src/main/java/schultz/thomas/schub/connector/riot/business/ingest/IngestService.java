@@ -23,7 +23,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Ce qu'on empile, et ce que la file laisse voir. L'exécution est dans {@link IngestWorker}. */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -36,24 +35,11 @@ public class IngestService {
     private final RiotProperties properties;
     private final Clock clock;
 
-    /**
-     * Empile le relevé d'historique d'un joueur.
-     *
-     * <p>Une seule tâche, pas la liste des parties : on ne connaît pas encore les identifiants.
-     * C'est l'exécution de cette tâche qui empilera un détail par partie manquante.</p>
-     */
     public IngestEnqueueReport enqueuePlayer(String puuid) {
         boolean queued = queue.enqueue(IngestTaskType.PLAYER_IDS, puuid, puuid, Long.MAX_VALUE);
         return new IngestEnqueueReport(puuid, queued, status());
     }
 
-    /**
-     * Empile les détails manquants, en écartant d'un seul coup ce qui est déjà stocké.
-     *
-     * <p>La vérification se fait par {@code _id} sur {@code riot_match}, en une requête pour
-     * tout le lot : dédoublonner partie par partie coûterait mille allers-retours là où le
-     * premier remplissage en compte déjà mille.</p>
-     */
     public int enqueueDetails(String puuid, Collection<String> matchIds) {
         Set<String> wanted = new LinkedHashSet<>(matchIds);
         if (wanted.isEmpty()) {
@@ -77,14 +63,6 @@ public class IngestService {
         return queued;
     }
 
-    /**
-     * L'avancement de la collecte d'un seul joueur.
-     *
-     * <p>La date de fin ne se déduit pas de ses propres tâches : l'ouvrier est unique et sert
-     * la file par priorité décroissante, donc ce qui le sépare de la dernière tâche de ce joueur
-     * est tout ce qui la précède, les tâches des autres comprises. Diviser ses seules tâches par
-     * le débit donnerait une promesse qu'une file chargée ne tiendrait jamais.</p>
-     */
     public PlayerIngestStatus statusOf(String puuid) {
         long pending = tasks.countByPuuidAndState(puuid, IngestTaskState.PENDING);
         long running = tasks.countByPuuidAndState(puuid, IngestTaskState.RUNNING);

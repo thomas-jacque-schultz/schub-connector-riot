@@ -35,7 +35,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** L'ouvrier : ce qu'il consomme, ce qu'il rend, et ce sur quoi il s'arrête. */
 @ExtendWith(MockitoExtension.class)
 class IngestWorkerTest {
 
@@ -63,11 +62,9 @@ class IngestWorkerTest {
 
         worker.drain();
 
-        // La tâche n'est pas fautive : elle repart en file sans compter d'échec...
         verify(queue).release(any(IngestTask.class), any(Duration.class));
         verify(queue, never()).fail(any(), anyString(), anyInt(), any());
         verify(queue, never()).complete(any());
-        // ...et insister sur la suivante ne ferait qu'aggraver la pénalité.
         verify(queue, times(1)).claim(any());
     }
 
@@ -109,8 +106,6 @@ class IngestWorkerTest {
 
         worker.drain();
 
-        // Riot ne garde qu'environ mille parties par joueur : insister brûlerait du quota
-        // pour une donnée qui n'existe plus.
         verify(queue).complete(task);
         verify(queue, never()).fail(any(), anyString(), anyInt(), any());
     }
@@ -127,8 +122,6 @@ class IngestWorkerTest {
 
         worker.drain();
 
-        // Sans ce marquage, l'ingest passerait pour de l'interactif et retrouverait la priorité
-        // sans que rien n'échoue.
         assertThat(vue.get()).isEqualTo(QuotaLane.BULK);
         assertThat(QuotaLaneContext.current()).isEqualTo(QuotaLane.INTERACTIVE);
     }

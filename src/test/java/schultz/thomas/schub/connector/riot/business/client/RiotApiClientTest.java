@@ -29,7 +29,6 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-/** Le client, face à un serveur simulé : aucun réseau, aucune clé qui expire. */
 class RiotApiClientTest {
 
     private static final String PUUID = "puuid-de-test";
@@ -46,8 +45,6 @@ class RiotApiClientTest {
         properties.setApiKey("RGAPI-clef-de-test");
         clock = new TestClock(Instant.parse("2026-09-18T12:00:00Z"));
 
-        // Les clients sont montés par le chemin de production : l'en-tête de clé et le choix
-        // de l'hôte sont ainsi réellement couverts, et non reconstitués par le test.
         RiotApiConfiguration configuration = new RiotApiConfiguration(properties);
         RestClient.Builder regional =
                 configuration.riotDefaults(RestClient.builder(), properties.regionalBaseUrl());
@@ -132,8 +129,6 @@ class RiotApiClientTest {
         Optional<RiotAccountResponse> compte = client.accountByPuuid(PUUID);
 
         assertThat(compte).isPresent();
-        // Le temps a avancé d'au moins les deux secondes demandées : la reprise n'est pas
-        // immédiate. Réessayer aussitôt empirerait la situation — un 429 consomme du quota.
         assertThat(Duration.between(avant, clock.instant()))
                 .isGreaterThanOrEqualTo(Duration.ofSeconds(2));
         regionalServer.verify();
@@ -159,7 +154,6 @@ class RiotApiClientTest {
         assertThatThrownBy(() -> client.accountByPuuid(PUUID))
                 .isInstanceOf(RiotKeyMissingException.class);
 
-        // Aucune attente enregistrée sur le serveur simulé : rien n'est parti.
         regionalServer.verify();
         assertThat(List.of()).isEmpty();
     }

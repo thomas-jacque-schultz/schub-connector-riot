@@ -36,10 +36,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Politique n°2 : l'historique est append-only, et le recouvrement d'une heure est le point de
- * mise en œuvre à ne pas rater.
- */
 @ExtendWith(MockitoExtension.class)
 class MatchHistoryServiceTest {
 
@@ -94,9 +90,6 @@ class MatchHistoryServiceTest {
         ArgumentCaptor<Instant> borne = ArgumentCaptor.forClass(Instant.class);
         verify(riotApiClient).matchIds(eq(PUUID), borne.capture(), anyInt(), anyInt());
 
-        // Une partie peut apparaître dans l'historique avec du retard. Le recouvrement coûte
-        // une lecture Mongo ; son absence coûte des parties manquantes, qu'on ne voit jamais
-        // puisqu'on ignore qu'elles existent.
         assertThat(borne.getValue()).isEqualTo(dernierReleve.minus(Duration.ofHours(1)));
     }
 
@@ -129,7 +122,6 @@ class MatchHistoryServiceTest {
     void leCurseurRetientLeDebut() {
         when(cursors.findById(PUUID)).thenReturn(Optional.empty());
         when(riotApiClient.matchIds(any(), any(), anyInt(), anyInt())).thenAnswer(invocation -> {
-            // La synchronisation prend du temps ; une partie peut être jouée pendant ce temps.
             clock.advance(Duration.ofMinutes(3));
             return List.of();
         });
@@ -141,7 +133,6 @@ class MatchHistoryServiceTest {
         ArgumentCaptor<PlayerHistoryCursor> curseur =
                 ArgumentCaptor.forClass(PlayerHistoryCursor.class);
         verify(cursors).save(curseur.capture());
-        // Retenir la fin ferait tomber ces trois minutes dans un angle mort.
         assertThat(curseur.getValue().lastSyncStartedAt()).isEqualTo(MAINTENANT);
     }
 
@@ -159,8 +150,6 @@ class MatchHistoryServiceTest {
         MatchHistory historique = service.history(PUUID, Instant.EPOCH);
 
         assertThat(historique.ingestQueued()).isFalse();
-        // Sans cette borne, afficher une page d'équipe empilerait cinq relevés à chaque
-        // rechargement.
         verify(ingestService, never()).enqueuePlayer(anyString());
         verify(riotApiClient, never()).matchIds(anyString(), any(), anyInt(), anyInt());
     }
@@ -180,8 +169,6 @@ class MatchHistoryServiceTest {
 
         assertThat(historique.matchIds()).containsExactly("EUW1_1");
         assertThat(historique.ingestQueued()).isTrue();
-        // Un GET qui collecterait se disputerait le curseur et le quota avec l'ouvrier, et
-        // pendrait le temps que le quota s'écoule.
         verify(riotApiClient, never()).matchIds(anyString(), any(), anyInt(), anyInt());
     }
 
@@ -199,7 +186,6 @@ class MatchHistoryServiceTest {
 
         MatchHistory historique = service.history(PUUID, Instant.EPOCH);
 
-        // La taire reviendrait à cacher exactement ce qui manque.
         assertThat(historique.matchIds()).containsExactly("EUW1_SANS_DATE", "EUW1_DATEE");
     }
 

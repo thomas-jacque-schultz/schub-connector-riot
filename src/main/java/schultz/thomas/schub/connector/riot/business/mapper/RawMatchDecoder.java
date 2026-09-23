@@ -9,13 +9,8 @@ import org.springframework.stereotype.Component;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 
-/**
- * Relit une partie stockée : tout ce qui en dérive se recalcule ainsi, sans appel.
- *
- * <p>Mapper propre plutôt que le bean de Boot : le stocké porte bien plus de champs que
- * {@link RiotMatchResponse} n'en déclare, et l'inconnu doit être ignoré quoi qu'il arrive à la
- * configuration Jackson de l'application.</p>
- */
+// ObjectMapper propre : le stocké porte bien plus de champs que RiotMatchResponse, l'inconnu doit être
+// ignoré quelle que soit la configuration Jackson de l'application.
 @RequiredArgsConstructor
 @Component
 public class RawMatchDecoder {

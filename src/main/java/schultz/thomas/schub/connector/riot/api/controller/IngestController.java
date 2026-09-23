@@ -20,7 +20,6 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.List;
 
-/** L'état de la collecte, et les deux gestes d'exploitation qui vont avec. */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/ingest")

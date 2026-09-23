@@ -31,7 +31,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Ce que la recherche retient, ce qu'elle écarte, et dans quel ordre elle propose. */
 @ExtendWith(MockitoExtension.class)
 class PlayerSearchServiceTest {
 
@@ -43,7 +42,6 @@ class PlayerSearchServiceTest {
 
     private PlayerSearchService service;
 
-    /** L'index rend les comptes ; les participations rendent leurs chiffres. */
     private void index(KnownAccount... comptes) {
         service = new PlayerSearchService(mongo);
         when(mongo.find(any(Query.class), eq(KnownAccount.class))).thenReturn(List.of(comptes));

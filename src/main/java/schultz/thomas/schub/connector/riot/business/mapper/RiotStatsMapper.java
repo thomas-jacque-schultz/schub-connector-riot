@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
-/** Traduit l'identité, les classements, les maîtrises et le catalogue en vocabulaire de domaine. */
 @Component
 public class RiotStatsMapper {
 
@@ -24,10 +23,6 @@ public class RiotStatsMapper {
         return new PlayerIdentity(account.puuid(), account.gameName(), account.tagLine());
     }
 
-    /**
-     * {@code queueType} de Riot ({@code RANKED_SOLO_5x5}) est conservé à côté de sa lecture :
-     * c'est la donnée, le reste est une interprétation.
-     */
     public RankedStanding toStanding(RiotLeagueEntryResponse entry, Instant observedAt) {
         return new RankedStanding(
                 queueOf(entry.queueType()),
@@ -64,13 +59,7 @@ public class RiotStatsMapper {
                 observedAt);
     }
 
-    /**
-     * Le catalogue, trié par nom.
-     *
-     * <p>{@code key} de Data Dragon est l'identifiant numérique rendu en chaîne, et {@code id}
-     * son identifiant textuel — l'inverse de ce que les deux noms laissent croire. C'est le
-     * genre d'inversion qu'on ne voit pas en relisant.</p>
-     */
+    // Data Dragon : key est l'identifiant numérique en chaîne, id l'identifiant textuel (MonkeyKing pour Wukong).
     public List<ChampionCard> toCatalog(DataDragonChampionList list, String iconBaseUrl, String version) {
         if (list == null || list.data() == null) {
             return List.of();

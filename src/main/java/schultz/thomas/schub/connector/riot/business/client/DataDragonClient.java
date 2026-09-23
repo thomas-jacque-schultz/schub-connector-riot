@@ -12,13 +12,7 @@ import schultz.thomas.schub.connector.riot.data.model.riot.DataDragonChampionLis
 
 import java.util.List;
 
-/**
- * Data Dragon : le catalogue, les icônes, les versions.
- *
- * <p>Ni clé, ni quota — c'est un CDN statique, il ne passe donc pas par le limiteur. Confondre
- * les deux ferait payer au catalogue un quota qu'il ne consomme pas, et retarderait les appels
- * qui, eux, le consomment.</p>
- */
+// CDN statique : ni clé ni quota, ne passe pas par le limiteur.
 @Slf4j
 @Component
 public class DataDragonClient {
@@ -32,7 +26,6 @@ public class DataDragonClient {
         this.client = client;
     }
 
-    /** Versions publiées, de la plus récente à la plus ancienne. */
     public List<String> versions() {
         try {
             List<String> versions = client.get()
@@ -45,7 +38,6 @@ public class DataDragonClient {
         }
     }
 
-    /** Le catalogue d'une version donnée. Immuable : une fois lu, il n'a plus à être relu. */
     public DataDragonChampionList champions(String version, String locale) {
         try {
             return client.get()
@@ -58,7 +50,6 @@ public class DataDragonClient {
         }
     }
 
-    /** L'URL d'une icône de champion, déjà versionnée. Le front n'a pas à savoir la composer. */
     public String championIconUrl(String baseUrl, String version, String imageFull) {
         return baseUrl + "/cdn/" + version + "/img/champion/" + imageFull;
     }

@@ -8,7 +8,6 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Documentation de l'API interne : toutes les routes sont derrière {@code X-Internal-Secret}. */
 @Configuration
 public class OpenApiConfiguration {
 

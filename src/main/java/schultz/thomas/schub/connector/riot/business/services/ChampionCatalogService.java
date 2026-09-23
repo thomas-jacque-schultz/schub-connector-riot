@@ -22,17 +22,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Politique n°5 — <strong>permanent, la clé est la version</strong>.
- *
- * <p>Deux questions, deux durées de vie, et c'est toute la subtilité : « quelle est la version
- * courante ? » change (TTL), « que contenait la version 16.18.1 ? » ne change plus (permanent).
- * Les confondre mènerait soit à re-télécharger 160 ko toutes les six heures, soit à rester figé
- * sur un patch périmé.</p>
- *
- * <p>C'est cette permanence qui permet de rouvrir une composition préparée en mars et de la
- * voir juste, au lieu d'y lire des champions qui n'existaient pas encore.</p>
- */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -45,7 +34,6 @@ public class ChampionCatalogService {
     private final RiotProperties properties;
     private final java.time.Clock clock;
 
-    /** La version courante, avec un TTL court. C'est la seule part mouvante de Data Dragon. */
     public String currentVersion() {
         Instant now = clock.instant();
         Optional<CachedGameVersion> cached = gameVersions.findById(CachedGameVersion.CURRENT);
@@ -64,8 +52,6 @@ public class ChampionCatalogService {
             gameVersions.save(new CachedGameVersion(CachedGameVersion.CURRENT, latest, now));
             return latest;
         } catch (RiotApiException failure) {
-            // Servir une version d'il y a huit heures est sans conséquence ; échouer, non :
-            // tout le panneau « pool de champions » dépend de cette réponse.
             if (cached.isPresent()) {
                 log.warn("Version Data Dragon indisponible, repli sur {} relevée le {}.",
                         cached.get().version(), cached.get().fetchedAt());
@@ -75,7 +61,6 @@ public class ChampionCatalogService {
         }
     }
 
-    /** Le catalogue d'une version. {@code null} ou vide = la version courante. */
     public ChampionCatalog catalog(String version) {
         String resolved = (version == null || version.isBlank()) ? currentVersion() : version;
         String locale = properties.getDataDragonLocale();
@@ -83,8 +68,6 @@ public class ChampionCatalogService {
 
         Optional<CachedChampionCatalog> cached = catalogs.findById(id);
         if (cached.isPresent()) {
-            // Aucune vérification de fraîcheur, et c'est le propos : le contenu d'une version
-            // publiée ne change plus. Riot publie une version, il ne réécrit pas l'ancienne.
             return cached.get().catalog();
         }
 
@@ -98,12 +81,6 @@ public class ChampionCatalogService {
         return catalog;
     }
 
-    /**
-     * Identifiant numérique → nom, pour nommer les champions d'une liste de maîtrises.
-     *
-     * <p>Rend une table vide si Data Dragon est injoignable : un pool de champions sans les noms
-     * reste exploitable, alors qu'une erreur ferait tomber un panneau entier pour un libellé.</p>
-     */
     public Map<Integer, String> championNames() {
         try {
             return catalog(null).champions().stream()
@@ -117,7 +94,6 @@ public class ChampionCatalogService {
         }
     }
 
-    /** Index par identifiant textuel, utile au front qui reçoit un {@code championName}. */
     public Map<String, ChampionCard> byKey(String version) {
         return catalog(version).champions().stream()
                 .collect(Collectors.toMap(ChampionCard::key, Function.identity(),

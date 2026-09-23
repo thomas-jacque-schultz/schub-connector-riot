@@ -16,16 +16,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * La réserve, sur les bornes réelles de la clé : {@code 100:120,20:1}.
- *
- * <p>La collecte est simulée par des tentatives non bloquantes — {@code acquire-timeout} à zéro
- * fait refuser au lieu d'attendre. Un thread de collecte qui dort emporterait l'horloge du test
- * avec lui, et l'on ne mesurerait plus rien.</p>
- */
 class RiotRateLimiterReserveTest {
 
-    /** Pas de simulation. La collecte tente sa chance à chaque pas, comme un ouvrier qui boucle. */
     private static final int PAS_MS = 100;
 
     private TestClock clock;
@@ -124,7 +116,6 @@ class RiotRateLimiterReserveTest {
         }
     }
 
-    /** Un tour de collecte : elle prend le créneau s'il y en a un, sinon elle repassera. */
     private boolean collecte(RiotRateLimiter limiteur) {
         try {
             limiteur.acquire(QuotaLane.BULK);

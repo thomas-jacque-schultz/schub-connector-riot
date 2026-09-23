@@ -31,7 +31,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Une observation datée, jamais une mise à jour : c'est ce qui rend l'index insensible à l'ordre. */
 @ExtendWith(MockitoExtension.class)
 class KnownAccountIndexTest {
 

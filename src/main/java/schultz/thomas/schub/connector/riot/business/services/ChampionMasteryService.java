@@ -18,16 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Politique n°3 — <strong>TTL ~ 6 h</strong>.
- *
- * <p>Une maîtrise évolue en jouant, donc lentement à l'échelle d'une journée. Un pool de
- * champions n'a pas besoin d'être à la seconde : six heures suffisent, et c'est cinq appels
- * par équipe et par demi-journée au lieu d'un par affichage.</p>
- *
- * <p>Le connecteur rend des maîtrises, pas un « pool jouable par poste » : décider qu'un joueur
- * peut tenir le poste de jungle est un jugement de domaine, et il vit dans le cœur.</p>
- */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -40,12 +30,6 @@ public class ChampionMasteryService {
     private final RiotProperties properties;
     private final Clock clock;
 
-    /**
-     * @param limit nombre de champions rendus, du plus maîtrisé au moins maîtrisé.
-     *              {@code null} ou ≤ 0 = tout. Le filtrage est appliqué à la lecture, pas au
-     *              stockage : on garde tout en base, sinon demander 20 champions après en avoir
-     *              demandé 5 relancerait un appel pour une donnée déjà payée.
-     */
     public List<ChampionMastery> masteries(String puuid, Integer limit) {
         List<ChampionMastery> all = allMasteries(puuid);
         if (limit == null || limit <= 0 || limit >= all.size()) {

@@ -17,20 +17,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * L'arbitrage entre les deux voies, avec de vrais threads.
- *
- * <p>Ces propriétés ne se simulent pas avec une horloge à la main : elles tiennent à ce qu'un
- * thread voit de l'attente d'un autre. Les fenêtres sont raccourcies à quelques centaines de
- * millisecondes pour que le test reste court.</p>
- *
- * <p>Les créneaux se comptent par {@code granted}, daté sous le verrou du limiteur : un compteur
- * tenu par le test s'incrémenterait après le retour d'{@code acquire}, donc plusieurs
- * millisecondes trop tard sous vingt threads.</p>
- */
 class RiotRateLimiterLanesTest {
 
-    /** Écart toléré entre l'instant daté par le limiteur et celui relevé par le test. */
     private static final long TOLERANCE_MESURE_MS = 40;
 
     private final List<Thread> lances = new ArrayList<>();
@@ -44,11 +32,9 @@ class RiotRateLimiterLanesTest {
         quota.setBulkYield(Duration.ofSeconds(1));
         RiotRateLimiter limiteur = limiteur(quota);
 
-        // Vingt tâches en file : en premier arrivé premier servi, elles valent cinq fenêtres.
         charger(20, QuotaLane.BULK, limiteur, null);
         attendreAuMoins(limiteur, QuotaLane.BULK, 8);
 
-        // Un témoin de collecte entre en file juste AVANT l'appel interactif.
         AtomicLong temoinNanos = new AtomicLong(Long.MAX_VALUE);
         CountDownLatch enFile = new CountDownLatch(1);
         Thread temoin = temoinDeCollecte(limiteur, enFile, temoinNanos);
@@ -61,8 +47,6 @@ class RiotRateLimiterLanesTest {
         temoin.join(5000);
         arreter();
 
-        // Le quota est saturé : une fenêtre d'attente est incompressible. Ce qui ne l'est pas,
-        // c'est la file — vingt tâches devant soi vaudraient cinq fenêtres.
         assertThat(attenteInteractive).isLessThan(Duration.ofMillis(400));
         assertThat(attenteInteractive).isLessThan(Duration.ofNanos(temoinNanos.get()));
     }
@@ -83,7 +67,6 @@ class RiotRateLimiterLanesTest {
 
         assertThat(limiteur.granted(QuotaLane.INTERACTIVE))
                 .as("le flux interactif était bien soutenu").isGreaterThan(20);
-        // Une cession dure au plus 300 ms : sur 1,5 s, la collecte reprend la main cinq fois.
         assertThat(limiteur.granted(QuotaLane.BULK)).isGreaterThanOrEqualTo(3);
     }
 
@@ -117,7 +100,6 @@ class RiotRateLimiterLanesTest {
         quota.setInteractiveReserve(0);
         quota.setBurstRequests(parFenetre);
         quota.setBurstWindow(fenetre);
-        // La fenêtre longue est mise hors jeu : ce qu'on mesure ici est l'arbitrage, pas l'étalement.
         quota.setSustainedRequests(100_000);
         quota.setSustainedWindow(Duration.ofMinutes(2));
         quota.setInteractiveTimeout(Duration.ofSeconds(10));

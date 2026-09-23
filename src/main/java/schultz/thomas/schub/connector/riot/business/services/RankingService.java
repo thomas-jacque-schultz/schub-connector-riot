@@ -16,16 +16,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Politique n°4 — <strong>TTL ~ 1 h</strong>, la donnée la plus volatile du connecteur.
- *
- * <p>Afficher un LP d'hier serait un bug visible ; rafraîchir à chaque affichage brûlerait le
- * quota pour un chiffre qui bouge quelques fois par jour. Une heure est le compromis retenu.</p>
- *
- * <p>L'entrée périmée n'est jamais supprimée : quand Riot ne répond pas, elle est servie telle
- * quelle. {@code observedAt} accompagne chaque relevé, donc l'appelant sait ce qu'il affiche —
- * une donnée de cache qui tait son âge est une donnée fausse.</p>
- */
 @Slf4j
 @RequiredArgsConstructor
 @Service

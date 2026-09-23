@@ -17,12 +17,6 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 
-/**
- * Le détail des parties.
- *
- * <p>Le connecteur rend les dix participants et la file. Il ne dit pas si la partie « compte »,
- * ni pour qui : la règle « au moins 4 des 5 membres » est du domaine, pas de la traduction.</p>
- */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/matches")

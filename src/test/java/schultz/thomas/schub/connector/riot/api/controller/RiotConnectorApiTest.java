@@ -49,12 +49,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Le contrat exposé : des routes en vocabulaire de domaine, et cinq échecs distincts.
- *
- * <p>Monté hors contexte Spring : ces tests vérifient le contrat HTTP, pas le câblage — et
- * surtout pas Mongo, qu'il faudrait sinon démarrer pour vérifier un code de statut.</p>
- */
 @ExtendWith(MockitoExtension.class)
 class RiotConnectorApiTest {
 
@@ -159,8 +153,6 @@ class RiotConnectorApiTest {
         when(rankingService.rankings(anyString()))
                 .thenThrow(new RiotQuotaExceededException("saturé", Duration.ofSeconds(2)));
 
-        // Taire le Retry-After ferait réessayer immédiatement, ce qui empire la situation :
-        // les requêtes refusées comptent elles aussi dans le quota.
         mockMvc.perform(get("/players/{puuid}/rankings", PUUID))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "2"));
@@ -173,8 +165,6 @@ class RiotConnectorApiTest {
                 .thenThrow(new RiotConnectorBusyException("Connecteur occupé : pas de créneau",
                         Duration.ofSeconds(3)));
 
-        // Le chemin exact du défaut : l'appelant concluait « connecteur indisponible » sur une
-        // expiration réseau, et conservait un lien non résolu.
         mockMvc.perform(get("/players").param("gameName", "Pikachu").param("tagLine", "STORM"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "3"))

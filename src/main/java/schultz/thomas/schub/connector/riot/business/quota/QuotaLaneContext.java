@@ -1,12 +1,6 @@
 package schultz.thomas.schub.connector.riot.business.quota;
 
-/**
- * La voie du thread courant.
- *
- * <p>Portée par le thread plutôt que par paramètre : {@code MatchDetailService} et
- * {@code MatchHistoryService} servent les deux voies avec le même code, et seul l'appelant
- * sait laquelle.</p>
- */
+// Porté par le thread : MatchDetailService et MatchHistoryService servent les deux voies avec le même code.
 public final class QuotaLaneContext {
 
     private static final ThreadLocal<QuotaLane> CURRENT = ThreadLocal.withInitial(() -> QuotaLane.INTERACTIVE);

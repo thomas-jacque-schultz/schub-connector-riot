@@ -30,9 +30,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * La couche d'analyse se construit depuis le stocké, et se reconstruit entièrement sans appel.
- */
 @ExtendWith(MockitoExtension.class)
 class ParticipationProjectorTest {
 
@@ -81,7 +78,6 @@ class ParticipationProjectorTest {
         assertThat(ligne.queue()).isEqualTo(QueueKind.RANKED_SOLO);
         assertThat(ligne.side()).isIn(100, 200);
         assertThat(ligne.championName()).isNotBlank();
-        // Grouper sur `16.18.817.5716` ne regrouperait rien : la version change à chaque build.
         assertThat(ligne.patch()).isEqualTo("16.18");
         assertThat(ligne.id()).isEqualTo(MatchParticipation.idOf(ligne.puuid(), "EUW1_7987650481"));
     }
@@ -107,8 +103,6 @@ class ParticipationProjectorTest {
 
         assertThat(rapport.matchesRead()).isEqualTo(2);
         assertThat(rapport.participationsWritten()).isEqualTo(10);
-        // Sans ce compteur, une base d'avant le passage au brut donnerait une couche d'analyse
-        // silencieusement incomplète.
         assertThat(rapport.unusableMatches()).isEqualTo(1);
     }
 
