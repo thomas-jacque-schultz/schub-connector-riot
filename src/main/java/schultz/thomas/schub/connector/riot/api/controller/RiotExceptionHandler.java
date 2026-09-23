@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import schultz.thomas.schub.connector.riot.business.exceptions.CrawlerLockedException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
@@ -25,6 +26,11 @@ public class RiotExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
         detail.setTitle("Ressource inconnue de Riot");
         return detail;
+    }
+
+    @ExceptionHandler(CrawlerLockedException.class)
+    public ProblemDetail handleCrawlerLocked(CrawlerLockedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 
     @ExceptionHandler(RiotConnectorBusyException.class)

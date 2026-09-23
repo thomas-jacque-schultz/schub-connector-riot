@@ -29,6 +29,8 @@ public class RiotProperties {
 
     private final Ingest ingest = new Ingest();
 
+    private final Crawler crawler = new Crawler();
+
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
     }
@@ -89,6 +91,27 @@ public class RiotProperties {
         private Duration quotaBackoff = Duration.ofSeconds(30);
 
         private Duration idleBackoff = Duration.ofMinutes(5);
+    }
+
+    @Data
+    public static class Crawler {
+
+        // Faux en prod : la collecte de fond ne s'arrête pas. Vrai en dev : l'owner la bascule.
+        private boolean switchable = false;
+
+        private boolean enabledByDefault = true;
+
+        private Duration interval = Duration.ofMinutes(1);
+
+        private int accountsPerRound = 20;
+
+        // Tant que la collecte de fond a plus que ça en attente, elle n'empile pas de nouveaux comptes.
+        private long backlog = 500;
+
+        private Duration refreshAfter = Duration.ofDays(7);
+
+        // Au-delà, elle se suspend d'elle-même et le signale.
+        private long storageAlertBytes = 2_000_000_000_000L;
     }
 
     @Data

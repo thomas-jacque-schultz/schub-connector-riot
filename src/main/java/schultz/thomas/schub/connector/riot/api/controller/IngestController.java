@@ -6,13 +6,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
+import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
+import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
@@ -29,6 +34,7 @@ public class IngestController {
     private final IngestService ingestService;
     private final ParticipationProjector projector;
     private final KnownAccountIndex knownAccounts;
+    private final BackgroundCrawler crawler;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -41,6 +47,20 @@ public class IngestController {
     @GetMapping
     public IngestStatus status() {
         return ingestService.status();
+    }
+
+    @Operation(summary = "La collecte de fond",
+            description = "Toujours active en prod ; en dev, `switchable` permet de la basculer. "
+                    + "Elle se suspend d'elle-même au-delà du seuil de volume de la base.")
+    @GetMapping("/crawler")
+    public CrawlerStatus crawler() {
+        return crawler.status();
+    }
+
+    @Operation(summary = "Basculer la collecte de fond", description = "409 là où elle n'est pas basculable.")
+    @PutMapping("/crawler")
+    public CrawlerStatus toggleCrawler(@RequestBody CrawlerToggleRequest request) {
+        return crawler.toggle(request.enabled());
     }
 
     @Operation(summary = "Où en est la collecte d'un joueur",
