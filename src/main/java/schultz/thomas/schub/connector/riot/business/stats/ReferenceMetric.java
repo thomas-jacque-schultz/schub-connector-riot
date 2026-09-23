@@ -5,7 +5,12 @@ import org.bson.Document;
 import java.util.List;
 
 // Une métrique = numérateur / dénominateur par ligne : par partie on divise, sur une moyenne on divise les sommes.
-public record ReferenceMetric(String key, Object numerator, Object denominator, Polarity polarity, boolean perGame) {
+public record ReferenceMetric(String key, Object numerator, Object denominator, Polarity polarity, boolean perGame,
+                              Object meanDenominator) {
+
+    public ReferenceMetric(String key, Object numerator, Object denominator, Polarity polarity, boolean perGame) {
+        this(key, numerator, denominator, polarity, perGame, denominator);
+    }
 
     public enum Polarity { HIGHER, LOWER, NEUTRAL }
 
@@ -27,8 +32,9 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
             new ReferenceMetric("deathShare", "$deaths", "$teamDeaths", Polarity.LOWER, true),
             new ReferenceMetric("deathsPer10", "$deaths", new Document("$divide", List.of("$durationSeconds", 600)),
                     Polarity.LOWER, true),
+            // Par partie, une partie sans mort compte pour une ; en moyenne, (K + A) / D sur les sommes, comme le cœur.
             new ReferenceMetric("kda", new Document("$add", List.of("$kills", "$assists")),
-                    new Document("$max", List.of("$deaths", 1)), Polarity.HIGHER, true),
+                    new Document("$max", List.of("$deaths", 1)), Polarity.HIGHER, true, "$deaths"),
             new ReferenceMetric("timeDeadShare", "$performance.timeDeadSeconds", "$durationSeconds", Polarity.LOWER, true),
             parMinute("turretDamagePerMinute", "$performance.turretDamage"),
             new ReferenceMetric("turretTakedowns", "$performance.turretTakedowns", PARTIE, Polarity.HIGHER, true),
