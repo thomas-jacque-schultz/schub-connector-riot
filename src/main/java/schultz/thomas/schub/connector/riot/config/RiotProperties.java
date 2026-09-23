@@ -31,6 +31,8 @@ public class RiotProperties {
 
     private final Crawler crawler = new Crawler();
 
+    private final Sampling sampling = new Sampling();
+
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
     }
@@ -112,6 +114,23 @@ public class RiotProperties {
 
         // Au-delà, elle se suspend d'elle-même et le signale.
         private long storageAlertBytes = 2_000_000_000_000L;
+    }
+
+    @Data
+    public static class Sampling {
+
+        private boolean enabled = true;
+
+        private int seedsPerTier = 300;
+
+        private Duration window = Duration.ofDays(28);
+
+        private int gamesPerSeed = 20;
+
+        private int seedsPerPage = 10;
+
+        // Borne du tirage tant que la première page vide d'une division n'est pas connue.
+        private int maxPage = 50;
     }
 
     @Data
