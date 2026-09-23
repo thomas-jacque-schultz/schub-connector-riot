@@ -18,9 +18,12 @@ class LadderMixtureTest {
     void paliersIdentiques() {
         List<Double> grille = List.of(1.0, 2.0, 3.0, 4.0, 5.0);
 
-        assertThat(LadderMixture.mix(P, Map.of("GOLD", grille, "SILVER", grille), Map.of("GOLD", 10.0, "SILVER", 30.0)))
-                .usingComparatorForType((a, b) -> Math.abs(a - b) < 1e-6 ? 0 : Double.compare(a, b), Double.class)
-                .containsExactlyElementsOf(grille);
+        List<Double> melange = LadderMixture.mix(P, Map.of("GOLD", grille, "SILVER", grille),
+                Map.of("GOLD", 10.0, "SILVER", 30.0));
+
+        for (int i = 0; i < grille.size(); i++) {
+            assertThat(melange.get(i)).isCloseTo(grille.get(i), within(1e-6));
+        }
     }
 
     @Test

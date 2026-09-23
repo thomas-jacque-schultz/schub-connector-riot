@@ -15,7 +15,6 @@ import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 
 // Début d'un patch = sa première partie collectée : ce qui compte, c'est la fenêtre qu'il ouvre dans nos données.
 @Service
@@ -43,6 +42,9 @@ public class PatchCalendar {
                 .with(Sort.by(Sort.Direction.ASC, "startedAt")).limit(1);
         premiere.fields().include("startedAt").exclude("_id");
         Document ligne = mongo.findOne(premiere, Document.class, MatchParticipation.COLLECTION);
-        return ligne == null ? null : ligne.get("startedAt") instanceof Date date ? date.toInstant() : null;
+        if (ligne != null && ligne.get("startedAt") instanceof Date date) {
+            return date.toInstant();
+        }
+        return null;
     }
 }
