@@ -31,6 +31,7 @@ public record EarlyGame(List<Gank> ganks, List<JunglePresence> junglers, List<Ob
             Outcome outcome,
             int defendersLost,
             int attackersLost,
+            @Schema(description = "Les joueurs morts pendant le gank, des deux camps.") List<String> casualtyPuuids,
             @Schema(description = "Objectif du côté du couloir pris par l'attaquant dans les 90 secondes.")
             boolean objectiveFollowUp
     ) {

@@ -81,6 +81,7 @@ class EarlyGameAnalyzerTest {
             assertThat(gank.targetPuuids()).containsExactly("top-b");
             assertThat(gank.second()).isEqualTo(290);
             assertThat(gank.outcome()).isEqualTo(Outcome.KILL);
+            assertThat(gank.casualtyPuuids()).containsExactly("top-b");
             assertThat(gank.decisive()).isTrue();
         });
     }
