@@ -75,6 +75,7 @@ public class MatchMapper {
                 participant.totalMinionsKilled() + participant.neutralMinionsKilled(),
                 participant.goldEarned(),
                 participant.totalDamageDealtToChampions(),
+                participant.totalDamageTaken(),
                 participant.visionScore(),
                 participant.summoner1Id(),
                 participant.summoner2Id(),

@@ -11,6 +11,7 @@ import java.util.List;
 public record StatsQuery(
         @NotEmpty List<String> puuids,
         @NotNull StatsGrouping groupBy,
+        @Schema(description = "Absente : ALL.") StatsScope scope,
         @Schema(description = "Absente : tout l'historique connu.") Instant since
 ) {
 }

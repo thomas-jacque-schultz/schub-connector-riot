@@ -4,17 +4,21 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.MetricScale;
 import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsQuery;
+import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
+import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
 
 import java.util.List;
@@ -27,6 +31,7 @@ import java.util.List;
 public class StatsController {
 
     private final ParticipationStatsService statsService;
+    private final MetricScaleService metricScale;
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """
@@ -34,15 +39,16 @@ public class StatsController {
                     mois, côté, ou tout confondu. **Aucun appel à Riot** : le calcul porte sur ce
                     qui est déjà collecté.
 
-                    Rien n'est filtré par file : compter séparément le classé flex et la normale
-                    draft est possible avec `groupBy: QUEUE`, mais c'est l'appelant qui décide de
-                    ce que cette séparation vaut.
+                    `scope: RIFT` ne garde que la Faille en 5 contre 5 : les indicateurs par
+                    minute d'une ARAM ou d'une Arène ne se comparent pas aux autres. Le poste
+                    inconnu (modes sans couloirs, remakes) n'est jamais un groupe.
 
                     Un joueur sans participation n'a simplement aucun groupe dans la réponse —
                     pas une erreur, et `/stats/coverage` dit pourquoi.""")
     @PostMapping("/aggregate")
     public List<ParticipationBucket> aggregate(@Valid @RequestBody StatsQuery query) {
-        return statsService.aggregate(query.puuids(), query.groupBy(), query.since());
+        return statsService.aggregate(query.puuids(), query.groupBy(),
+                query.scope() == null ? StatsScope.ALL : query.scope(), query.since());
     }
 
     @Operation(summary = "Sur quoi portent les chiffres de ces joueurs",
@@ -74,5 +80,12 @@ public class StatsController {
     public SharedMatches sharedMatches(@Valid @RequestBody SharedMatchesQuery query) {
         return statsService.sharedMatches(
                 query.puuids(), query.minimumPlayers(), query.since(), query.limit());
+    }
+
+    @Operation(summary = "Bornes des indicateurs pour les graphiques radar",
+            description = "Recalculées toutes les heures depuis les participations, sans appel à Riot.")
+    @GetMapping("/scale")
+    public MetricScale scale() {
+        return metricScale.current();
     }
 }

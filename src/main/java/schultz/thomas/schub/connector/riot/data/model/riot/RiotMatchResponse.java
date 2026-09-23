@@ -43,6 +43,7 @@ public record RiotMatchResponse(Metadata metadata, Info info) {
             int neutralMinionsKilled,
             int goldEarned,
             int totalDamageDealtToChampions,
+            int totalDamageTaken,
             int visionScore,
             int summoner1Id,
             int summoner2Id,

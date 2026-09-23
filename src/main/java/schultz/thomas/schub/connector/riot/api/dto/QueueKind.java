@@ -1,5 +1,7 @@
 package schultz.thomas.schub.connector.riot.api.dto;
 
+import java.util.Set;
+
 public enum QueueKind {
 
     NORMAL_DRAFT,
@@ -45,6 +47,8 @@ public enum QueueKind {
     CUSTOM,
 
     OTHER;
+
+    public static final Set<Integer> RIFT_QUEUE_IDS = Set.of(400, 420, 430, 440, 480, 490, 700);
 
     public static QueueKind fromQueueId(int queueId) {
         return switch (queueId) {

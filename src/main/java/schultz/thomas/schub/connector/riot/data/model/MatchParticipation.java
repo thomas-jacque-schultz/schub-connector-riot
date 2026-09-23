@@ -40,6 +40,7 @@ public record MatchParticipation(
         int minionsKilled,
         int goldEarned,
         int damageToChampions,
+        int damageTaken,
         int visionScore,
         boolean afk,
         Instant projectedAt
