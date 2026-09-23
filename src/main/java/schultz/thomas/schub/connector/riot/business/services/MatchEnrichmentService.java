@@ -61,7 +61,7 @@ public class MatchEnrichmentService {
         Set<String> avecTimeline = timelines.findStoredIds(voulues).stream()
                 .map(CachedTimeline::matchId).collect(Collectors.toSet());
         Set<String> avecDebut = earlyStats.findByMatchIdIn(voulues).stream()
-                .filter(debut -> debut.version() == MatchEarlyStats.CURRENT_VERSION)
+                .filter(MatchEarlyStats::current)
                 .map(MatchEarlyStats::matchId).collect(Collectors.toSet());
         avecTimeline.stream().filter(matchId -> !avecDebut.contains(matchId)).forEach(this::recalculeDebut);
         Set<String> avecRangs = rankSnapshots.findByMatchIdIn(voulues).stream()
