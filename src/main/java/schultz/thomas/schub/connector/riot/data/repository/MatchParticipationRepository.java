@@ -4,6 +4,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.MatchSeat;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -18,10 +19,10 @@ public interface MatchParticipationRepository extends MongoRepository<MatchParti
 
     List<MatchParticipation> findByMatchIdIn(Collection<String> matchIds);
 
-    // Qui jouait quoi, sans le reste de la ligne : de quoi placer les dix joueurs d'une partie.
+    // Le reste de la ligne n'est pas lu : l'entité complète ne peut pas en naître (ses primitifs resteraient nuls).
     @Query(value = "{ 'matchId': { $in: ?0 } }",
             fields = "{ 'puuid': 1, 'matchId': 1, 'side': 1, 'position': 1, 'championId': 1 }")
-    List<MatchParticipation> findSeatsByMatchIdIn(Collection<String> matchIds);
+    List<MatchSeat> findSeatsByMatchIdIn(Collection<String> matchIds);
 
     long countByPuuid(String puuid);
 

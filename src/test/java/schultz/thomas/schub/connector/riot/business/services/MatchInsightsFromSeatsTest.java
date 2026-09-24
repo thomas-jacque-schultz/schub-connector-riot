@@ -9,7 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.MatchSeat;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
@@ -50,9 +50,7 @@ class MatchInsightsFromSeatsTest {
         verifyNoInteractions(matches);
     }
 
-    private static MatchParticipation place(String puuid, int side, TeamPosition position) {
-        return new MatchParticipation(null, puuid, "EUW1_1", null, null, null, 1, null, position, false, side, 0, 0,
-                null, null, null, null, null, false, 0, 0, 0, 0, 0, 0, 0, 0, null, null, false, null, null, null,
-                null, null);
+    private static MatchSeat place(String puuid, int side, TeamPosition position) {
+        return new MatchSeat(puuid, "EUW1_1", side, position, 1);
     }
 }
