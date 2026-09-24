@@ -68,7 +68,7 @@ class LadderSamplerTest {
     }
 
     @Test
-    @DisplayName("un palier sous sa cible reçoit une page à lire, un palier plein n'en reçoit pas")
+    @DisplayName("un palier sous sa cible reçoit plusieurs pages à lire, un palier plein n'en reçoit pas")
     void empileUnePageParPalierEnManque() {
         when(crawler.active()).thenReturn(true);
         when(seeds.countByGroupAndSampledAtGreaterThanEqual(anyString(), any())).thenReturn(300L);
@@ -77,18 +77,18 @@ class LadderSamplerTest {
         sampler.round();
 
         ArgumentCaptor<String> cle = ArgumentCaptor.forClass(String.class);
-        verify(queue, times(1)).enqueue(eq(IngestTaskType.LADDER_PAGE), cle.capture(), eq(null),
-                eq(IngestTask.BACKGROUND_PLAYER_PRIORITY));
-        assertThat(cle.getValue()).matches("GOLD/(I|II|III|IV)/\\d+");
+        verify(queue, times(properties.getSampling().getPagesInFlight())).enqueue(eq(IngestTaskType.LADDER_PAGE),
+                cle.capture(), eq(null), eq(IngestTask.BACKGROUND_PLAYER_PRIORITY));
+        assertThat(cle.getAllValues()).allMatch(page -> page.matches("GOLD/(I|II|III|IV)/\\d+"));
     }
 
     @Test
-    @DisplayName("pas de nouvelle page tant que la précédente du même palier est en file")
+    @DisplayName("pas de nouvelle page tant que le palier a déjà toutes les siennes en file")
     void uneSeulePageEnFileParPalier() {
         when(crawler.active()).thenReturn(true);
         when(seeds.countByGroupAndSampledAtGreaterThanEqual(anyString(), any())).thenReturn(0L);
         when(tasks.countByTypeAndKeyStartingWithAndStateIn(eq(IngestTaskType.LADDER_PAGE), anyString(), anyCollection()))
-                .thenReturn(1L);
+                .thenReturn((long) properties.getSampling().getPagesInFlight());
 
         sampler.round();
 

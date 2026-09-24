@@ -57,8 +57,9 @@ riot:
 
   ingest:
     enabled: ${RIOT_INGEST_ENABLED:true}
-    # ≈ 44 ko stockés par partie : c'est le disque qui borne le débit, plus le quota.
-    workers: ${RIOT_INGEST_WORKERS:4}
+    # Le quota d'une clé de production ne borne plus rien ; le disque, si (≈ 44 ko par partie), et le
+    # seuil storage-alert-bytes suspend la collecte de fond avant qu'il ne soit plein.
+    workers: ${RIOT_INGEST_WORKERS:16}
     poll-interval: 2s
     batch-size: 25
     # Doit dépasser quota.acquire-timeout.

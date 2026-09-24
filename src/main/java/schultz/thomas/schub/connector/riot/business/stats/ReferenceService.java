@@ -151,6 +151,19 @@ public class ReferenceService {
                 .orElse(ReferenceMetric.Polarity.NEUTRAL.name());
     }
 
+    // Tant qu'une grille de poste n'a pas son échelle du ladder, les icônes de rang manquent : on recalcule chaque heure.
+    public boolean incomplete() {
+        return POSTES.stream().anyMatch(poste -> Stream.of(GAME, MEAN).anyMatch(scope -> latest(scope, poste)
+                .map(reference -> reference.metrics().values().stream().anyMatch(grille -> grille.ladder() == null))
+                .orElse(true)));
+    }
+
+    public void refreshIfIncomplete() {
+        if (incomplete()) {
+            refresh();
+        }
+    }
+
     public boolean missing() {
         return store.count() == 0;
     }

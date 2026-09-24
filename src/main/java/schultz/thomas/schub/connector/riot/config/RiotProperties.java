@@ -172,6 +172,9 @@ public class RiotProperties {
 
         private int seedsPerPage = 10;
 
+        // Pages lues en même temps par palier : une seule par tour d'une minute mettait une demi-heure à trouver 300 graines.
+        private int pagesInFlight = 5;
+
         // Borne du tirage tant que la première page vide d'une division n'est pas connue.
         private int maxPage = 50;
     }
