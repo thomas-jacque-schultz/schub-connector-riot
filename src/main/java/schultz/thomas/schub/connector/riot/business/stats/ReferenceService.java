@@ -79,7 +79,7 @@ public class ReferenceService {
 
     public ReferenceGrid toGrid(StoredReference reference, String tier) {
         String groupe = groupe(tier);
-        // Une moyenne se situe aussi parmi les médianes par partie : les moyennes de joueurs sont trop peu nombreuses par palier.
+        // Une moyenne de joueur se situe aussi parmi les parties : les joueurs sont trop peu nombreux par palier.
         StoredReference parPartie = reference.scope().equals(MEAN)
                 ? forPatch(GAME, reference.position(), reference.patches().getFirst()).orElse(null)
                 : reference;
@@ -91,10 +91,10 @@ public class ReferenceService {
                     paliers.put(palier, new ReferenceGrid.Tier(valeurs.count(), valeurs.values()));
                 }
             });
-            StoredReference.Grid mediane = parPartie == null ? null : parPartie.metrics().get(cle);
-            Map<String, Double> medianes = mediane == null ? null : RankMedians.of(parPartie.percentiles(),
-                    mediane.tiers(), minimum(parPartie.scope()), polarite(cle));
-            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, medianes, grille.missingTiers()));
+            StoredReference.Grid parties = parPartie == null ? null : parPartie.metrics().get(cle);
+            Map<String, Double> moyennes = parties == null ? null : RankMeans.of(parPartie.percentiles(),
+                    parties.tiers(), minimum(parPartie.scope()), polarite(cle));
+            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, moyennes, grille.missingTiers()));
         });
         return new ReferenceGrid(reference.patches(), reference.scope(), reference.position(),
                 reference.computedAt(), reference.percentiles(), metriques);
@@ -148,7 +148,7 @@ public class ReferenceService {
         return scope.equals(MEAN) ? MINIMUM_JOUEURS : MINIMUM_PARTIES;
     }
 
-    // Tant qu'un palier manque à une grille de poste, ses médianes sont incomplètes : on recalcule chaque heure.
+    // Tant qu'un palier manque à une grille de poste, ses moyennes sont incomplètes : on recalcule chaque heure.
     public boolean incomplete() {
         return POSTES.stream().anyMatch(poste -> Stream.of(GAME, MEAN).anyMatch(scope -> latest(scope, poste)
                 .map(reference -> reference.metrics().values().stream().anyMatch(grille -> !grille.missingTiers().isEmpty()))
