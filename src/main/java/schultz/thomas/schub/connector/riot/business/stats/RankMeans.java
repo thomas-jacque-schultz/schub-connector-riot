@@ -15,6 +15,8 @@ final class RankMeans {
     static final double CORRELATION_MINIMUM = 0.8;
     // Écart des moyennes du plus bas au plus haut palier, rapporté à l'écart interquartile moyen d'un palier.
     static final double ECART_MINIMUM = 0.4;
+    // Part des parties écartée à chaque bout avant de moyenner.
+    static final double TRONCATURE = 0.05;
 
     private RankMeans() {
     }
@@ -44,13 +46,23 @@ final class RankMeans {
         return ecart >= ECART_MINIMUM && spearman(orientees) >= CORRELATION_MINIMUM ? moyennes : null;
     }
 
-    // La moyenne est l'aire sous la fonction quantile : une médiane de 0 balise cache une moyenne qui monte.
+    // Aire sous la fonction quantile entre 5 % et 95 % : une médiane de 0 balise cache une moyenne qui monte, et
+    // sans troncature, les parties sans mort (KDA de 20 à 30) tirent la moyenne du KDA à elles seules.
     static double moyenne(List<Double> percentiles, List<Double> valeurs) {
         double aire = 0;
         for (int i = 1; i < percentiles.size(); i++) {
-            aire += (percentiles.get(i) - percentiles.get(i - 1)) * (valeurs.get(i) + valeurs.get(i - 1)) / 2;
+            double p0 = percentiles.get(i - 1);
+            double p1 = percentiles.get(i);
+            double debut = Math.max(p0, TRONCATURE);
+            double fin = Math.min(p1, 1 - TRONCATURE);
+            if (fin > debut) {
+                double pente = (valeurs.get(i) - valeurs.get(i - 1)) / (p1 - p0);
+                double va = valeurs.get(i - 1) + pente * (debut - p0);
+                double vb = valeurs.get(i - 1) + pente * (fin - p0);
+                aire += (fin - debut) * (va + vb) / 2;
+            }
         }
-        return aire;
+        return aire / (1 - 2 * TRONCATURE);
     }
 
     // Corrélation de rang entre l'ordre des paliers et celui des moyennes ; les ex æquo prennent leur rang moyen.
