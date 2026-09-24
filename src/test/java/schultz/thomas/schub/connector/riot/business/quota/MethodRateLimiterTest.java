@@ -74,4 +74,18 @@ class MethodRateLimiterTest {
         assertThatThrownBy(() -> limiteur.acquire(RiotMethods.MATCH, Duration.ofSeconds(2)))
                 .isInstanceOf(RiotQuotaExceededException.class);
     }
+
+    @Test
+    @DisplayName("les limites annoncées pour une route remplacent la configuration, sans oublier les appels déjà faits")
+    void adopteLesLimitesDeLaRoute() {
+        Instant debut = clock.instant();
+        for (int i = 0; i < 5; i++) {
+            limiteur.acquire(RiotMethods.LEAGUE_DIVISION, Duration.ofMinutes(1));
+        }
+
+        limiteur.adopte(RiotMethods.LEAGUE_DIVISION, "5:10");
+        limiteur.acquire(RiotMethods.LEAGUE_DIVISION, Duration.ofMinutes(1));
+
+        assertThat(Duration.between(debut, clock.instant())).isEqualTo(Duration.ofSeconds(10));
+    }
 }

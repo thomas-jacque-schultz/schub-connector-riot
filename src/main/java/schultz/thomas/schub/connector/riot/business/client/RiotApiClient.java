@@ -51,6 +51,8 @@ public class RiotApiClient {
             new ParameterizedTypeReference<>() { };
 
     private static final String RATE_LIMIT_TYPE = "X-Rate-Limit-Type";
+    private static final String APP_RATE_LIMIT = "X-App-Rate-Limit";
+    private static final String METHOD_RATE_LIMIT = "X-Method-Rate-Limit";
 
     private final RestClient regional;
     private final RestClient platform;
@@ -166,7 +168,7 @@ public class RiotApiClient {
             QuotaLane voie = QuotaLaneContext.current();
             methodLimiter.acquire(method, voie.timeout(properties.getQuota()));
             rateLimiter.acquire(voie);
-            Attempt<T> result = exchange(client, label, type, uriFunction);
+            Attempt<T> result = exchange(client, method, label, type, uriFunction);
 
             switch (result.outcome()) {
                 case OK -> {
@@ -195,12 +197,14 @@ public class RiotApiClient {
                 properties.getQuota().getBurstWindow());
     }
 
-    private <T> Attempt<T> exchange(RestClient client, String label, ParameterizedTypeReference<T> type,
-                                    Function<UriBuilder, URI> uriFunction) {
+    private <T> Attempt<T> exchange(RestClient client, String method, String label,
+                                    ParameterizedTypeReference<T> type, Function<UriBuilder, URI> uriFunction) {
         try {
             return client.get()
                     .uri(uriFunction)
                     .exchange((request, response) -> {
+                        rateLimiter.adopte(response.getHeaders().getFirst(APP_RATE_LIMIT));
+                        methodLimiter.adopte(method, response.getHeaders().getFirst(METHOD_RATE_LIMIT));
                         int status = response.getStatusCode().value();
                         if (status == 404) {
                             return new Attempt<T>(null, Outcome.NOT_FOUND, Duration.ZERO, null, false);

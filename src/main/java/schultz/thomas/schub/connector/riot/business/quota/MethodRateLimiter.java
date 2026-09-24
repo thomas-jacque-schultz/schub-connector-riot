@@ -8,6 +8,7 @@ import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +59,21 @@ public class MethodRateLimiter {
         log.warn("429 de Riot sur la route {} : elle seule est suspendue pendant {}", method, retryAfter);
     }
 
+    // Riot annonce les limites de chaque route avec sa réponse : elles remplacent celles de la configuration.
+    public void adopte(String method, String annonce) {
+        List<RiotProperties.Window> fenetres = LimitesAnnoncees.lire(annonce);
+        if (fenetres.isEmpty() || route(method).fenetres.equals(fenetres)) {
+            return;
+        }
+        routes.compute(method, (cle, ancienne) -> ancienne != null && ancienne.fenetres.equals(fenetres)
+                ? ancienne
+                : new Route(fenetres, ancienne));
+        log.info("Limites annoncées par Riot pour la route {} : {}", method, annonce);
+    }
+
     // Une route sans limite propre existe quand même : un 429 « method » peut la suspendre.
     private Route route(String method) {
-        return routes.computeIfAbsent(method, cle -> new Route(limites.getOrDefault(cle, List.of())));
+        return routes.computeIfAbsent(method, cle -> new Route(limites.getOrDefault(cle, List.of()), null));
     }
 
     private static final class Route {
@@ -69,9 +82,16 @@ public class MethodRateLimiter {
         private final List<Deque<Long>> creneaux;
         private long penaliseeJusqua;
 
-        Route(List<RiotProperties.Window> fenetres) {
+        // Les créneaux déjà pris restent comptés dans les nouvelles fenêtres, la pénalité en cours aussi.
+        Route(List<RiotProperties.Window> fenetres, Route precedente) {
             this.fenetres = fenetres;
-            this.creneaux = fenetres.stream().map(fenetre -> (Deque<Long>) new ArrayDeque<Long>()).toList();
+            List<Long> pris = precedente == null ? List.of() : precedente.historique();
+            this.creneaux = fenetres.stream().map(fenetre -> (Deque<Long>) new ArrayDeque<>(pris)).toList();
+            this.penaliseeJusqua = precedente == null ? 0 : precedente.penalite();
+        }
+
+        private synchronized List<Long> historique() {
+            return creneaux.stream().max(Comparator.comparingInt(Deque::size)).map(List::copyOf).orElse(List.of());
         }
 
         synchronized long reserveOuAttente(long maintenant) {
@@ -95,6 +115,10 @@ public class MethodRateLimiter {
             }
             creneaux.forEach(pris -> pris.addLast(maintenant));
             return 0;
+        }
+
+        private synchronized long penalite() {
+            return penaliseeJusqua;
         }
 
         synchronized void penalise(long jusqua) {
