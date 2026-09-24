@@ -12,7 +12,6 @@ import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
-import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
@@ -66,7 +65,6 @@ public class ReferenceService {
     private final StoredChampionReferenceRepository champions;
     private final ParticipationProjector projector;
     private final RankHistory rankHistory;
-    private final RiotProperties properties;
     private final Clock clock;
 
     public Optional<StoredReference> latest(String scope, String position) {
@@ -81,6 +79,10 @@ public class ReferenceService {
 
     public ReferenceGrid toGrid(StoredReference reference, String tier) {
         String groupe = groupe(tier);
+        // Une moyenne se situe aussi parmi les médianes par partie : les moyennes de joueurs sont trop peu nombreuses par palier.
+        StoredReference parPartie = reference.scope().equals(MEAN)
+                ? forPatch(GAME, reference.position(), reference.patches().getFirst()).orElse(null)
+                : reference;
         Map<String, ReferenceGrid.Metric> metriques = new LinkedHashMap<>();
         reference.metrics().forEach((cle, grille) -> {
             Map<String, ReferenceGrid.Tier> paliers = new LinkedHashMap<>();
@@ -89,10 +91,13 @@ public class ReferenceService {
                     paliers.put(palier, new ReferenceGrid.Tier(valeurs.count(), valeurs.values()));
                 }
             });
-            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle), paliers, grille.ladder(), grille.missingTiers()));
+            StoredReference.Grid mediane = parPartie == null ? null : parPartie.metrics().get(cle);
+            Map<String, Double> medianes = mediane == null ? null : RankMedians.of(parPartie.percentiles(),
+                    mediane.tiers(), minimum(parPartie.scope()), polarite(cle));
+            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, medianes, grille.missingTiers()));
         });
         return new ReferenceGrid(reference.patches(), reference.scope(), reference.position(),
-                reference.computedAt(), reference.distribution(), reference.percentiles(), niveaux(), metriques);
+                reference.computedAt(), reference.percentiles(), metriques);
     }
 
     public Optional<ChampionReferenceGrid> championGrid(int championId, String tier) {
@@ -102,7 +107,7 @@ public class ReferenceService {
             reference.metrics().forEach((cle, parGroupe) -> {
                 StoredReference.TierGrid grille = groupe == null ? null : parGroupe.get(groupe);
                 if (grille != null) {
-                    metriques.put(cle, new ChampionReferenceGrid.Metric(polarite(cle), grille.count(), grille.values()));
+                    metriques.put(cle, new ChampionReferenceGrid.Metric(polarite(cle).name(), grille.count(), grille.values()));
                 }
             });
             return new ChampionReferenceGrid(championId, groupe, reference.patches(), reference.computedAt(),
@@ -131,30 +136,22 @@ public class ReferenceService {
         return List.of("MASTER", "GRANDMASTER", "CHALLENGER").contains(tier) ? "MASTER_PLUS" : tier;
     }
 
-    List<ReferenceGrid.Level> niveaux() {
-        Map<String, Double> parts = properties.getLadder().getShares();
-        double total = PALIERS.stream().mapToDouble(palier -> parts.getOrDefault(palier, 0.0)).sum();
-        List<ReferenceGrid.Level> niveaux = new ArrayList<>();
-        double cumul = 0;
-        for (String palier : PALIERS) {
-            niveaux.add(new ReferenceGrid.Level(palier, cumul / total));
-            cumul += parts.getOrDefault(palier, 0.0);
-        }
-        return niveaux;
-    }
-
-    private static String polarite(String cle) {
+    private static ReferenceMetric.Polarity polarite(String cle) {
         return Stream.concat(ReferenceMetric.EQUIPE.stream(), ReferenceMetric.CATALOGUE.stream())
                 .filter(metrique -> metrique.key().equals(cle))
-                .map(metrique -> metrique.polarity().name())
+                .map(ReferenceMetric::polarity)
                 .findFirst()
-                .orElse(ReferenceMetric.Polarity.NEUTRAL.name());
+                .orElse(ReferenceMetric.Polarity.NEUTRAL);
     }
 
-    // Tant qu'une grille de poste n'a pas son échelle du ladder, les icônes de rang manquent : on recalcule chaque heure.
+    private static long minimum(String scope) {
+        return scope.equals(MEAN) ? MINIMUM_JOUEURS : MINIMUM_PARTIES;
+    }
+
+    // Tant qu'un palier manque à une grille de poste, ses médianes sont incomplètes : on recalcule chaque heure.
     public boolean incomplete() {
         return POSTES.stream().anyMatch(poste -> Stream.of(GAME, MEAN).anyMatch(scope -> latest(scope, poste)
-                .map(reference -> reference.metrics().values().stream().anyMatch(grille -> grille.ladder() == null))
+                .map(reference -> reference.metrics().values().stream().anyMatch(grille -> !grille.missingTiers().isEmpty()))
                 .orElse(true)));
     }
 
@@ -188,7 +185,7 @@ public class ReferenceService {
                     metriques.put(metrique.key(), grille(scope, parMetrique.getOrDefault(metrique.key(), Map.of())));
                 }
                 rendus.add(new StoredReference(String.join("/", scope, poste, String.join("+", patchs)), patchs,
-                        scope, poste, maintenant, properties.getLadder().getLabel(), PERCENTILES, metriques));
+                        scope, poste, maintenant, PERCENTILES, metriques));
             }
         }
         rendus.add(equipe(patchs, maintenant));
@@ -217,7 +214,7 @@ public class ReferenceService {
         ReferenceMetric.EQUIPE.forEach(metrique -> metriques.put(metrique.key(),
                 grille(GAME, parMetrique.getOrDefault(metrique.key(), Map.of()))));
         return new StoredReference(String.join("/", TEAM, TEAM, String.join("+", patchs)), patchs, TEAM, TEAM,
-                maintenant, properties.getLadder().getLabel(), PERCENTILES, metriques);
+                maintenant, PERCENTILES, metriques);
     }
 
     private List<StoredChampionReference> champions(List<String> patchs, Instant maintenant) {
@@ -244,18 +241,11 @@ public class ReferenceService {
         return rendus;
     }
 
-    private StoredReference.Grid grille(String scope, Map<String, StoredReference.TierGrid> parPalier) {
-        long minimum = scope.equals(GAME) ? MINIMUM_PARTIES : MINIMUM_JOUEURS;
+    private static StoredReference.Grid grille(String scope, Map<String, StoredReference.TierGrid> parPalier) {
         List<String> manquants = PALIERS.stream()
-                .filter(palier -> !parPalier.containsKey(palier) || parPalier.get(palier).count() < minimum)
+                .filter(palier -> !parPalier.containsKey(palier) || parPalier.get(palier).count() < minimum(scope))
                 .toList();
-        List<Double> ladder = null;
-        if (manquants.isEmpty()) {
-            Map<String, List<Double>> valeurs = new HashMap<>();
-            parPalier.forEach((palier, grille) -> valeurs.put(palier, grille.values()));
-            ladder = LadderMixture.mix(PERCENTILES, valeurs, properties.getLadder().getShares());
-        }
-        return new StoredReference.Grid(parPalier, ladder, manquants);
+        return new StoredReference.Grid(parPalier, manquants);
     }
 
     // Le plus récent d'abord ; « 16.18 » passe devant « 16.9 ».

@@ -17,12 +17,11 @@ public record StoredReference(
         String scope,
         String position,
         Instant computedAt,
-        String distribution,
         List<Double> percentiles,
         Map<String, Grid> metrics
 ) {
 
-    public record Grid(Map<String, TierGrid> tiers, List<Double> ladder, List<String> missingTiers) {
+    public record Grid(Map<String, TierGrid> tiers, List<String> missingTiers) {
     }
 
     public record TierGrid(long count, List<Double> values) {
