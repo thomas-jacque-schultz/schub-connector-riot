@@ -35,6 +35,7 @@ riot:
     sustained-requests: 100
     sustained-window: 2m
     safety-margin: 2
+    window-guard: 1s
     max-retries-on429: 3
     max-retry-after: 3m
     acquire-timeout: 5m

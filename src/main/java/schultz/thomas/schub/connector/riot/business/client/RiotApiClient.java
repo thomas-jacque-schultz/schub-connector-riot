@@ -53,6 +53,7 @@ public class RiotApiClient {
     private static final String RATE_LIMIT_TYPE = "X-Rate-Limit-Type";
     private static final String APP_RATE_LIMIT = "X-App-Rate-Limit";
     private static final String METHOD_RATE_LIMIT = "X-Method-Rate-Limit";
+    private static final String COUNT = "-Count";
 
     private final RestClient regional;
     private final RestClient platform;
@@ -203,8 +204,10 @@ public class RiotApiClient {
             return client.get()
                     .uri(uriFunction)
                     .exchange((request, response) -> {
-                        rateLimiter.adopte(response.getHeaders().getFirst(APP_RATE_LIMIT));
-                        methodLimiter.adopte(method, response.getHeaders().getFirst(METHOD_RATE_LIMIT));
+                        HttpHeaders entetes = response.getHeaders();
+                        rateLimiter.adopte(entetes.getFirst(APP_RATE_LIMIT), entetes.getFirst(APP_RATE_LIMIT + COUNT));
+                        methodLimiter.adopte(method, entetes.getFirst(METHOD_RATE_LIMIT),
+                                entetes.getFirst(METHOD_RATE_LIMIT + COUNT));
                         int status = response.getStatusCode().value();
                         if (status == 404) {
                             return new Attempt<T>(null, Outcome.NOT_FOUND, Duration.ZERO, null, false);

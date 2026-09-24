@@ -23,7 +23,8 @@ class MethodRateLimiterTest {
     @BeforeEach
     void setUp() {
         clock = new TestClock(Instant.parse("2026-09-23T12:00:00Z"));
-        limiteur = new MethodRateLimiter(new RiotProperties().getQuota().getMethods(), clock, clock::advance);
+        limiteur = new MethodRateLimiter(new RiotProperties().getQuota().getMethods(), Duration.ZERO, clock,
+                clock::advance);
     }
 
     @Test
@@ -83,7 +84,7 @@ class MethodRateLimiterTest {
             limiteur.acquire(RiotMethods.LEAGUE_DIVISION, Duration.ofMinutes(1));
         }
 
-        limiteur.adopte(RiotMethods.LEAGUE_DIVISION, "5:10");
+        limiteur.adopte(RiotMethods.LEAGUE_DIVISION, "5:10", null);
         limiteur.acquire(RiotMethods.LEAGUE_DIVISION, Duration.ofMinutes(1));
 
         assertThat(Duration.between(debut, clock.instant())).isEqualTo(Duration.ofSeconds(10));

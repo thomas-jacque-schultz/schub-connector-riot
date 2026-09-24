@@ -29,6 +29,7 @@ class RiotRateLimiterTest {
         attentes = new ArrayList<>();
         quota = new RiotProperties.Quota();
         quota.setSafetyMargin(0);
+        quota.setWindowGuard(Duration.ZERO);
         quota.setInteractiveReserve(0);
         quota.setBurstRequests(5);
         quota.setBurstWindow(Duration.ofSeconds(1));
@@ -183,7 +184,7 @@ class RiotRateLimiterTest {
     @DisplayName("les limites annoncées par Riot remplacent celles de la configuration")
     void adopteLesLimitesAnnoncees() {
         RiotRateLimiter limiteur = limiteur();
-        limiteur.adopte("30:120,3:1");
+        limiteur.adopte("30:120,3:1", null);
 
         for (int i = 0; i < 3; i++) {
             limiteur.acquire(QuotaLane.BULK);
@@ -198,11 +199,37 @@ class RiotRateLimiterTest {
     @DisplayName("une annonce illisible laisse les limites en place")
     void ignoreUneAnnonceIllisible() {
         RiotRateLimiter limiteur = limiteur();
-        limiteur.adopte("beaucoup");
+        limiteur.adopte("beaucoup", "rien");
 
         for (int i = 0; i < 5; i++) {
             limiteur.acquire(QuotaLane.BULK);
         }
         assertThat(attentes).isEmpty();
+    }
+
+    @Test
+    @DisplayName("le décompte de Riot rattrape les appels faits avant un redémarrage")
+    void rattrapeLeDecompteDeRiot() {
+        RiotRateLimiter limiteur = limiteur();
+        limiteur.adopte(null, "4:1,4:120");
+
+        limiteur.acquire(QuotaLane.BULK);
+        assertThat(attentes).isEmpty();
+
+        limiteur.acquire(QuotaLane.BULK);
+        assertThat(attentes).containsExactly(Duration.ofSeconds(1));
+    }
+
+    @Test
+    @DisplayName("un créneau reste tenu un peu au-delà de la fenêtre : Riot le compte à l'arrivée, pas au départ")
+    void tientLeCreneauAuDelaDeLaFenetre() {
+        quota.setWindowGuard(Duration.ofMillis(500));
+        RiotRateLimiter limiteur = limiteur();
+
+        for (int i = 0; i < 6; i++) {
+            limiteur.acquire(QuotaLane.BULK);
+        }
+
+        assertThat(attentes).containsExactly(Duration.ofMillis(1500));
     }
 }

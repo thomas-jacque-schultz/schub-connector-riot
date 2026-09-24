@@ -88,8 +88,8 @@ public class RiotRateLimiter {
         lock.lock();
         try {
             long now = clock.millis();
-            prune(burstWindow, now, limites.burstWindow());
-            prune(sustainedWindow, now, limites.sustainedWindow());
+            prune(burstWindow, now, tenue(limites.burstWindow()));
+            prune(sustainedWindow, now, tenue(limites.sustainedWindow()));
 
             int ahead = reservedAhead(lane, now, start);
             long wait = waitNeeded(now, lane, ahead);
@@ -137,9 +137,9 @@ public class RiotRateLimiter {
             return penalisedUntil - now;
         }
         long burstWait = windowWait(burstWindow, now, effective(limites.burstRequests()),
-                limites.burstWindow(), ahead);
+                tenue(limites.burstWindow()), ahead);
         long sustainedWait = windowWait(sustainedWindow, now, sustainedLimit(lane, now),
-                limites.sustainedWindow(), ahead);
+                tenue(limites.sustainedWindow()), ahead);
         return Math.max(Math.max(burstWait, sustainedWait), spacingWait(lane, now));
     }
 
@@ -207,26 +207,51 @@ public class RiotRateLimiter {
     }
 
     // La clé installée fait foi : une clé de développement réglée comme une clé de production enchaîne les 429,
-    // et Riot finit par la révoquer.
-    public void adopte(String annonce) {
+    // et Riot finit par la révoquer. Le décompte de Riot rattrape les appels que ces fenêtres ignorent, ceux
+    // d'avant un redémarrage.
+    public void adopte(String annonce, String decompte) {
         List<RiotProperties.Window> fenetres = LimitesAnnoncees.lire(annonce);
-        if (fenetres.isEmpty()) {
+        List<RiotProperties.Window> comptes = LimitesAnnoncees.lire(decompte);
+        if (fenetres.isEmpty() && comptes.isEmpty()) {
             return;
         }
-        RiotProperties.Window courte = fenetres.get(0);
-        RiotProperties.Window longue = fenetres.get(fenetres.size() - 1);
-        Limites annoncees = new Limites(courte.getRequests(), courte.getWindow(), longue.getRequests(),
-                longue.getWindow());
-        if (annoncees.equals(limites)) {
-            return;
-        }
+        boolean changees = false;
         lock.lock();
         try {
-            limites = annoncees;
+            if (!fenetres.isEmpty()) {
+                RiotProperties.Window courte = fenetres.get(0);
+                RiotProperties.Window longue = fenetres.get(fenetres.size() - 1);
+                Limites annoncees = new Limites(courte.getRequests(), courte.getWindow(), longue.getRequests(),
+                        longue.getWindow());
+                changees = !annoncees.equals(limites);
+                limites = annoncees;
+            }
+            long now = clock.millis();
+            for (RiotProperties.Window compte : comptes) {
+                if (compte.getWindow().equals(limites.burstWindow())) {
+                    rattrape(burstWindow, limites.burstWindow(), compte.getRequests(), now);
+                }
+                if (compte.getWindow().equals(limites.sustainedWindow())) {
+                    rattrape(sustainedWindow, limites.sustainedWindow(), compte.getRequests(), now);
+                }
+            }
         } finally {
             lock.unlock();
         }
-        log.info("Limites annoncées par Riot pour la clé : {}", annonce);
+        if (changees) {
+            log.info("Limites annoncées par Riot pour la clé : {}", annonce);
+        }
+    }
+
+    private void rattrape(Deque<Long> window, Duration span, int compte, long now) {
+        prune(window, now, tenue(span));
+        while (window.size() < compte) {
+            window.addLast(now);
+        }
+    }
+
+    private Duration tenue(Duration span) {
+        return span.plus(quota.getWindowGuard());
     }
 
     // Pénalité globale à la clé, les deux voies confondues. Plafonnée contre un Retry-After aberrant.

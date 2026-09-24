@@ -30,6 +30,7 @@ class RiotRateLimiterReserveTest {
         attentes = new ArrayList<>();
         quota = new RiotProperties.Quota();
         quota.setAcquireTimeout(Duration.ZERO);
+        quota.setWindowGuard(Duration.ZERO);
     }
 
     @Test

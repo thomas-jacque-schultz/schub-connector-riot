@@ -22,12 +22,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MethodRateLimiter {
 
     private final Map<String, List<RiotProperties.Window>> limites;
+    private final Duration marge;
     private final Clock clock;
     private final Sleeper sleeper;
     private final Map<String, Route> routes = new ConcurrentHashMap<>();
 
-    public MethodRateLimiter(Map<String, List<RiotProperties.Window>> limites, Clock clock, Sleeper sleeper) {
+    public MethodRateLimiter(Map<String, List<RiotProperties.Window>> limites, Duration marge, Clock clock,
+                             Sleeper sleeper) {
         this.limites = limites;
+        this.marge = marge;
         this.clock = clock;
         this.sleeper = sleeper;
     }
@@ -36,7 +39,7 @@ public class MethodRateLimiter {
         Route route = route(method);
         long limite = clock.millis() + timeout.toMillis();
         while (true) {
-            long attente = route.reserveOuAttente(clock.millis());
+            long attente = route.reserveOuAttente(clock.millis(), marge);
             if (attente <= 0) {
                 return;
             }
@@ -59,12 +62,20 @@ public class MethodRateLimiter {
         log.warn("429 de Riot sur la route {} : elle seule est suspendue pendant {}", method, retryAfter);
     }
 
-    // Riot annonce les limites de chaque route avec sa réponse : elles remplacent celles de la configuration.
-    public void adopte(String method, String annonce) {
+    // Riot annonce les limites de chaque route avec sa réponse : elles remplacent celles de la configuration, et
+    // son décompte rattrape les appels d'avant un redémarrage.
+    public void adopte(String method, String annonce, String decompte) {
         List<RiotProperties.Window> fenetres = LimitesAnnoncees.lire(annonce);
-        if (fenetres.isEmpty() || route(method).fenetres.equals(fenetres)) {
-            return;
+        if (!fenetres.isEmpty() && !route(method).fenetres.equals(fenetres)) {
+            remplace(method, fenetres, annonce);
         }
+        List<RiotProperties.Window> comptes = LimitesAnnoncees.lire(decompte);
+        if (!comptes.isEmpty()) {
+            route(method).rattrape(comptes, clock.millis(), marge);
+        }
+    }
+
+    private void remplace(String method, List<RiotProperties.Window> fenetres, String annonce) {
         routes.compute(method, (cle, ancienne) -> ancienne != null && ancienne.fenetres.equals(fenetres)
                 ? ancienne
                 : new Route(fenetres, ancienne));
@@ -94,7 +105,7 @@ public class MethodRateLimiter {
             return creneaux.stream().max(Comparator.comparingInt(Deque::size)).map(List::copyOf).orElse(List.of());
         }
 
-        synchronized long reserveOuAttente(long maintenant) {
+        synchronized long reserveOuAttente(long maintenant, Duration marge) {
             if (penaliseeJusqua > maintenant) {
                 return penaliseeJusqua - maintenant;
             }
@@ -102,12 +113,13 @@ public class MethodRateLimiter {
             for (int i = 0; i < fenetres.size(); i++) {
                 RiotProperties.Window fenetre = fenetres.get(i);
                 Deque<Long> pris = creneaux.get(i);
-                long horizon = maintenant - fenetre.getWindow().toMillis();
+                long tenue = fenetre.getWindow().plus(marge).toMillis();
+                long horizon = maintenant - tenue;
                 while (!pris.isEmpty() && pris.peekFirst() <= horizon) {
                     pris.removeFirst();
                 }
                 if (pris.size() >= fenetre.getRequests()) {
-                    attente = Math.max(attente, pris.peekFirst() + fenetre.getWindow().toMillis() - maintenant);
+                    attente = Math.max(attente, pris.peekFirst() + tenue - maintenant);
                 }
             }
             if (attente > 0) {
@@ -115,6 +127,24 @@ public class MethodRateLimiter {
             }
             creneaux.forEach(pris -> pris.addLast(maintenant));
             return 0;
+        }
+
+        synchronized void rattrape(List<RiotProperties.Window> comptes, long maintenant, Duration marge) {
+            for (int i = 0; i < fenetres.size(); i++) {
+                RiotProperties.Window fenetre = fenetres.get(i);
+                Deque<Long> pris = creneaux.get(i);
+                long horizon = maintenant - fenetre.getWindow().plus(marge).toMillis();
+                while (!pris.isEmpty() && pris.peekFirst() <= horizon) {
+                    pris.removeFirst();
+                }
+                comptes.stream()
+                        .filter(compte -> compte.getWindow().equals(fenetre.getWindow()))
+                        .forEach(compte -> {
+                            while (pris.size() < compte.getRequests()) {
+                                pris.addLast(maintenant);
+                            }
+                        });
+            }
         }
 
         private synchronized long penalite() {
