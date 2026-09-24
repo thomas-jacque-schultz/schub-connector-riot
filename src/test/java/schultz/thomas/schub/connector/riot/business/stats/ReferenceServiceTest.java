@@ -15,7 +15,6 @@ import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import org.bson.Document;
-import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -55,7 +53,7 @@ class ReferenceServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ReferenceService(mongo, store, champions, projector, rankHistory, new RiotProperties(), new TestClock(MAINTENANT));
+        service = new ReferenceService(mongo, store, champions, projector, rankHistory, new TestClock(MAINTENANT));
     }
 
     @Test
@@ -87,10 +85,10 @@ class ReferenceServiceTest {
     }
 
     @Test
-    @DisplayName("une grille sans échelle du ladder, ou absente, rend les référentiels incomplets")
+    @DisplayName("une grille à qui manque un palier, ou absente, rend les référentiels incomplets")
     void incomplet() {
-        StoredReference.Grid pleine = new StoredReference.Grid(Map.of(), List.of(0.0, 1.0), List.of());
-        StoredReference.Grid trouee = new StoredReference.Grid(Map.of(), null, List.of("IRON"));
+        StoredReference.Grid pleine = new StoredReference.Grid(Map.of(), List.of());
+        StoredReference.Grid trouee = new StoredReference.Grid(Map.of(), List.of("IRON"));
         when(store.findFirstByScopeAndPositionOrderByComputedAtDesc(anyString(), anyString()))
                 .thenReturn(Optional.of(reference(pleine)));
         assertThat(service.incomplete()).isFalse();
@@ -104,19 +102,8 @@ class ReferenceServiceTest {
     }
 
     private static StoredReference reference(StoredReference.Grid grille) {
-        return new StoredReference("id", List.of("16.19"), "GAME", "TOP", MAINTENANT, "test", List.of(0.0, 1.0),
+        return new StoredReference("id", List.of("16.19"), "GAME", "TOP", MAINTENANT, List.of(0.0, 1.0),
                 Map.of("csPerMinute", grille));
-    }
-
-    @Test
-    @DisplayName("les paliers se suivent de Fer à Maître+, chacun commençant où le précédent s'arrête")
-    void niveauxCumules() {
-        List<ReferenceGrid.Level> niveaux = service.niveaux();
-
-        assertThat(niveaux).extracting(ReferenceGrid.Level::tier).containsExactlyElementsOf(ReferenceService.PALIERS);
-        assertThat(niveaux.getFirst().fromPercentile()).isZero();
-        assertThat(niveaux.get(3).fromPercentile()).isCloseTo(0.4200, within(1e-3));
-        assertThat(niveaux.getLast().fromPercentile()).isCloseTo(0.9921, within(1e-3));
     }
 
     @Test
@@ -128,18 +115,29 @@ class ReferenceServiceTest {
     }
 
     @Test
-    @DisplayName("avec un palier demandé, seule sa grille part ; la courbe du ladder et le sens de la métrique restent")
+    @DisplayName("avec un palier demandé, seule sa grille part ; les médianes par partie de tous les paliers restent")
     void filtreParPalier() {
-        StoredReference reference = new StoredReference("MEAN/TOP/16.18+16.17", List.of("16.18", "16.17"), "MEAN",
-                "TOP", MAINTENANT, "test", List.of(0.0, 1.0), Map.of("deathShare", new StoredReference.Grid(Map.of(
+        StoredReference moyennes = new StoredReference("MEAN/TOP/16.18+16.17", List.of("16.18", "16.17"), "MEAN",
+                "TOP", MAINTENANT, List.of(0.0, 1.0), Map.of("deathShare", new StoredReference.Grid(Map.of(
                 "GOLD", new StoredReference.TierGrid(40, List.of(0.1, 0.3)),
-                "SILVER", new StoredReference.TierGrid(50, List.of(0.1, 0.4))), List.of(0.1, 0.4), List.of())));
+                "SILVER", new StoredReference.TierGrid(50, List.of(0.1, 0.4))), List.of())));
+        StoredReference parPartie = new StoredReference("GAME/TOP/16.18+16.17", List.of("16.18", "16.17"), "GAME",
+                "TOP", MAINTENANT, List.of(0.0, 0.25, 0.5, 0.75, 1.0), Map.of("deathShare", new StoredReference.Grid(
+                Map.of("SILVER", quartiles(0.30), "GOLD", quartiles(0.25), "PLATINUM", quartiles(0.20)), List.of())));
+        when(store.findByScopeAndPositionAndPatchesContainingOrderByComputedAtDesc("GAME", "TOP", "16.18"))
+                .thenReturn(List.of(parPartie));
 
-        ReferenceGrid.Metric metrique = service.toGrid(reference, "GOLD").metrics().get("deathShare");
+        ReferenceGrid.Metric metrique = service.toGrid(moyennes, "GOLD").metrics().get("deathShare");
 
         assertThat(metrique.tiers()).containsOnlyKeys("GOLD");
-        assertThat(metrique.ladder()).containsExactly(0.1, 0.4);
+        assertThat(metrique.rankMedians()).containsExactly(Map.entry("SILVER", 0.30), Map.entry("GOLD", 0.25),
+                Map.entry("PLATINUM", 0.20));
         assertThat(metrique.polarity()).isEqualTo("LOWER");
+    }
+
+    private static StoredReference.TierGrid quartiles(double mediane) {
+        return new StoredReference.TierGrid(ReferenceService.MINIMUM_PARTIES,
+                List.of(mediane - 0.1, mediane - 0.05, mediane, mediane + 0.05, mediane + 0.1));
     }
 
     @Test
