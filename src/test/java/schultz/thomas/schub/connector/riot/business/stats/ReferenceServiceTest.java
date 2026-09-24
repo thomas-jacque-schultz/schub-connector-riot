@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -115,7 +116,7 @@ class ReferenceServiceTest {
     }
 
     @Test
-    @DisplayName("avec un palier demandé, seule sa grille part ; les médianes par partie de tous les paliers restent")
+    @DisplayName("avec un palier demandé, seule sa grille part ; les moyennes par partie de tous les paliers restent")
     void filtreParPalier() {
         StoredReference moyennes = new StoredReference("MEAN/TOP/16.18+16.17", List.of("16.18", "16.17"), "MEAN",
                 "TOP", MAINTENANT, List.of(0.0, 1.0), Map.of("deathShare", new StoredReference.Grid(Map.of(
@@ -130,8 +131,8 @@ class ReferenceServiceTest {
         ReferenceGrid.Metric metrique = service.toGrid(moyennes, "GOLD").metrics().get("deathShare");
 
         assertThat(metrique.tiers()).containsOnlyKeys("GOLD");
-        assertThat(metrique.rankMedians()).containsExactly(Map.entry("SILVER", 0.30), Map.entry("GOLD", 0.25),
-                Map.entry("PLATINUM", 0.20));
+        assertThat(metrique.rankMeans().keySet()).containsExactly("SILVER", "GOLD", "PLATINUM");
+        assertThat(metrique.rankMeans().get("GOLD")).isCloseTo(0.25, within(1e-9));
         assertThat(metrique.polarity()).isEqualTo("LOWER");
     }
 

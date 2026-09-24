@@ -9,7 +9,7 @@ import java.util.Map;
 @Schema(description = """
         Répartition d'une métrique à un poste : une grille de quantiles par palier. La note se calcule chez
         l'appelant : une valeur se situe dans la grille de son palier par interpolation, et prend le palier dont
-        la médiane est la plus proche quand `rankMedians` est présent.""")
+        la moyenne est la plus proche quand `rankMeans` est présent.""")
 public record ReferenceGrid(
         List<String> patches,
         @Schema(description = "GAME : une partie isolée. MEAN : la moyenne d'un joueur à au moins 10 parties.")
@@ -25,10 +25,10 @@ public record ReferenceGrid(
             @Schema(description = "Par palier : effectif et grille. Seulement le palier demandé, si demandé.")
             Map<String, Tier> tiers,
             @Schema(description = """
-                    Médiane par partie de chaque palier assez fourni, du plus bas au plus haut. Absente quand la
-                    métrique ne suit pas le rang : médianes qui ne montent pas d'un palier à l'autre, ou pas plus
-                    que l'écart ordinaire au sein d'un palier.""")
-            Map<String, Double> rankMedians,
+                    Moyenne par partie de chaque palier assez fourni, du plus bas au plus haut. Absente quand la
+                    métrique ne suit pas le rang : moyennes qui ne montent pas d'un palier à l'autre, ou trop peu
+                    face à l'écart ordinaire au sein d'un palier.""")
+            Map<String, Double> rankMeans,
             List<String> missingTiers
     ) {
     }
