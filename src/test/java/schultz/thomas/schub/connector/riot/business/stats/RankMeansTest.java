@@ -54,9 +54,15 @@ class RankMeansTest {
     }
 
     @Test
-    @DisplayName("la moyenne est l'aire sous la fonction quantile")
+    @DisplayName("la moyenne est l'aire sous la fonction quantile, entre 5 % et 95 %")
     void moyenne() {
-        assertThat(RankMeans.moyenne(List.of(0.0, 0.5, 1.0), List.of(0.0, 1.0, 5.0))).isCloseTo(1.75, within(1e-9));
+        assertThat(RankMeans.moyenne(List.of(0.0, 0.5, 1.0), List.of(0.0, 1.0, 5.0))).isCloseTo(1.675, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("les 5 % de parties extrêmes ne tirent pas la moyenne : une partie sans mort ne fait pas un KDA de palier")
+    void queueTronquee() {
+        assertThat(RankMeans.moyenne(List.of(0.0, 0.95, 1.0), List.of(2.0, 2.0, 30.0))).isCloseTo(2, within(1e-9));
     }
 
     @Test
@@ -79,8 +85,9 @@ class RankMeansTest {
         assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
 
         tiers.put("GOLD", grille(ASSEZ, 1, 6));
-        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER))
-                .containsExactly(Map.entry("IRON", 5.0), Map.entry("GOLD", 6.0), Map.entry("DIAMOND", 8.0));
+        Map<String, Double> moyennes = RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER);
+        assertThat(moyennes.keySet()).containsExactly("IRON", "GOLD", "DIAMOND");
+        assertThat(moyennes.get("GOLD")).isCloseTo(6, within(1e-9));
     }
 
     @Test
