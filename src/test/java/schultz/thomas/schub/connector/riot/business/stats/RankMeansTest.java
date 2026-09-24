@@ -12,21 +12,21 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-class RankMediansTest {
+class RankMeansTest {
 
     private static final List<Double> P = List.of(0.0, 0.25, 0.5, 0.75, 1.0);
     private static final long ASSEZ = ReferenceService.MINIMUM_PARTIES;
 
-    // Médianes et écarts interquartiles relevés en dev au poste BOTTOM, patchs 16.18 et 16.19.
+    // Valeurs centrales et écarts interquartiles relevés en dev au poste BOTTOM, patchs 16.18 et 16.19.
     @Test
     @DisplayName("le farm monte d'un palier à l'autre, bien plus que l'écart entre deux parties : il suit le rang")
     void farmSuitLeRang() {
         Map<String, StoredReference.TierGrid> tiers = paliers(1.66,
                 5.61, 5.97, 6.77, 6.96, 7.31, 7.45, 7.9, 8.1);
 
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER))
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER))
                 .containsKeys("IRON", "MASTER_PLUS")
-                .containsEntry("GOLD", 6.96);
+                .hasEntrySatisfying("GOLD", moyenne -> assertThat(moyenne).isCloseTo(6.96, within(1e-9)));
     }
 
     @Test
@@ -34,16 +34,38 @@ class RankMediansTest {
     void kdaNeSuitPasLeRang() {
         Map<String, StoredReference.TierGrid> tiers = paliers(2.31, 2.0, 2.13, 2.09, 2.17, 2.25, 2.33, 2.2, 2.31);
 
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
     }
 
     @Test
-    @DisplayName("moins vaut mieux : les médianes doivent descendre avec le rang")
+    @DisplayName("balises d'un tireur : médiane à zéro dans tous les paliers, mais la moyenne monte, et c'est elle qui compte")
+    void balisesDUnTireur() {
+        List<Double> p = List.of(0.0, 0.25, 0.5, 0.75, 0.9, 1.0);
+        Map<String, StoredReference.TierGrid> tiers = new LinkedHashMap<>();
+        tiers.put("IRON", new StoredReference.TierGrid(ASSEZ, List.of(0.0, 0.0, 0.0, 0.0, 1.0, 2.0)));
+        tiers.put("GOLD", new StoredReference.TierGrid(ASSEZ, List.of(0.0, 0.0, 0.0, 1.0, 1.0, 3.0)));
+        tiers.put("DIAMOND", new StoredReference.TierGrid(ASSEZ, List.of(0.0, 0.0, 0.0, 1.0, 2.0, 4.0)));
+
+        Map<String, Double> moyennes = RankMeans.of(p, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER);
+
+        assertThat(moyennes).isNotNull();
+        assertThat(moyennes.get("IRON")).isLessThan(moyennes.get("GOLD"));
+        assertThat(moyennes.get("GOLD")).isLessThan(moyennes.get("DIAMOND"));
+    }
+
+    @Test
+    @DisplayName("la moyenne est l'aire sous la fonction quantile")
+    void moyenne() {
+        assertThat(RankMeans.moyenne(List.of(0.0, 0.5, 1.0), List.of(0.0, 1.0, 5.0))).isCloseTo(1.75, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("moins vaut mieux : les moyennes doivent descendre avec le rang")
     void polariteInversee() {
         Map<String, StoredReference.TierGrid> tiers = paliers(0.1, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.0, -0.1);
 
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.LOWER)).hasSize(8);
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.LOWER)).hasSize(8);
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
     }
 
     @Test
@@ -54,27 +76,27 @@ class RankMediansTest {
         tiers.put("GOLD", grille(ASSEZ - 1, 1, 6));
         tiers.put("DIAMOND", grille(ASSEZ, 1, 8));
 
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER)).isNull();
 
         tiers.put("GOLD", grille(ASSEZ, 1, 6));
-        assertThat(RankMedians.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER))
+        assertThat(RankMeans.of(P, tiers, ASSEZ, ReferenceMetric.Polarity.HIGHER))
                 .containsExactly(Map.entry("IRON", 5.0), Map.entry("GOLD", 6.0), Map.entry("DIAMOND", 8.0));
     }
 
     @Test
     @DisplayName("une métrique neutre n'a pas de rang")
     void neutre() {
-        assertThat(RankMedians.of(P, paliers(1, 1, 2, 3, 4, 5, 6, 7, 8), ASSEZ, ReferenceMetric.Polarity.NEUTRAL))
+        assertThat(RankMeans.of(P, paliers(1, 1, 2, 3, 4, 5, 6, 7, 8), ASSEZ, ReferenceMetric.Polarity.NEUTRAL))
                 .isNull();
     }
 
     @Test
     @DisplayName("corrélation de rang : 1 si tout monte, les ex æquo prennent leur rang moyen")
     void spearman() {
-        assertThat(RankMedians.spearman(List.of(1.0, 2.0, 3.0))).isCloseTo(1, within(1e-9));
-        assertThat(RankMedians.spearman(List.of(3.0, 2.0, 1.0))).isCloseTo(-1, within(1e-9));
-        assertThat(RankMedians.spearman(List.of(1.0, 1.0, 2.0))).isCloseTo(0.866, within(1e-3));
-        assertThat(RankMedians.spearman(List.of(2.0, 2.0, 2.0))).isZero();
+        assertThat(RankMeans.spearman(List.of(1.0, 2.0, 3.0))).isCloseTo(1, within(1e-9));
+        assertThat(RankMeans.spearman(List.of(3.0, 2.0, 1.0))).isCloseTo(-1, within(1e-9));
+        assertThat(RankMeans.spearman(List.of(1.0, 1.0, 2.0))).isCloseTo(0.866, within(1e-3));
+        assertThat(RankMeans.spearman(List.of(2.0, 2.0, 2.0))).isZero();
     }
 
     private static Map<String, StoredReference.TierGrid> paliers(double interquartile, double... medianes) {
