@@ -9,7 +9,8 @@ import java.util.List;
 
 /**
  * Les limites que Riot annonce dans X-App-Rate-Limit et X-Method-Rate-Limit (« 100:120,20:1 » : requêtes:secondes),
- * de la fenêtre la plus courte à la plus longue. Une annonce illisible donne une liste vide.
+ * ou le décompte en cours dans les en-têtes -Count, de même forme. De la fenêtre la plus courte à la plus longue ;
+ * une annonce illisible donne une liste vide.
  */
 public final class LimitesAnnoncees {
 
@@ -29,7 +30,7 @@ public final class LimitesAnnoncees {
             try {
                 int requetes = Integer.parseInt(morceaux[0].trim());
                 long secondes = Long.parseLong(morceaux[1].trim());
-                if (requetes <= 0 || secondes <= 0) {
+                if (requetes < 0 || secondes <= 0) {
                     return List.of();
                 }
                 fenetres.add(new RiotProperties.Window(requetes, Duration.ofSeconds(secondes)));

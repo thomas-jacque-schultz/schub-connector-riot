@@ -25,6 +25,6 @@ class LimitesAnnonceesTest {
         assertThat(LimitesAnnoncees.lire(null)).isEmpty();
         assertThat(LimitesAnnoncees.lire("")).isEmpty();
         assertThat(LimitesAnnoncees.lire("20:1,cent")).isEmpty();
-        assertThat(LimitesAnnoncees.lire("0:10")).isEmpty();
+        assertThat(LimitesAnnoncees.lire("5:0")).isEmpty();
     }
 }

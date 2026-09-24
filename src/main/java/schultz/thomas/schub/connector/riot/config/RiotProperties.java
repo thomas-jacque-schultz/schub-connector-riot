@@ -65,6 +65,10 @@ public class RiotProperties {
 
         private int safetyMargin = 2;
 
+        // Un appel compte chez nous quand il part, chez Riot quand il arrive : sans ce délai, le créneau libéré ici
+        // ne l'est pas encore là-bas et le premier appel de chaque fenêtre prend un 429.
+        private Duration windowGuard = Duration.ofSeconds(1);
+
         private int maxRetriesOn429 = 3;
 
         private Duration maxRetryAfter = Duration.ofMinutes(3);

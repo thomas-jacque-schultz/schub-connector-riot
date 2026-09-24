@@ -28,7 +28,8 @@ public class QuotaConfiguration {
 
     @Bean
     public MethodRateLimiter methodRateLimiter(Clock riotClock, Sleeper riotSleeper) {
-        return new MethodRateLimiter(properties.getQuota().getMethods(), riotClock, riotSleeper);
+        return new MethodRateLimiter(properties.getQuota().getMethods(), properties.getQuota().getWindowGuard(),
+                riotClock, riotSleeper);
     }
 
     @Bean

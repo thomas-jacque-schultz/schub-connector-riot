@@ -59,7 +59,8 @@ class RiotApiClientTest {
         limiteur = new RiotRateLimiter(properties.getQuota(), clock,
                 clock::advance);
         client = new RiotApiClient(regional.build(), platform.build(), limiteur,
-                new MethodRateLimiter(properties.getQuota().getMethods(), clock, clock::advance), properties);
+                new MethodRateLimiter(properties.getQuota().getMethods(),
+                properties.getQuota().getWindowGuard(), clock, clock::advance), properties);
     }
 
     @Test

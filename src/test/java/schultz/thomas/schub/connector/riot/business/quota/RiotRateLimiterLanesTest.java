@@ -97,6 +97,7 @@ class RiotRateLimiterLanesTest {
     private RiotProperties.Quota quota(int parFenetre, Duration fenetre) {
         RiotProperties.Quota quota = new RiotProperties.Quota();
         quota.setSafetyMargin(0);
+        quota.setWindowGuard(Duration.ZERO);
         quota.setInteractiveReserve(0);
         quota.setBurstRequests(parFenetre);
         quota.setBurstWindow(fenetre);
