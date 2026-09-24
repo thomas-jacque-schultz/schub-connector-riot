@@ -26,14 +26,15 @@ riot:
   connect-timeout: 3s
   read-timeout: 10s
 
-  # Clé de production (portail développeur, relevé du 2026-09-23) : 20 000 / 10 s et 1 200 000 / 10 min.
-  # Les limites par route sont dans RiotProperties.Quota.methods. La clé est partagée par le dev et la prod.
+  # Limites de départ, celles d'une clé de développement : dès la première réponse, le connecteur adopte celles
+  # que Riot annonce pour la clé installée (X-App-Rate-Limit, X-Method-Rate-Limit). Le 24-09, le dev tournait
+  # encore avec une clé de développement.
   quota:
-    burst-requests: 20000
-    burst-window: 10s
-    sustained-requests: 1200000
-    sustained-window: 10m
-    safety-margin: 200
+    burst-requests: 20
+    burst-window: 1s
+    sustained-requests: 100
+    sustained-window: 2m
+    safety-margin: 2
     max-retries-on429: 3
     max-retry-after: 3m
     acquire-timeout: 5m

@@ -178,4 +178,31 @@ class RiotRateLimiterTest {
         limiteur.acquire(QuotaLane.BULK);
         assertThat(attentes).isEmpty();
     }
+
+    @Test
+    @DisplayName("les limites annoncées par Riot remplacent celles de la configuration")
+    void adopteLesLimitesAnnoncees() {
+        RiotRateLimiter limiteur = limiteur();
+        limiteur.adopte("30:120,3:1");
+
+        for (int i = 0; i < 3; i++) {
+            limiteur.acquire(QuotaLane.BULK);
+        }
+        assertThat(attentes).isEmpty();
+
+        limiteur.acquire(QuotaLane.BULK);
+        assertThat(attentes).containsExactly(Duration.ofSeconds(1));
+    }
+
+    @Test
+    @DisplayName("une annonce illisible laisse les limites en place")
+    void ignoreUneAnnonceIllisible() {
+        RiotRateLimiter limiteur = limiteur();
+        limiteur.adopte("beaucoup");
+
+        for (int i = 0; i < 5; i++) {
+            limiteur.acquire(QuotaLane.BULK);
+        }
+        assertThat(attentes).isEmpty();
+    }
 }

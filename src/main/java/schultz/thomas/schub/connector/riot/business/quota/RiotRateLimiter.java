@@ -12,10 +12,12 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Clé de développement : X-App-Rate-Limit 100:120,20:1, deux fenêtres glissantes tenues ensemble.
+ * Deux fenêtres glissantes tenues ensemble, réglées sur celles que Riot annonce pour la clé installée
+ * (X-App-Rate-Limit : 100:120,20:1 pour une clé de développement).
  * Les deux voies puisent dans les mêmes fenêtres ; un 429 suspend les deux.
  * L'attente se fait hors du verrou, la consommation d'un créneau reste atomique.
  */
@@ -32,6 +34,8 @@ public class RiotRateLimiter {
 
     private long penalisedUntil;
 
+    private volatile Limites limites;
+
     private final EnumMap<QuotaLane, Long> granted = new EnumMap<>(QuotaLane.class);
 
     private int waitingInteractive;
@@ -46,6 +50,8 @@ public class RiotRateLimiter {
         this.quota = quota;
         this.clock = clock;
         this.sleeper = sleeper;
+        this.limites = new Limites(quota.getBurstRequests(), quota.getBurstWindow(),
+                quota.getSustainedRequests(), quota.getSustainedWindow());
     }
 
     public void acquire(QuotaLane lane) {
@@ -82,8 +88,8 @@ public class RiotRateLimiter {
         lock.lock();
         try {
             long now = clock.millis();
-            prune(burstWindow, now, quota.getBurstWindow());
-            prune(sustainedWindow, now, quota.getSustainedWindow());
+            prune(burstWindow, now, limites.burstWindow());
+            prune(sustainedWindow, now, limites.sustainedWindow());
 
             int ahead = reservedAhead(lane, now, start);
             long wait = waitNeeded(now, lane, ahead);
@@ -130,15 +136,15 @@ public class RiotRateLimiter {
         if (penalisedUntil > now) {
             return penalisedUntil - now;
         }
-        long burstWait = windowWait(burstWindow, now, effective(quota.getBurstRequests()),
-                quota.getBurstWindow(), ahead);
+        long burstWait = windowWait(burstWindow, now, effective(limites.burstRequests()),
+                limites.burstWindow(), ahead);
         long sustainedWait = windowWait(sustainedWindow, now, sustainedLimit(lane, now),
-                quota.getSustainedWindow(), ahead);
+                limites.sustainedWindow(), ahead);
         return Math.max(Math.max(burstWait, sustainedWait), spacingWait(lane, now));
     }
 
     private int sustainedLimit(QuotaLane lane, long now) {
-        int limit = effective(quota.getSustainedRequests());
+        int limit = effective(limites.sustainedRequests());
         return lane == QuotaLane.INTERACTIVE ? limit : Math.max(1, limit - reserve(now));
     }
 
@@ -155,7 +161,7 @@ public class RiotRateLimiter {
 
     private int configuredReserve() {
         return Math.max(0, Math.min(quota.getInteractiveReserve(),
-                effective(quota.getSustainedRequests()) - 1));
+                effective(limites.sustainedRequests()) - 1));
     }
 
     // Espacer tant que la réserve est armée : une fenêtre prise d'un bloc ne libère plus rien pendant 100 s.
@@ -164,8 +170,8 @@ public class RiotRateLimiter {
         if (lane == QuotaLane.INTERACTIVE || reserve <= 1 || lastBulkGrant == 0) {
             return 0;
         }
-        long spacing = quota.getSustainedWindow().toMillis()
-                / Math.max(1, effective(quota.getSustainedRequests()) - reserve);
+        long spacing = limites.sustainedWindow().toMillis()
+                / Math.max(1, effective(limites.sustainedRequests()) - reserve);
         return Math.max(0, lastBulkGrant + spacing - now);
     }
 
@@ -200,6 +206,29 @@ public class RiotRateLimiter {
                 wait);
     }
 
+    // La clé installée fait foi : une clé de développement réglée comme une clé de production enchaîne les 429,
+    // et Riot finit par la révoquer.
+    public void adopte(String annonce) {
+        List<RiotProperties.Window> fenetres = LimitesAnnoncees.lire(annonce);
+        if (fenetres.isEmpty()) {
+            return;
+        }
+        RiotProperties.Window courte = fenetres.get(0);
+        RiotProperties.Window longue = fenetres.get(fenetres.size() - 1);
+        Limites annoncees = new Limites(courte.getRequests(), courte.getWindow(), longue.getRequests(),
+                longue.getWindow());
+        if (annoncees.equals(limites)) {
+            return;
+        }
+        lock.lock();
+        try {
+            limites = annoncees;
+        } finally {
+            lock.unlock();
+        }
+        log.info("Limites annoncées par Riot pour la clé : {}", annonce);
+    }
+
     // Pénalité globale à la clé, les deux voies confondues. Plafonnée contre un Retry-After aberrant.
     public void penalise(Duration retryAfter) {
         Duration capped = retryAfter.compareTo(quota.getMaxRetryAfter()) > 0
@@ -216,9 +245,9 @@ public class RiotRateLimiter {
     }
 
     public double allowedPerMinute() {
-        double burst = effective(quota.getBurstRequests()) * 60_000.0 / quota.getBurstWindow().toMillis();
-        double sustained = (effective(quota.getSustainedRequests()) - configuredReserve())
-                * 60_000.0 / quota.getSustainedWindow().toMillis();
+        double burst = effective(limites.burstRequests()) * 60_000.0 / limites.burstWindow().toMillis();
+        double sustained = (effective(limites.sustainedRequests()) - configuredReserve())
+                * 60_000.0 / limites.sustainedWindow().toMillis();
         return Math.min(burst, sustained);
     }
 
@@ -277,6 +306,9 @@ public class RiotRateLimiter {
         while (!window.isEmpty() && window.peekFirst() <= horizon) {
             window.removeFirst();
         }
+    }
+
+    private record Limites(int burstRequests, Duration burstWindow, int sustainedRequests, Duration sustainedWindow) {
     }
 
     private void pause(long millis) {
