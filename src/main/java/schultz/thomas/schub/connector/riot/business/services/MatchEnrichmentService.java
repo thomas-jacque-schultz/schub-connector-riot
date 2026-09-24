@@ -20,8 +20,8 @@ import schultz.thomas.schub.connector.riot.data.model.CachedTimelineDigest;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
-import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
+import schultz.thomas.schub.connector.riot.data.model.MatchSeat;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineDigestRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedTimelineRepository;
@@ -171,14 +171,14 @@ public class MatchEnrichmentService {
                 .collect(Collectors.toMap(MatchRankSnapshot::matchId, Function.identity()));
 
         // Les participations portent déjà les places : relire le brut (≈ 85 ko par partie) ne servirait qu'à ça.
-        Map<String, List<MatchParticipation>> places = new LinkedHashMap<>();
+        Map<String, List<MatchSeat>> places = new LinkedHashMap<>();
         participations.findSeatsByMatchIdIn(voulues).stream()
-                .sorted(Comparator.comparingInt(MatchParticipation::side)
-                        .thenComparing(MatchParticipation::position, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparingInt(MatchSeat::side)
+                        .thenComparing(MatchSeat::position, Comparator.nullsLast(Comparator.naturalOrder())))
                 .forEach(ligne -> places.computeIfAbsent(ligne.matchId(), id -> new ArrayList<>()).add(ligne));
 
         List<MatchInsights> rendus = new ArrayList<>();
-        for (Map.Entry<String, List<MatchParticipation>> partie : places.entrySet()) {
+        for (Map.Entry<String, List<MatchSeat>> partie : places.entrySet()) {
             MatchEarlyStats debut = parDebut.get(partie.getKey());
             MatchRankSnapshot rangs = parRangs.get(partie.getKey());
             Map<String, MatchInsights.At15> a15 = debut == null ? Map.of() : debut.byPuuid();
