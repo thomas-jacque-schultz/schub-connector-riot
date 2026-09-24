@@ -63,9 +63,15 @@ public class LadderSampler {
         if (!properties.getSampling().isEnabled() || !properties.getIngest().isEnabled() || !crawler.active()) {
             return;
         }
+        RiotProperties.Sampling config = properties.getSampling();
         for (String palier : PALIERS) {
-            if (manque(palier) > 0
-                    && tasks.countByTypeAndKeyStartingWithAndStateIn(IngestTaskType.LADDER_PAGE, palier + "/", EN_COURS) == 0) {
+            long manque = manque(palier);
+            if (manque <= 0) {
+                continue;
+            }
+            long enVol = tasks.countByTypeAndKeyStartingWithAndStateIn(IngestTaskType.LADDER_PAGE, palier + "/", EN_COURS);
+            long utiles = (manque + config.getSeedsPerPage() - 1) / config.getSeedsPerPage();
+            for (long page = enVol; page < Math.min(config.getPagesInFlight(), utiles); page++) {
                 queue.enqueue(IngestTaskType.LADDER_PAGE, tirage(palier), null, IngestTask.BACKGROUND_PLAYER_PRIORITY);
             }
         }
@@ -131,7 +137,7 @@ public class LadderSampler {
                 .map(matchId -> new MatchLobby(matchId, puuid, seed.tier(), seed.division(), seed.sampledAt()))
                 .toList());
         matchIds.forEach(matchId -> queue.enqueue(IngestTaskType.MATCH_TIMELINE_DIGEST, matchId, puuid,
-                IngestTask.backgroundPriority(IngestTask.sequenceOf(matchId))));
+                IngestTask.samplingPriority(IngestTask.sequenceOf(matchId))));
     }
 
     public SamplingStatus status() {

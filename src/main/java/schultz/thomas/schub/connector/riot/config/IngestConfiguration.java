@@ -44,5 +44,6 @@ public class IngestConfiguration implements SchedulingConfigurer {
         registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
         registrar.addFixedDelayTask(sampler::round, properties.getCrawler().getInterval());
         registrar.addCronTask(references::refresh, "0 0 5 * * *");
+        registrar.addCronTask(references::refreshIfIncomplete, "0 30 * * * *");
     }
 }

@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -83,6 +84,28 @@ class ReferenceServiceTest {
 
     private static Document ligne(String matchId, String puuid, Instant jouee) {
         return new Document("matchId", matchId).append("puuid", puuid).append("startedAt", Date.from(jouee));
+    }
+
+    @Test
+    @DisplayName("une grille sans échelle du ladder, ou absente, rend les référentiels incomplets")
+    void incomplet() {
+        StoredReference.Grid pleine = new StoredReference.Grid(Map.of(), List.of(0.0, 1.0), List.of());
+        StoredReference.Grid trouee = new StoredReference.Grid(Map.of(), null, List.of("IRON"));
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc(anyString(), anyString()))
+                .thenReturn(Optional.of(reference(pleine)));
+        assertThat(service.incomplete()).isFalse();
+
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc("GAME", "UTILITY"))
+                .thenReturn(Optional.of(reference(trouee)));
+        assertThat(service.incomplete()).isTrue();
+
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc("GAME", "UTILITY")).thenReturn(Optional.empty());
+        assertThat(service.incomplete()).isTrue();
+    }
+
+    private static StoredReference reference(StoredReference.Grid grille) {
+        return new StoredReference("id", List.of("16.19"), "GAME", "TOP", MAINTENANT, "test", List.of(0.0, 1.0),
+                Map.of("csPerMinute", grille));
     }
 
     @Test
