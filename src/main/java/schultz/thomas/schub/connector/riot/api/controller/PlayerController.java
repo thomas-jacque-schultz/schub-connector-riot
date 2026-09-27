@@ -93,6 +93,13 @@ public class PlayerController {
         return playerSearchService.search(q, limit);
     }
 
+    @Operation(summary = "Les joueurs dont l'historique a été relevé",
+            description = "Pour le plan du site de PremadeLab : ce sont les profils qui ont une page à montrer.")
+    @GetMapping("/tracked")
+    public List<PlayerIdentity> tracked(@RequestParam(defaultValue = "50000") int limit) {
+        return playerSearchService.tracked(Math.clamp(limit, 1, 50_000));
+    }
+
     @Operation(summary = "Le Riot ID courant d'un joueur",
             description = "L'inverse de la résolution : c'est par là qu'on rattrape un "
                     + "changement de Riot ID sur un compte déjà lié.")
