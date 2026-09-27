@@ -50,6 +50,18 @@ public class DataDragonClient {
         }
     }
 
+    // JSON non typé : seuls quelques champs servent, et le format d'item.json bouge d'un patch à l'autre.
+    public com.fasterxml.jackson.databind.JsonNode items(String version, String locale) {
+        try {
+            return client.get()
+                    .uri("/cdn/{version}/data/{locale}/item.json", version, locale)
+                    .retrieve()
+                    .body(com.fasterxml.jackson.databind.JsonNode.class);
+        } catch (RestClientException failure) {
+            throw new RiotApiException("Data Dragon : items illisibles pour la version " + version + ".", failure);
+        }
+    }
+
     public String championIconUrl(String baseUrl, String version, String imageFull) {
         return baseUrl + "/cdn/" + version + "/img/champion/" + imageFull;
     }
