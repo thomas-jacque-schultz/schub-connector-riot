@@ -15,7 +15,9 @@ import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
+import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 
+import java.util.List;
 import java.util.Optional;
 
 // Plusieurs ouvriers (riot.ingest.workers) : la prise de tâche est atomique, chaque tâche n'a qu'un preneur.
@@ -101,12 +103,14 @@ public class IngestWorker {
                 relevé.seen().size(), relevé.created(), queued);
     }
 
+    // Une page d'identifiants au lieu de tout l'historique : l'aperçu part en quelques appels.
     private void collectPreview(IngestTask task, boolean slow) {
         releveRang(task.key());
-        IdSyncResult relevé = historyService.syncIds(task.key());
-        int queued = ingestService.enqueuePreviewDetails(task.key(), relevé.seen(), slow);
-        log.info("Aperçu d'un joueur recherché : {} ids vus, {} détails empilés{}.",
-                relevé.seen().size(), queued, slow ? " en voie lente" : "");
+        List<String> recentes = historyService.recentIds(task.key(), properties.getIngest().getPreviewMatches());
+        int queued = ingestService.enqueuePreviewDetails(task.key(), recentes, slow);
+        queue.enqueue(IngestTaskType.PLAYER_IDS, task.key(), task.key(), IngestTask.BACKGROUND_PLAYER_PRIORITY);
+        log.info("Aperçu d'un joueur recherché : {} détails empilés{}, historique complet en fond.",
+                queued, slow ? " en voie lente" : "");
     }
 
     // Le rang de chaque compte relevé nourrit le référentiel par ligue ; son échec ne bloque pas l'historique.

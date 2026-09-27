@@ -60,6 +60,13 @@ public class MatchHistoryService {
                 details.matches().size(), details.pending().size(), ids.startedAt());
     }
 
+    // Les dernières parties seulement, sans toucher au curseur : le relevé complet suivra en collecte de fond.
+    public List<String> recentIds(String puuid, int count) {
+        List<String> ids = riotApiClient.matchIds(puuid, null, 0, count);
+        recordNewReferences(puuid, ids, clock.instant());
+        return ids;
+    }
+
     public IdSyncResult syncIds(String puuid) {
         Instant startedAt = clock.instant();
         Optional<PlayerHistoryCursor> cursor = cursors.findById(puuid);
