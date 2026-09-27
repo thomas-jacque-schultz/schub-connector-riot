@@ -102,6 +102,25 @@ class RiotRateLimiterReserveTest {
         assertThat(attentes).as("refusé tout de suite, sans dormir").isEmpty();
     }
 
+    @Test
+    @DisplayName("une tâche prioritaire puise dans la réserve comme un appel interactif, pendant que la collecte sature")
+    void laVoiePrioritairePuiseDansLaReserve() {
+        RiotRateLimiter limiteur = limiteur();
+        int servis = 0;
+
+        for (int ms = 0; ms <= 60_000; ms += PAS_MS) {
+            collecte(limiteur);
+            if (ms > 0 && ms % 3_000 == 0 && prioritaire(limiteur)) {
+                servis++;
+            }
+            clock.advance(Duration.ofMillis(PAS_MS));
+        }
+
+        assertThat(servis).isEqualTo(20);
+        assertThat(limiteur.granted(QuotaLane.PRIORITY)).isEqualTo(20);
+        assertThat(limiteur.granted(QuotaLane.BULK)).isGreaterThan(40);
+    }
+
     private RiotRateLimiter limiteur() {
         return new RiotRateLimiter(quota, clock, duree -> {
             attentes.add(duree);
@@ -121,6 +140,17 @@ class RiotRateLimiterReserveTest {
         try {
             limiteur.acquire(QuotaLane.BULK);
             return true;
+        } catch (RiotQuotaExceededException sature) {
+            return false;
+        }
+    }
+
+    private boolean prioritaire(RiotRateLimiter limiteur) {
+        try {
+            limiteur.acquire(QuotaLane.PRIORITY);
+            return true;
+        } catch (RiotConnectorBusyException occupe) {
+            throw new AssertionError("une tâche de file n'est jamais « occupée » : elle attend ou relâche", occupe);
         } catch (RiotQuotaExceededException sature) {
             return false;
         }

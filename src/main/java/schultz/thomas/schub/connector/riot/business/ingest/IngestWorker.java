@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
@@ -55,16 +56,10 @@ public class IngestWorker {
 
     private boolean run(IngestTask task, RiotProperties.Ingest config) {
         try {
-            switch (task.type()) {
-                case PLAYER_IDS -> collectIds(task);
-                case PLAYER_PREVIEW -> collectPreview(task, false);
-                case PLAYER_PREVIEW_SLOW -> collectPreview(task, true);
-                case MATCH_DETAIL -> collectDetail(task);
-                case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
-                case MATCH_TIMELINE_DIGEST -> enrichment.collectDigest(task.key());
-                case LADDER_PAGE -> sampler.samplePage(task.key());
-                case SEED_MATCHES -> sampler.collectSeed(task.key());
-                case MATCH_RANKS -> enrichment.collectRanks(task.key());
+            if (task.prioritaire()) {
+                QuotaLaneContext.runAs(QuotaLane.PRIORITY, () -> execute(task));
+            } else {
+                execute(task);
             }
             queue.complete(task);
             throughput.record();
@@ -81,6 +76,20 @@ public class IngestWorker {
             queue.fail(task, String.valueOf(failure.getMessage()), config.getMaxAttempts(),
                     config.getRetryBackoff());
             return true;
+        }
+    }
+
+    private void execute(IngestTask task) {
+        switch (task.type()) {
+            case PLAYER_IDS -> collectIds(task);
+            case PLAYER_PREVIEW -> collectPreview(task, false);
+            case PLAYER_PREVIEW_SLOW -> collectPreview(task, true);
+            case MATCH_DETAIL -> collectDetail(task);
+            case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
+            case MATCH_TIMELINE_DIGEST -> enrichment.collectDigest(task.key());
+            case LADDER_PAGE -> sampler.samplePage(task.key());
+            case SEED_MATCHES -> sampler.collectSeed(task.key());
+            case MATCH_RANKS -> enrichment.collectRanks(task.key());
         }
     }
 

@@ -13,8 +13,12 @@ public final class QuotaLaneContext {
     }
 
     public static void runAsBulk(Runnable work) {
+        runAs(QuotaLane.BULK, work);
+    }
+
+    public static void runAs(QuotaLane lane, Runnable work) {
         QuotaLane previous = CURRENT.get();
-        CURRENT.set(QuotaLane.BULK);
+        CURRENT.set(lane);
         try {
             work.run();
         } finally {

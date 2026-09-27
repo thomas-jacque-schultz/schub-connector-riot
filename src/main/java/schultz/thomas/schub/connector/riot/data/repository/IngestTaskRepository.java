@@ -16,6 +16,8 @@ public interface IngestTaskRepository extends MongoRepository<IngestTask, String
 
     long countByPuuidAndState(String puuid, IngestTaskState state);
 
+    long countByPuuidAndStateInAndPriorityGreaterThanEqual(String puuid, Collection<IngestTaskState> states, long priority);
+
     long countByStateAndPriorityGreaterThanEqual(IngestTaskState state, long priority);
 
     Optional<IngestTask> findFirstByPuuidAndStateOrderByPriorityAsc(String puuid, IngestTaskState state);
