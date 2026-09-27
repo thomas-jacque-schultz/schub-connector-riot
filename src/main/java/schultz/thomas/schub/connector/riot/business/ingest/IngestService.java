@@ -18,6 +18,7 @@ import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,6 +40,38 @@ public class IngestService {
     public IngestEnqueueReport enqueuePlayer(String puuid) {
         boolean queued = queue.enqueue(IngestTaskType.PLAYER_IDS, puuid, puuid, Long.MAX_VALUE);
         return new IngestEnqueueReport(puuid, queued, status());
+    }
+
+    public IngestEnqueueReport enqueuePreview(String puuid, boolean slow) {
+        IngestTaskType type = slow ? IngestTaskType.PLAYER_PREVIEW_SLOW : IngestTaskType.PLAYER_PREVIEW;
+        boolean queued = queue.enqueue(type, puuid, puuid, Long.MAX_VALUE);
+        return new IngestEnqueueReport(puuid, queued, status());
+    }
+
+    // Les plus récentes d'abord (la séquence croît avec le temps) ; en voie lente, espacées dans le temps.
+    public int enqueuePreviewDetails(String puuid, Collection<String> matchIds, boolean slow) {
+        List<String> recentes = matchIds.stream()
+                .sorted(java.util.Comparator.comparingLong(IngestTask::sequenceOf).reversed())
+                .toList();
+        int apercu = Math.min(properties.getIngest().getPreviewMatches(), recentes.size());
+        Set<String> stockees = matches.findStoredIds(recentes.subList(0, apercu)).stream()
+                .map(CachedMatch::matchId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        Instant now = clock.instant();
+        Duration pas = properties.getIngest().getSlowPreviewSpacing();
+        int queued = 0;
+        int rang = 0;
+        for (String matchId : recentes.subList(0, apercu)) {
+            if (stockees.contains(matchId)) {
+                continue;
+            }
+            Instant quand = slow ? now.plus(pas.multipliedBy(rang++)) : now;
+            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid, IngestTask.sequenceOf(matchId), quand)) {
+                queued++;
+            }
+        }
+        return queued + enqueueDetails(puuid, recentes.subList(apercu, recentes.size()), true);
     }
 
     public int enqueueDetails(String puuid, Collection<String> matchIds, boolean background) {

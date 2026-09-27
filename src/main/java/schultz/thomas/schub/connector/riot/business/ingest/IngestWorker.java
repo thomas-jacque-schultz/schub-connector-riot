@@ -57,6 +57,8 @@ public class IngestWorker {
         try {
             switch (task.type()) {
                 case PLAYER_IDS -> collectIds(task);
+                case PLAYER_PREVIEW -> collectPreview(task, false);
+                case PLAYER_PREVIEW_SLOW -> collectPreview(task, true);
                 case MATCH_DETAIL -> collectDetail(task);
                 case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
                 case MATCH_TIMELINE_DIGEST -> enrichment.collectDigest(task.key());
@@ -88,6 +90,14 @@ public class IngestWorker {
         int queued = ingestService.enqueueDetails(task.key(), relevé.seen(), task.background());
         log.info("Historique relevé : {} ids vus, {} nouveaux, {} détails empilés.",
                 relevé.seen().size(), relevé.created(), queued);
+    }
+
+    private void collectPreview(IngestTask task, boolean slow) {
+        releveRang(task.key());
+        IdSyncResult relevé = historyService.syncIds(task.key());
+        int queued = ingestService.enqueuePreviewDetails(task.key(), relevé.seen(), slow);
+        log.info("Aperçu d'un joueur recherché : {} ids vus, {} détails empilés{}.",
+                relevé.seen().size(), queued, slow ? " en voie lente" : "");
     }
 
     // Le rang de chaque compte relevé nourrit le référentiel par ligue ; son échec ne bloque pas l'historique.

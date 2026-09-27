@@ -148,4 +148,38 @@ class IngestServiceTest {
         return new IngestTask("MATCH_DETAIL:EUW1_1", IngestTaskType.MATCH_DETAIL, "EUW1_1", "p1",
                 IngestTaskState.PENDING, priorite, MAINTENANT, MAINTENANT, null, 0, null);
     }
+
+    @Test
+    @DisplayName("aperçu : les dix plus récentes en voie interactive, le reste de l'historique en fond")
+    void apercuDixPlusRecentes() {
+        when(matches.findStoredIds(any())).thenReturn(List.of());
+        List<String> historique = java.util.stream.IntStream.rangeClosed(1, 15)
+                .mapToObj(i -> "EUW1_70000000" + (10 + i)).toList();
+
+        service.enqueuePreviewDetails("p1", historique, false);
+
+        for (int i = 6; i <= 15; i++) {
+            String id = "EUW1_70000000" + (10 + i);
+            verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, id, "p1", IngestTask.sequenceOf(id), MAINTENANT);
+        }
+        for (int i = 1; i <= 5; i++) {
+            String id = "EUW1_70000000" + (10 + i);
+            verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, id, "p1",
+                    IngestTask.backgroundPriority(IngestTask.sequenceOf(id)));
+        }
+    }
+
+    @Test
+    @DisplayName("aperçu en voie lente : une partie par minute, jamais de refus")
+    void apercuVoieLente() {
+        when(matches.findStoredIds(any())).thenReturn(List.of());
+
+        service.enqueuePreviewDetails("p1", List.of("EUW1_7000000001", "EUW1_7000000002", "EUW1_7000000003"), true);
+
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000003", "p1", 7000000003L, MAINTENANT);
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000002", "p1", 7000000002L,
+                MAINTENANT.plus(Duration.ofMinutes(1)));
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000001", "p1", 7000000001L,
+                MAINTENANT.plus(Duration.ofMinutes(2)));
+    }
 }

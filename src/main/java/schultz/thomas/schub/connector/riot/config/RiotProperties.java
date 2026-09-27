@@ -127,6 +127,12 @@ public class RiotProperties {
         private Duration quotaBackoff = Duration.ofSeconds(30);
 
         private Duration idleBackoff = Duration.ofMinutes(5);
+
+        // Aperçu d'un joueur recherché : ses N dernières parties passent devant, le reste de son historique va en fond.
+        private int previewMatches = 10;
+
+        // Au-delà du budget du visiteur, une partie de l'aperçu par intervalle.
+        private Duration slowPreviewSpacing = Duration.ofMinutes(1);
     }
 
     @Data
