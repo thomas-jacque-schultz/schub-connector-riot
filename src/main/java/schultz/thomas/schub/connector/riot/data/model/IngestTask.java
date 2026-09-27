@@ -9,6 +9,7 @@ import java.time.Instant;
 
 @Document("riot_ingest_task")
 @CompoundIndex(name = "state_priority", def = "{'state': 1, 'priority': -1}")
+@CompoundIndex(name = "type_state", def = "{'type': 1, 'state': 1}")
 public record IngestTask(
         @Id String id,
         IngestTaskType type,
