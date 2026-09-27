@@ -67,7 +67,8 @@ public class IngestService {
                 continue;
             }
             Instant quand = slow ? now.plus(pas.multipliedBy(rang++)) : now;
-            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid, IngestTask.sequenceOf(matchId), quand)) {
+            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid,
+                    IngestTask.previewPriority(IngestTask.sequenceOf(matchId)), quand)) {
                 queued++;
             }
         }
@@ -103,9 +104,11 @@ public class IngestService {
         long running = tasks.countByPuuidAndState(puuid, IngestTaskState.RUNNING);
         long failed = tasks.countByPuuidAndState(puuid, IngestTaskState.FAILED);
         double perMinute = debit();
+        long prioritaires = tasks.countByPuuidAndStateInAndPriorityGreaterThanEqual(puuid,
+                List.of(IngestTaskState.PENDING, IngestTaskState.RUNNING), IngestTask.previewPriority(0));
 
         if (pending + running == 0 || perMinute <= 0) {
-            return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null);
+            return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null, prioritaires);
         }
 
         long ahead = tasks.findFirstByPuuidAndStateOrderByPriorityAsc(puuid, IngestTaskState.PENDING)
@@ -117,7 +120,7 @@ public class IngestService {
         Duration throttled = rateLimiter.throttledFor();
         Duration remaining = Duration.ofSeconds(Math.round(ahead / perMinute * 60.0)).plus(throttled);
         return new PlayerIngestStatus(puuid, pending, running, failed, ahead, perMinute,
-                remaining, clock.instant().plus(remaining));
+                remaining, clock.instant().plus(remaining), prioritaires);
     }
 
     public IngestStatus status() {

@@ -14,6 +14,8 @@ public record PlayerIngestStatus(
         long queuedAhead,
         @Schema(example = "49.0") double callsPerMinute,
         Duration estimatedRemaining,
-        Instant estimatedReadyAt
+        Instant estimatedReadyAt,
+        @Schema(description = "Tâches demandées pour ce joueur (aperçu d'un joueur recherché) encore en file.")
+        long priorityPending
 ) {
 }

@@ -160,7 +160,8 @@ class IngestServiceTest {
 
         for (int i = 6; i <= 15; i++) {
             String id = "EUW1_70000000" + (10 + i);
-            verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, id, "p1", IngestTask.sequenceOf(id), MAINTENANT);
+            verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, id, "p1",
+                    IngestTask.previewPriority(IngestTask.sequenceOf(id)), MAINTENANT);
         }
         for (int i = 1; i <= 5; i++) {
             String id = "EUW1_70000000" + (10 + i);
@@ -176,10 +177,11 @@ class IngestServiceTest {
 
         service.enqueuePreviewDetails("p1", List.of("EUW1_7000000001", "EUW1_7000000002", "EUW1_7000000003"), true);
 
-        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000003", "p1", 7000000003L, MAINTENANT);
-        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000002", "p1", 7000000002L,
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000003", "p1",
+                IngestTask.previewPriority(7000000003L), MAINTENANT);
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000002", "p1", IngestTask.previewPriority(7000000002L),
                 MAINTENANT.plus(Duration.ofMinutes(1)));
-        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000001", "p1", 7000000001L,
+        verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_7000000001", "p1", IngestTask.previewPriority(7000000001L),
                 MAINTENANT.plus(Duration.ofMinutes(2)));
     }
 }

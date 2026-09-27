@@ -8,6 +8,10 @@ public enum QuotaLane {
 
     INTERACTIVE,
 
+    // Tâche de file demandée par un joueur (aperçu d'un joueur recherché) : attend comme BULK, mais puise dans
+    // la réserve interactive et la collecte de fond lui cède la place.
+    PRIORITY,
+
     BULK;
 
     public Duration timeout(RiotProperties.Quota quota) {

@@ -237,7 +237,7 @@ class RiotConnectorApiTest {
     void rendLAvancementDUnJoueur() throws Exception {
         when(ingestService.statusOf(PUUID)).thenReturn(new PlayerIngestStatus(
                 PUUID, 200, 1, 0, 980, 49.0, Duration.ofMinutes(20),
-                Instant.parse("2026-09-21T10:20:00Z")));
+                Instant.parse("2026-09-21T10:20:00Z"), 0));
 
         mockMvc.perform(get("/ingest/players/{puuid}", PUUID))
                 .andExpect(status().isOk())

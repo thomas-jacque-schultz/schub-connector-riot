@@ -57,7 +57,7 @@ public class RiotRateLimiter {
     public void acquire(QuotaLane lane) {
         long start = clock.millis();
         long deadline = start + lane.timeout(quota).toMillis();
-        boolean interactive = lane == QuotaLane.INTERACTIVE;
+        boolean interactive = lane != QuotaLane.BULK;
 
         boolean claimedPriority = false;
         if (interactive) {
@@ -122,7 +122,7 @@ public class RiotRateLimiter {
     // Passé bulk-yield, la collecte cesse de compter les interactifs et devient comptée par eux : sans cette
     // réciprocité, un ouvrier seul perd indéfiniment la course au créneau. Les deux états s'excluent.
     private int reservedAhead(QuotaLane lane, long now, long start) {
-        if (lane == QuotaLane.INTERACTIVE) {
+        if (lane != QuotaLane.BULK) {
             return starvedBulk;
         }
         return yieldElapsed(now, start) ? 0 : waitingInteractive;
@@ -145,7 +145,7 @@ public class RiotRateLimiter {
 
     private int sustainedLimit(QuotaLane lane, long now) {
         int limit = effective(limites.sustainedRequests());
-        return lane == QuotaLane.INTERACTIVE ? limit : Math.max(1, limit - reserve(now));
+        return lane != QuotaLane.BULK ? limit : Math.max(1, limit - reserve(now));
     }
 
     // Garder un créneau : sans lui, la demande interactive suivante attendrait la fenêtre entière.
@@ -167,7 +167,7 @@ public class RiotRateLimiter {
     // Espacer tant que la réserve est armée : une fenêtre prise d'un bloc ne libère plus rien pendant 100 s.
     private long spacingWait(QuotaLane lane, long now) {
         int reserve = reserve(now);
-        if (lane == QuotaLane.INTERACTIVE || reserve <= 1 || lastBulkGrant == 0) {
+        if (lane != QuotaLane.BULK || reserve <= 1 || lastBulkGrant == 0) {
             return 0;
         }
         long spacing = limites.sustainedWindow().toMillis()

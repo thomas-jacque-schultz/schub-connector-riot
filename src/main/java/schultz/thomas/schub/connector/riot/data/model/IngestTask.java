@@ -45,6 +45,18 @@ public record IngestTask(
         return SAMPLING_OFFSET + priority;
     }
 
+    // Tâches demandées par un joueur (aperçu d'un joueur recherché, relevé d'un compte lié) : servies avant les
+    // autres, et sur la voie PRIORITY du quota, que la collecte de fond laisse passer.
+    private static final long PREVIEW_OFFSET = Long.MAX_VALUE / 2;
+
+    public static long previewPriority(long sequence) {
+        return PREVIEW_OFFSET + sequence;
+    }
+
+    public boolean prioritaire() {
+        return priority >= PREVIEW_OFFSET;
+    }
+
     public boolean background() {
         return priority < 0;
     }
