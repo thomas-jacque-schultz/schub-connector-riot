@@ -7,6 +7,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOptions;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
@@ -16,12 +18,14 @@ import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.KnownAccountRepository;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -40,6 +44,21 @@ public class KnownAccountIndex {
     private final KnownAccountRepository accounts;
     private final MongoTemplate mongo;
     private final Clock clock;
+
+    // La résolution la plus récente de ce Riot ID, si elle date de moins de maxAge.
+    public Optional<KnownAccount> recentResolution(String gameName, String tagLine, Duration maxAge) {
+        String cle = SearchName.fold(gameName);
+        if (cle == null || tagLine == null) {
+            return Optional.empty();
+        }
+        Instant depuis = clock.instant().minus(maxAge);
+        return mongo.find(Query.query(Criteria.where("searchName").is(cle)
+                                .and("source").is(KnownAccountSource.RESOLUTION)
+                                .and("observedAt").gte(depuis))
+                        .with(Sort.by(Sort.Direction.DESC, "observedAt")), KnownAccount.class).stream()
+                .filter(compte -> tagLine.equalsIgnoreCase(compte.tagLine()))
+                .findFirst();
+    }
 
     public boolean observeResolution(String puuid, String gameName, String tagLine) {
         return observeAll(List.of(new Observation(puuid, gameName, tagLine, clock.instant(),
