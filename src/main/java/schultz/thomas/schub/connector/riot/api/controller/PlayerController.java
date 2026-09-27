@@ -139,6 +139,18 @@ public class PlayerController {
         return ingestService.enqueuePlayer(puuid);
     }
 
+    @Operation(summary = "Aperçu d'un joueur recherché",
+            description = """
+                    Relève ses identifiants de parties, puis empile ses dernières parties sur la voie
+                    interactive et le reste de son historique en fond. `slow` : les parties de
+                    l'aperçu arrivent au compte-gouttes, une par intervalle. Jamais de refus.""")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PostMapping("/{puuid}/preview")
+    public IngestEnqueueReport preview(@PathVariable String puuid,
+                                       @RequestParam(defaultValue = "false") boolean slow) {
+        return ingestService.enqueuePreview(puuid, slow);
+    }
+
     @Operation(summary = "Relever l'historique tout de suite, sans passer par la file",
             description = """
                     Voie synchrone, conservée pour le diagnostic : quand la file n'avance pas,

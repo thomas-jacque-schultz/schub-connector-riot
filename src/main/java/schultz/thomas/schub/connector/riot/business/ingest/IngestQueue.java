@@ -29,9 +29,13 @@ public class IngestQueue {
     private final Clock clock;
 
     public boolean enqueue(IngestTaskType type, String key, String puuid, long priority) {
+        return enqueue(type, key, puuid, priority, clock.instant());
+    }
+
+    public boolean enqueue(IngestTaskType type, String key, String puuid, long priority, Instant notBefore) {
         Instant now = clock.instant();
         IngestTask task = new IngestTask(IngestTask.idOf(type, key), type, key, puuid,
-                IngestTaskState.PENDING, priority, now, now, null, 0, null);
+                IngestTaskState.PENDING, priority, now, notBefore, null, 0, null);
         try {
             mongo.insert(task);
             return true;

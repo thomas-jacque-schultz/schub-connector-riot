@@ -25,6 +25,8 @@ public class IngestSummaryService {
     private static final List<IngestTaskType> ENRICHMENT = List.of(
             IngestTaskType.MATCH_TIMELINE, IngestTaskType.MATCH_TIMELINE_DIGEST, IngestTaskType.MATCH_RANKS);
     private static final List<IngestTaskState> QUEUED = List.of(IngestTaskState.PENDING, IngestTaskState.RUNNING);
+    private static final List<IngestTaskType> PROFILE_TASKS = List.of(
+            IngestTaskType.PLAYER_IDS, IngestTaskType.PLAYER_PREVIEW, IngestTaskType.PLAYER_PREVIEW_SLOW);
 
     private final MongoTemplate mongo;
 
@@ -52,7 +54,7 @@ public class IngestSummaryService {
         long busyRetrieved = busy.isEmpty() ? 0
                 : mongo.count(Query.query(Criteria.where("_id").in(busy)), PlayerHistoryCursor.class);
         long pending = mongo.count(Query.query(
-                Criteria.where("type").is(IngestTaskType.PLAYER_IDS).and("state").in(QUEUED)), IngestTask.class);
+                Criteria.where("type").in(PROFILE_TASKS).and("state").in(QUEUED)), IngestTask.class);
         return new IngestSummary.Counts(retrieved, retrieved - busyRetrieved, pending);
     }
 }
