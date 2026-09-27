@@ -24,12 +24,16 @@ public class MatchMetricsService {
             .toList();
 
     private final MongoTemplate mongo;
+    private final MatchSignalsService signals;
 
     public List<MatchPlayerMetrics> of(String matchId) {
         List<MatchPlayerMetrics> joueurs = new ArrayList<>();
         mongo.getCollection(MatchParticipation.COLLECTION)
                 .aggregate(ReferencePipeline.valeursDePartie(matchId, PAR_PARTIE))
                 .forEach(ligne -> joueurs.add(joueur(ligne)));
+        // Les capteurs de build et de timeline s'ajoutent aux indicateurs : le moteur les lit en valeur.
+        java.util.Map<String, java.util.Map<String, Double>> capteurs = signals.of(matchId);
+        joueurs.forEach(j -> j.values().putAll(capteurs.getOrDefault(j.puuid(), java.util.Map.of())));
         return joueurs;
     }
 
