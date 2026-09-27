@@ -88,7 +88,7 @@ class RiotConnectorApiTest {
     @Test
     @DisplayName("GET /players résout un Riot ID en puuid")
     void resoutUnRiotId() throws Exception {
-        when(identityService.resolve("J1HUIV", "000"))
+        when(identityService.resolve("J1HUIV", "000", null))
                 .thenReturn(new PlayerIdentity("abc", "J1HUIV", "000"));
 
         mockMvc.perform(get("/players").param("gameName", "J1HUIV").param("tagLine", "000"))
@@ -167,7 +167,7 @@ class RiotConnectorApiTest {
     @Test
     @DisplayName("un connecteur occupé se distingue d'une panne : 429 titré, jamais 502 ni 503")
     void unConnecteurOccupeSeDistingueDUnePanne() throws Exception {
-        when(identityService.resolve("Pikachu", "STORM"))
+        when(identityService.resolve("Pikachu", "STORM", null))
                 .thenThrow(new RiotConnectorBusyException("Connecteur occupé : pas de créneau",
                         Duration.ofSeconds(3)));
 
@@ -199,7 +199,7 @@ class RiotConnectorApiTest {
     @Test
     @DisplayName("un Riot ID inexistant donne un 404")
     void unRiotIdInexistantDonneUn404() throws Exception {
-        when(identityService.resolve(anyString(), anyString()))
+        when(identityService.resolve(anyString(), anyString(), any()))
                 .thenThrow(new RiotResourceNotFoundException("inconnu"));
 
         mockMvc.perform(get("/players").param("gameName", "Personne").param("tagLine", "ZZZ"))

@@ -61,8 +61,9 @@ public class PlayerController {
             @Parameter(description = "Partie gauche du Riot ID.", example = "J1HUIV")
             @RequestParam @NotBlank String gameName,
             @Parameter(description = "Partie droite du Riot ID, sans le #.", example = "000")
-            @RequestParam @NotBlank String tagLine) {
-        return identityService.resolve(gameName, tagLine);
+            @RequestParam @NotBlank String tagLine,
+            @RequestParam(required = false) java.time.Duration maxAge) {
+        return identityService.resolve(gameName, tagLine, maxAge);
     }
 
     @Operation(summary = "Chercher un compte parmi nos participations",
