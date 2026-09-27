@@ -14,12 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
+import schultz.thomas.schub.connector.riot.api.dto.IngestSummary;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
@@ -38,6 +40,7 @@ public class IngestController {
     private final KnownAccountIndex knownAccounts;
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
+    private final IngestSummaryService summaryService;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -50,6 +53,16 @@ public class IngestController {
     @GetMapping
     public IngestStatus status() {
         return ingestService.status();
+    }
+
+    @Operation(summary = "Ce que la collecte a produit",
+            description = """
+                    Des parties et des profils, pas des tâches. Une partie est analysée quand plus
+                    aucune tâche d'enrichissement (timeline, digest, rangs) ne l'attend ; un profil,
+                    quand son historique a été relevé et que plus rien n'est en file pour lui.""")
+    @GetMapping("/summary")
+    public IngestSummary summary() {
+        return summaryService.summary();
     }
 
     @Operation(summary = "La collecte de fond",
