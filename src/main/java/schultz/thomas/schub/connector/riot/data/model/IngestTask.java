@@ -45,13 +45,24 @@ public record IngestTask(
         return SAMPLING_OFFSET + priority;
     }
 
-    // Tâches demandées par un joueur (aperçu d'un joueur recherché, relevé d'un compte lié) : servies avant les
-    // autres, et sur la voie PRIORITY du quota, que la collecte de fond laisse passer.
+    // Aperçu d'un joueur recherché : servi avant l'échantillon et la collecte de fond, et sur la voie PRIORITY du quota,
+    // que la collecte de fond laisse passer.
     private static final long PREVIEW_OFFSET = Long.MAX_VALUE / 2;
 
     public static long previewPriority(long sequence) {
         return PREVIEW_OFFSET + sequence;
     }
+
+    // Joueurs actifs (compte lié ou place d'équipe) : leurs parties et l'enrichissement des parties d'équipe passent
+    // avant tout le reste, joueurs recherchés compris.
+    private static final long ACTIVE_OFFSET = Long.MAX_VALUE / 4 * 3;
+
+    public static long activePriority(long sequence) {
+        return ACTIVE_OFFSET + sequence;
+    }
+
+    // Le relevé d'un joueur recherché : sous les joueurs actifs, au-dessus des parties de tous les aperçus.
+    public static final long SEARCHED_PLAYER_PRIORITY = ACTIVE_OFFSET - 1;
 
     public boolean prioritaire() {
         return priority >= PREVIEW_OFFSET;

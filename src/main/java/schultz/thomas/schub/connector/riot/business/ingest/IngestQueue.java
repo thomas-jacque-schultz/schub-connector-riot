@@ -54,8 +54,19 @@ public class IngestQueue {
             mongo.insert(task);
             return true;
         } catch (DuplicateKeyException alreadyQueued) {
-            return false;
+            return raise(task);
         }
+    }
+
+    // Déjà en file plus bas : un joueur actif remonte la tâche qu'un aperçu ou la collecte de fond avait posée.
+    private boolean raise(IngestTask task) {
+        Update update = new Update().set("priority", task.priority()).min("notBefore", task.notBefore());
+        if (task.puuid() != null) {
+            update.set("puuid", task.puuid());
+        }
+        return mongo.updateFirst(Query.query(Criteria.where("_id").is(task.id())
+                        .and("state").is(IngestTaskState.PENDING).and("priority").lt(task.priority())),
+                update, IngestTask.class).getModifiedCount() > 0;
     }
 
     public Optional<IngestTask> claim(Duration lease) {

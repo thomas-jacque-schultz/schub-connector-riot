@@ -78,7 +78,7 @@ public class MatchEnrichmentService {
                 .map(MatchRankSnapshot::matchId).collect(Collectors.toSet());
         int empilees = 0;
         for (String matchId : voulues) {
-            long priorite = IngestTask.sequenceOf(matchId);
+            long priorite = IngestTask.activePriority(IngestTask.sequenceOf(matchId));
             if (!avecTimeline.contains(matchId)
                     && queue.enqueue(IngestTaskType.MATCH_TIMELINE, matchId, null, priorite)) {
                 empilees++;

@@ -48,8 +48,26 @@ class IngestQueueTest {
 
         when(mongo.insert(any(IngestTask.class)))
                 .thenThrow(new DuplicateKeyException("déjà en file"));
+        when(mongo.updateFirst(any(Query.class), any(UpdateDefinition.class), eq(IngestTask.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(0, 0L, null));
 
         assertThat(queue.enqueue(IngestTaskType.MATCH_DETAIL, "EUW1_1", "p1", 1L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("une tâche déjà en file plus bas est remontée à la priorité demandée, sans toucher à une tâche en cours")
+    void remonteUneTacheEnAttente() {
+        when(mongo.insert(any(IngestTask.class))).thenThrow(new DuplicateKeyException("déjà en file"));
+        when(mongo.updateFirst(any(Query.class), any(UpdateDefinition.class), eq(IngestTask.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
+
+        assertThat(queue.enqueue(IngestTaskType.PLAYER_IDS, "p1", "p1", Long.MAX_VALUE)).isTrue();
+
+        ArgumentCaptor<Query> cible = ArgumentCaptor.forClass(Query.class);
+        ArgumentCaptor<UpdateDefinition> remontee = ArgumentCaptor.forClass(UpdateDefinition.class);
+        verify(mongo).updateFirst(cible.capture(), remontee.capture(), eq(IngestTask.class));
+        assertThat(cible.getValue().getQueryObject().toString()).contains("PENDING").contains("$lt");
+        assertThat(remontee.getValue().getUpdateObject().toString()).contains("priority").contains("$min");
     }
 
     @Test
