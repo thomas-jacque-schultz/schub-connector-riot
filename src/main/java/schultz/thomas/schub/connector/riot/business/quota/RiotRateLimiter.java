@@ -44,8 +44,6 @@ public class RiotRateLimiter {
 
     private int starvedBulk;
 
-    private long lastInteractiveDemand;
-
     private long lastBulkGrant;
 
     public RiotRateLimiter(RiotProperties.Quota quota, Clock clock, Sleeper sleeper) {
@@ -150,28 +148,18 @@ public class RiotRateLimiter {
 
     private int sustainedLimit(QuotaLane lane, long now) {
         int limit = effective(limites.sustainedRequests());
-        return lane != QuotaLane.BULK ? limit : Math.max(1, limit - reserve(now));
+        return lane != QuotaLane.BULK ? limit : Math.max(1, limit - reserve());
     }
 
-    // Garder un créneau : sans lui, la demande interactive suivante attendrait la fenêtre entière.
-    private int reserve(long now) {
-        int configured = configuredReserve();
-        if (configured == 0) {
-            return 0;
-        }
-        boolean demanded = lastInteractiveDemand > 0
-                && now - lastInteractiveDemand <= quota.getInteractiveReserveIdle().toMillis();
-        return demanded ? configured : 1;
-    }
-
-    private int configuredReserve() {
-        return Math.max(0, Math.min(quota.getInteractiveReserve(),
-                effective(limites.sustainedRequests()) - 1));
+    // Toujours gardée, même sans demande : armée seulement après une demande, elle arrivait trop tard. La collecte
+    // avait déjà pris la fenêtre d'un bloc, et une mise à jour d'équipe attendait qu'elle se vide (une minute mesurée).
+    private int reserve() {
+        return Math.max(0, Math.min(quota.getInteractiveReserve(), effective(limites.sustainedRequests()) - 1));
     }
 
     // Espacer tant que la réserve est armée : une fenêtre prise d'un bloc ne libère plus rien pendant 100 s.
     private long spacingWait(QuotaLane lane, long now) {
-        int reserve = reserve(now);
+        int reserve = reserve();
         if (lane != QuotaLane.BULK || reserve <= 1 || lastBulkGrant == 0) {
             return 0;
         }
@@ -276,7 +264,7 @@ public class RiotRateLimiter {
 
     public double allowedPerMinute() {
         double burst = effective(limites.burstRequests()) * 60_000.0 / limites.burstWindow().toMillis();
-        double sustained = (effective(limites.sustainedRequests()) - configuredReserve())
+        double sustained = (effective(limites.sustainedRequests()) - reserve())
                 * 60_000.0 / limites.sustainedWindow().toMillis();
         return Math.min(burst, sustained);
     }
@@ -311,9 +299,6 @@ public class RiotRateLimiter {
                 case INTERACTIVE -> waitingInteractive++;
                 case PRIORITY -> waitingPriority++;
                 case BULK -> starvedBulk++;
-            }
-            if (lane != QuotaLane.BULK) {
-                lastInteractiveDemand = clock.millis();
             }
         } finally {
             lock.unlock();

@@ -71,22 +71,19 @@ class RiotRateLimiterReserveTest {
     }
 
     @Test
-    @DisplayName("une réserve que personne ne demande revient à la collecte, à un créneau près")
-    void laReserveInutiliseeRevientALaCollecte() {
+    @DisplayName("la réserve reste gardée sans demande : une demande qui arrive trouve ses créneaux tout de suite")
+    void laReserveResteGardeeSansDemande() {
         RiotRateLimiter limiteur = limiteur();
-        assertThat(interactif(limiteur)).isTrue();
-
-        collecterJusqua(limiteur, 59_000);
-        assertThat(limiteur.granted(QuotaLane.BULK))
-                .as("réserve armée : 88 créneaux par deux minutes, soit 44 par minute")
-                .isEqualTo(43);
 
         collecterJusqua(limiteur, 90_000);
         assertThat(limiteur.granted(QuotaLane.BULK))
-                .as("plus personne ne demande : la collecte reprend les dix créneaux, sauf un")
-                .isEqualTo(96);
-        assertThat(interactif(limiteur))
-                .as("ce créneau-là sert la demande qui revient, sans attendre la fenêtre").isTrue();
+                .as("88 créneaux par deux minutes, étalés : la collecte ne prend pas la fenêtre d'un bloc")
+                .isLessThanOrEqualTo(67);
+
+        for (int appel = 0; appel < 10; appel++) {
+            assertThat(prioritaire(limiteur)).as("demande n° %d", appel + 1).isTrue();
+        }
+        assertThat(attentes).as("servies sans attendre la fenêtre").isEmpty();
     }
 
     @Test

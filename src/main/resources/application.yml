@@ -43,7 +43,6 @@ riot:
     interactive-timeout: 2s
     bulk-yield: 10s
     interactive-reserve: 10
-    interactive-reserve-idle: 1m
 
   cache:
     # Une partie peut apparaître dans l'historique avec du retard.
