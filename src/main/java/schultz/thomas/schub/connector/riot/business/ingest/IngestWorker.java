@@ -41,6 +41,7 @@ public class IngestWorker {
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
     private final IngestThroughput throughput;
+    private final IngestPause pause;
 
     public void drain() {
         QuotaLaneContext.runAsBulk(this::drainTasks);
@@ -48,7 +49,7 @@ public class IngestWorker {
 
     private void drainTasks() {
         RiotProperties.Ingest config = properties.getIngest();
-        if (!config.isEnabled()) {
+        if (!config.isEnabled() || pause.paused()) {
             return;
         }
 

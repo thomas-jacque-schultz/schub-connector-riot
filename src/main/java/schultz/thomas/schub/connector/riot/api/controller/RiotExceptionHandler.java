@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.CrawlerLockedException;
+import schultz.thomas.schub.connector.riot.business.exceptions.IngestNotPausedException;
 import schultz.thomas.schub.connector.riot.business.exceptions.InvalidHistoryWindowException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
@@ -46,6 +47,11 @@ public class RiotExceptionHandler {
 
     @ExceptionHandler(CrawlerLockedException.class)
     public ProblemDetail handleCrawlerLocked(CrawlerLockedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(IngestNotPausedException.class)
+    public ProblemDetail handleNotPaused(IngestNotPausedException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 

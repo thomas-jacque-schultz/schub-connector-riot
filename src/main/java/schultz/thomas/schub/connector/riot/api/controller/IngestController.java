@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
 import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
+import schultz.thomas.schub.connector.riot.api.dto.IngestPauseRequest;
+import schultz.thomas.schub.connector.riot.api.dto.IngestPauseStatus;
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.IngestSummary;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
@@ -22,6 +24,7 @@ import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
@@ -44,6 +47,7 @@ public class IngestController {
     private final LadderSampler sampler;
     private final IngestSummaryService summaryService;
     private final HistoryWindowService historyWindow;
+    private final IngestPause pause;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -88,6 +92,22 @@ public class IngestController {
     @PutMapping("/crawler")
     public CrawlerStatus toggleCrawler(@RequestBody CrawlerToggleRequest request) {
         return crawler.toggle(request.enabled());
+    }
+
+    @Operation(summary = "La pause de l'ingest",
+            description = "`running` compte les tâches prises avant la pause et pas encore terminées.")
+    @GetMapping("/pause")
+    public IngestPauseStatus pause() {
+        return pause.status();
+    }
+
+    @Operation(summary = "Mettre l'ingest en pause, ou le reprendre",
+            description = """
+                    Toute la file, voie prioritaire comprise, en prod comme en dev. Les tâches en route
+                    finissent ; les autres attendent la reprise. La pause survit à un redémarrage.""")
+    @PutMapping("/pause")
+    public IngestPauseStatus updatePause(@RequestBody IngestPauseRequest request) {
+        return pause.set(request.paused());
     }
 
     @Operation(summary = "La fenêtre du premier relevé d'un joueur")
