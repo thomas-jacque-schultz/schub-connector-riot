@@ -78,6 +78,31 @@ class IngestWorkerTest {
     }
 
     @Test
+    @DisplayName("une pause posée en plein tour l'arrête avant la tâche suivante")
+    void pauseEnPleinTour() {
+        when(pause.paused()).thenReturn(false, true);
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(detailTask()));
+        when(matchDetailService.detail("EUW1_1")).thenReturn(Optional.empty());
+
+        worker.drain();
+
+        verify(queue, times(1)).claim(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("la collecte de fond coupée en plein tour ne sert plus de tâche de fond à la suivante")
+    void collecteDeFondRelueAChaqueTache() {
+        when(crawler.active()).thenReturn(true, false);
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(detailTask()), Optional.empty());
+        when(matchDetailService.detail("EUW1_1")).thenReturn(Optional.empty());
+
+        worker.drain();
+
+        verify(queue).claim(any(), eq(true));
+        verify(queue).claim(any(), eq(false));
+    }
+
+    @Test
     @DisplayName("un 429 en cours de file rend la tâche et arrête le tour")
     void un429RendLaTacheEtArreteLeTour() {
         when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(detailTask()));

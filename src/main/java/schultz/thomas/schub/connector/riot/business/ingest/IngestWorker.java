@@ -49,13 +49,16 @@ public class IngestWorker {
 
     private void drainTasks() {
         RiotProperties.Ingest config = properties.getIngest();
-        if (!config.isEnabled() || pause.paused()) {
+        if (!config.isEnabled()) {
             return;
         }
 
-        boolean fond = crawler.active();
+        // Relus avant chaque tâche : sous 429, un tour dure des minutes, et une pause doit prendre effet tout de suite.
         for (int handled = 0; handled < config.getBatchSize(); handled++) {
-            Optional<IngestTask> claimed = queue.claim(config.getLease(), fond);
+            if (pause.paused()) {
+                return;
+            }
+            Optional<IngestTask> claimed = queue.claim(config.getLease(), crawler.active());
             if (claimed.isEmpty() || !run(claimed.get(), config)) {
                 return;
             }
