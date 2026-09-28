@@ -26,7 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @RequiredArgsConstructor
 @Service
@@ -77,14 +76,12 @@ public class PlayerSearchService {
                 .toList();
     }
 
+    // Par début de pseudo : une expression ancrée sert l'index, une sous-chaîne parcourrait tous les comptes.
+    // searchName n'a que des lettres et des chiffres (SearchName.fold) : rien à échapper.
     private List<KnownAccount> candidats(Recherche recherche) {
-        Criteria sousChaine = Criteria.where("searchName").regex(Pattern.quote(recherche.pseudo()));
-        Criteria critere = recherche.pseudo().length() < LONGUEUR_PREFIXE
-                ? sousChaine
-                : new Criteria().orOperator(sousChaine, Criteria.where("searchName")
-                        .regex("^" + Pattern.quote(recherche.pseudo().substring(0, LONGUEUR_PREFIXE))));
+        String prefixe = recherche.pseudo().substring(0, Math.min(LONGUEUR_PREFIXE, recherche.pseudo().length()));
 
-        return mongo.find(Query.query(critere)
+        return mongo.find(Query.query(Criteria.where("searchName").regex("^" + prefixe))
                 .with(Sort.by(Sort.Direction.DESC, "observedAt"))
                 .limit(CANDIDATS_MAX), KnownAccount.class);
     }

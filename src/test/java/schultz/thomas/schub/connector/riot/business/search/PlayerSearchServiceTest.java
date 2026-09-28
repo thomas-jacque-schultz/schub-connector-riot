@@ -196,15 +196,16 @@ class PlayerSearchServiceTest {
     }
 
     @Test
-    @DisplayName("sous trois caractères, seule la sous-chaîne est ouverte — pas la tolérance aux fautes")
-    void neTolerePasLesFautesSousTroisCaracteres() {
-        index(vuEnPartie("p1", "Th", "EUW", HIER));
+    @DisplayName("la base est interrogée par les trois premiers caractères, jamais par sous-chaîne")
+    void chercheParDebutDePseudo() {
+        index(vuEnPartie("p1", "Rémile", "EUW", HIER));
         participations(compteurs("p1", 3));
 
-        service.search("th", 10);
+        service.search("remile", 10);
 
         ArgumentCaptor<Query> requete = ArgumentCaptor.forClass(Query.class);
         verify(mongo).find(requete.capture(), eq(KnownAccount.class));
-        assertThat(requete.getValue().getQueryObject().toJson()).doesNotContain("$or");
+        String json = requete.getValue().getQueryObject().toJson();
+        assertThat(json).contains("\"^rem\"").doesNotContain("$or");
     }
 }
