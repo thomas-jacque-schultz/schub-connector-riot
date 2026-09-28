@@ -40,6 +40,8 @@ public class RiotRateLimiter {
 
     private int waitingInteractive;
 
+    private int waitingPriority;
+
     private int starvedBulk;
 
     private long lastInteractiveDemand;
@@ -61,12 +63,12 @@ public class RiotRateLimiter {
 
         boolean claimedPriority = false;
         if (interactive) {
-            enqueue(true);
+            enqueue(lane);
         }
         try {
             while (true) {
                 if (!interactive && !claimedPriority && yieldElapsed(clock.millis(), start)) {
-                    enqueue(false);
+                    enqueue(QuotaLane.BULK);
                     claimedPriority = true;
                 }
                 long wait = reserveOrWait(lane, start, deadline);
@@ -77,9 +79,9 @@ public class RiotRateLimiter {
             }
         } finally {
             if (interactive) {
-                dequeue(true);
+                dequeue(lane);
             } else if (claimedPriority) {
-                dequeue(false);
+                dequeue(QuotaLane.BULK);
             }
         }
     }
@@ -119,13 +121,16 @@ public class RiotRateLimiter {
         }
     }
 
-    // Passé bulk-yield, la collecte cesse de compter les interactifs et devient comptée par eux : sans cette
+    // Passé bulk-yield, la collecte cesse de compter les appels interactifs et devient comptée par eux : sans cette
     // réciprocité, un ouvrier seul perd indéfiniment la course au créneau. Les deux états s'excluent.
+    // Les tâches demandées par un joueur passent toujours devant la collecte : leur flux est borné, et c'est pour
+    // elles que le quota existe. Sans ça, seize ouvriers affamés passaient devant une mise à jour d'équipe.
     private int reservedAhead(QuotaLane lane, long now, long start) {
-        if (lane != QuotaLane.BULK) {
-            return starvedBulk;
-        }
-        return yieldElapsed(now, start) ? 0 : waitingInteractive;
+        return switch (lane) {
+            case INTERACTIVE -> starvedBulk;
+            case PRIORITY -> 0;
+            case BULK -> waitingPriority + (yieldElapsed(now, start) ? 0 : waitingInteractive);
+        };
     }
 
     private boolean yieldElapsed(long now, long start) {
@@ -299,27 +304,29 @@ public class RiotRateLimiter {
         return Math.max(1, limit - quota.getSafetyMargin());
     }
 
-    private void enqueue(boolean interactive) {
+    private void enqueue(QuotaLane lane) {
         lock.lock();
         try {
-            if (interactive) {
-                waitingInteractive++;
+            switch (lane) {
+                case INTERACTIVE -> waitingInteractive++;
+                case PRIORITY -> waitingPriority++;
+                case BULK -> starvedBulk++;
+            }
+            if (lane != QuotaLane.BULK) {
                 lastInteractiveDemand = clock.millis();
-            } else {
-                starvedBulk++;
             }
         } finally {
             lock.unlock();
         }
     }
 
-    private void dequeue(boolean interactive) {
+    private void dequeue(QuotaLane lane) {
         lock.lock();
         try {
-            if (interactive) {
-                waitingInteractive--;
-            } else {
-                starvedBulk--;
+            switch (lane) {
+                case INTERACTIVE -> waitingInteractive--;
+                case PRIORITY -> waitingPriority--;
+                case BULK -> starvedBulk--;
             }
         } finally {
             lock.unlock();

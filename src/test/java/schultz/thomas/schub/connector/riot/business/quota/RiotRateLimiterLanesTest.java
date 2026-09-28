@@ -72,6 +72,26 @@ class RiotRateLimiterLanesTest {
 
     @Test
     @Timeout(30)
+    @DisplayName("une collecte affamée ne passe jamais devant les tâches demandées par un joueur")
+    void laCollecteCedeAuxTachesPrioritaires() throws InterruptedException {
+        RiotProperties.Quota quota = quota(4, Duration.ofMillis(200));
+        quota.setBulkYield(Duration.ofMillis(300));
+        RiotRateLimiter limiteur = limiteur(quota);
+
+        charger(4, QuotaLane.PRIORITY, limiteur, null);
+        attendreAuMoins(limiteur, QuotaLane.PRIORITY, 4);
+        charger(1, QuotaLane.BULK, limiteur, null);
+
+        Thread.sleep(1500);
+        arreter();
+
+        assertThat(limiteur.granted(QuotaLane.PRIORITY))
+                .as("le flux prioritaire était bien soutenu").isGreaterThan(20);
+        assertThat(limiteur.granted(QuotaLane.BULK)).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    @Timeout(30)
     @DisplayName("les deux voies réunies ne dépassent jamais le quota : un seul compteur")
     void leQuotaGlobalNEstJamaisDepasse() throws InterruptedException {
         int limite = 5;
