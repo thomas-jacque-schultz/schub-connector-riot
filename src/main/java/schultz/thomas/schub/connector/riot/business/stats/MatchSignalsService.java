@@ -35,7 +35,7 @@ public class MatchSignalsService {
     static final int COMBAT_MINIMUM = 3;
     static final double OBJECTIF_GROUPE = 3000;
     static final long ECHANGE_MS = 60_000;
-    static final long GANK_AVANT_MS = 15 * 60_000;
+    static final long GANK_AVANT_MS = 15 * 60_000L;
     static final double ARMURE_COMBATTANT = 60;
     static final Set<String> MONSTRES = Set.of("DRAGON", "BARON_NASHOR", "RIFTHERALD", "HORDE");
     static final Set<String> GROS_OBJECTIFS = Set.of("DRAGON", "BARON_NASHOR");
@@ -268,7 +268,7 @@ public class MatchSignalsService {
     }
 
     private static double[] distanceBornee(List<Document> frames, int pid, long t, double x, double y) {
-        int i = (int) Math.min(t / 60_000, frames.size() - 1);
+        int i = (int) Math.min(t / 60_000, frames.size() - 1L);
         Document avant = positionA(frames.get(i), pid);
         if (avant == null) {
             return null;
