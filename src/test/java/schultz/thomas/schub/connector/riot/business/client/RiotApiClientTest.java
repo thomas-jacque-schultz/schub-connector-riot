@@ -1,5 +1,6 @@
 package schultz.thomas.schub.connector.riot.business.client;
 
+import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -211,5 +212,25 @@ class RiotApiClientTest {
 
         regionalServer.verify();
         assertThat(List.of()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Un entier au-delà de Long dans une partie reste enregistrable")
+    void unEntierGeantDevientUnDouble() {
+        regionalServer.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/EUW1_1"))
+                .andRespond(withSuccess("""
+                        {"metadata":{"matchId":"EUW1_1"},
+                         "info":{"participants":[{"challenges":{"geant":18446744073709551615,"petit":3}}]}}
+                        """, MediaType.APPLICATION_JSON));
+
+        Document partie = client.match("EUW1_1").orElseThrow();
+
+        Document challenges = partie.get("info", Document.class)
+                .getList("participants", Document.class).get(0)
+                .get("challenges", Document.class);
+        assertThat(challenges.get("geant")).isInstanceOf(Double.class);
+        assertThat(challenges.get("petit")).isEqualTo(3);
+        // toJson passe par les codecs du pilote : il échouait sur BigInteger comme l'écriture en base.
+        assertThat(partie.toJson()).contains("1.8446744073709552E19");
     }
 }
