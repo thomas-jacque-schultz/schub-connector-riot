@@ -10,7 +10,7 @@ import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 
 // Pas de cache Pseudo#TAG → puuid (un Riot ID change) : toute résolution laisse une observation datée dans
-// l'index des comptes connus. Seul l'appelant qui le demande (maxAge) accepte une résolution récente.
+// l'index des comptes connus. Seul l'appelant qui le demande (maxAge) accepte une observation récente de l'index.
 @RequiredArgsConstructor
 @Service
 public class PlayerIdentityService {
@@ -30,7 +30,7 @@ public class PlayerIdentityService {
         if (maxAge == null || maxAge.isZero() || maxAge.isNegative()) {
             return resolve(gameName, tagLine);
         }
-        return knownAccounts.recentResolution(gameName, tagLine, maxAge)
+        return knownAccounts.recentObservation(gameName, tagLine, maxAge)
                 .map(compte -> new PlayerIdentity(compte.puuid(), compte.gameName(), compte.tagLine()))
                 .orElseGet(() -> resolve(gameName, tagLine));
     }

@@ -7,6 +7,10 @@ public enum IngestTaskType {
     PLAYER_PREVIEW,
     // Même chose au-delà du budget du visiteur : les parties arrivent au compte-gouttes.
     PLAYER_PREVIEW_SLOW,
+    // Rang ou maîtrises périmés à l'écran : actualisés hors de la visite, qui sert le dernier relevé.
+    PLAYER_RANK,
+    PLAYER_MASTERY,
+    PUUID_CHECK,
 
     MATCH_DETAIL,
     MATCH_TIMELINE,

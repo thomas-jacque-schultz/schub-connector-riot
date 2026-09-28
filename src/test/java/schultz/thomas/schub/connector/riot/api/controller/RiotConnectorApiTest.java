@@ -26,6 +26,7 @@ import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
+import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
@@ -72,6 +73,7 @@ class RiotConnectorApiTest {
     @Mock private LadderSampler sampler;
     @Mock private IngestSummaryService summaryService;
     @Mock private HistoryWindowService historyWindow;
+    @Mock private PuuidValidityService validity;
 
     private MockMvc mockMvc;
 
@@ -84,7 +86,7 @@ class RiotConnectorApiTest {
                                 historyWindow),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
-                .setControllerAdvice(new RiotExceptionHandler())
+                .setControllerAdvice(new RiotExceptionHandler(validity))
                 .build();
     }
 
@@ -159,7 +161,7 @@ class RiotConnectorApiTest {
     @Test
     @DisplayName("le quota épuisé donne un 429 et répercute le Retry-After de Riot")
     void leQuotaEpuiseRepercuteLeRetryAfter() throws Exception {
-        when(rankingService.rankings(anyString()))
+        when(rankingService.current(anyString()))
                 .thenThrow(new RiotQuotaExceededException("saturé", Duration.ofSeconds(2)));
 
         mockMvc.perform(get("/players/{puuid}/rankings", PUUID))
@@ -192,7 +194,7 @@ class RiotConnectorApiTest {
     @Test
     @DisplayName("une clé absente donne un 503 : ce n'est pas une panne, c'est une configuration")
     void uneCleAbsenteDonneUn503() throws Exception {
-        when(masteryService.masteries(anyString(), any()))
+        when(masteryService.current(anyString(), any()))
                 .thenThrow(new RiotKeyMissingException("aucune clé"));
 
         mockMvc.perform(get("/players/{puuid}/champion-mastery", PUUID))

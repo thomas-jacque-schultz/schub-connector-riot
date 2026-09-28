@@ -13,6 +13,8 @@ import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.business.client.DataDragonClient;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
+import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
@@ -53,6 +55,7 @@ class CacheTtlPoliciesTest {
     @Mock private CachedMasteryRepository masteries;
     @Mock private CachedChampionCatalogRepository catalogs;
     @Mock private CachedGameVersionRepository gameVersions;
+    @Mock private IngestQueue queue;
 
     private RiotProperties properties;
     private TestClock clock;
@@ -66,7 +69,7 @@ class CacheTtlPoliciesTest {
     }
 
     private RankingService rankingService() {
-        return new RankingService(riotApiClient, rankings, mapper, properties, history, clock);
+        return new RankingService(riotApiClient, rankings, mapper, properties, history, queue, clock);
     }
 
     private ChampionCatalogService catalogService() {
@@ -109,10 +112,42 @@ class CacheTtlPoliciesTest {
     }
 
     @Test
+    @DisplayName("à l'écran, un rang de plus de six heures est servi tel quel et actualisé en file")
+    void lEcranNAttendPasRiot() {
+        when(rankings.findById(PUUID)).thenReturn(Optional.of(new CachedRanking(PUUID,
+                List.of(standing()), MAINTENANT.minus(Duration.ofHours(7)))));
+
+        assertThat(rankingService().current(PUUID)).hasSize(1);
+        verify(riotApiClient, never()).leagueEntries(anyString());
+        verify(queue).enqueue(IngestTaskType.PLAYER_RANK, PUUID, PUUID, 0);
+    }
+
+    @Test
+    @DisplayName("à l'écran, un rang de deux heures est servi sans rien demander")
+    void lEcranServiUnRangRecent() {
+        when(rankings.findById(PUUID)).thenReturn(Optional.of(new CachedRanking(PUUID,
+                List.of(standing()), MAINTENANT.minus(Duration.ofHours(2)))));
+
+        assertThat(rankingService().current(PUUID)).hasSize(1);
+        verify(riotApiClient, never()).leagueEntries(anyString());
+        verify(queue, never()).enqueue(any(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("un joueur jamais relevé est demandé à Riot en direct")
+    void lEcranDemandeUnInconnuARiot() {
+        when(rankings.findById(PUUID)).thenReturn(Optional.empty());
+        when(riotApiClient.leagueEntries(PUUID)).thenReturn(List.of());
+
+        assertThat(rankingService().current(PUUID)).isEmpty();
+        verify(riotApiClient).leagueEntries(PUUID);
+    }
+
+    @Test
     @DisplayName("les maîtrises tiennent six heures, puis sont redemandées")
     void lesMaitrisesTiennentSixHeures() {
         ChampionMasteryService service = new ChampionMasteryService(riotApiClient, masteries,
-                catalogService(), mapper, properties, clock);
+                catalogService(), mapper, properties, queue, clock);
 
         when(masteries.findById(PUUID)).thenReturn(Optional.of(new CachedMastery(PUUID,
                 List.of(mastery(126, 468082), mastery(24, 12000)),
@@ -126,7 +161,7 @@ class CacheTtlPoliciesTest {
     @DisplayName("la limite est appliquée à la lecture, pas au stockage")
     void laLimiteNeTronquePasLeCache() {
         ChampionMasteryService service = new ChampionMasteryService(riotApiClient, masteries,
-                catalogService(), mapper, properties, clock);
+                catalogService(), mapper, properties, queue, clock);
 
         when(masteries.findById(PUUID)).thenReturn(Optional.of(new CachedMastery(PUUID,
                 List.of(mastery(126, 468082), mastery(24, 12000), mastery(62, 900)),
