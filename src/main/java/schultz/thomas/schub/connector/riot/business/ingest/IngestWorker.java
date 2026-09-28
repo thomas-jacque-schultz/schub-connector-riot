@@ -44,10 +44,14 @@ public class IngestWorker {
     private final IngestPause pause;
 
     public void drain() {
-        QuotaLaneContext.runAsBulk(this::drainTasks);
+        QuotaLaneContext.runAsBulk(() -> drainTasks(false));
     }
 
-    private void drainTasks() {
+    public void drainPriority() {
+        QuotaLaneContext.runAsBulk(() -> drainTasks(true));
+    }
+
+    private void drainTasks(boolean reserve) {
         RiotProperties.Ingest config = properties.getIngest();
         if (!config.isEnabled()) {
             return;
@@ -58,7 +62,9 @@ public class IngestWorker {
             if (pause.paused()) {
                 return;
             }
-            Optional<IngestTask> claimed = queue.claim(config.getLease(), crawler.active());
+            Optional<IngestTask> claimed = reserve
+                    ? queue.claim(config.getLease(), IngestTask.PRIORITY_FLOOR)
+                    : queue.claim(config.getLease(), crawler.active());
             if (claimed.isEmpty() || !run(claimed.get(), config)) {
                 return;
             }

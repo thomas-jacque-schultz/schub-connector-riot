@@ -78,6 +78,17 @@ class IngestWorkerTest {
     }
 
     @Test
+    @DisplayName("un ouvrier réservé ne prend que les tâches demandées par un joueur, jamais le fond")
+    void ouvrierReserve() {
+        when(queue.claim(any(), eq(IngestTask.PRIORITY_FLOOR))).thenReturn(Optional.empty());
+
+        worker.drainPriority();
+
+        verify(queue).claim(any(), eq(IngestTask.PRIORITY_FLOOR));
+        verify(queue, never()).claim(any(), anyBoolean());
+    }
+
+    @Test
     @DisplayName("une pause posée en plein tour l'arrête avant la tâche suivante")
     void pauseEnPleinTour() {
         when(pause.paused()).thenReturn(false, true);
