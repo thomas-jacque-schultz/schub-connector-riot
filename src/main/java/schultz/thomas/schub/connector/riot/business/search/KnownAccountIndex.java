@@ -60,6 +60,18 @@ public class KnownAccountIndex {
                 .findFirst();
     }
 
+    // Tous les comptes vus sous ce Riot ID, le plus récent d'abord : un pseudo abandonné peut être repris par un autre.
+    public List<KnownAccount> withRiotId(String gameName, String tagLine) {
+        String cle = SearchName.fold(gameName);
+        if (cle == null || tagLine == null) {
+            return List.of();
+        }
+        return mongo.find(Query.query(Criteria.where("searchName").is(cle))
+                        .with(Sort.by(Sort.Direction.DESC, "observedAt")), KnownAccount.class).stream()
+                .filter(compte -> tagLine.equalsIgnoreCase(compte.tagLine()))
+                .toList();
+    }
+
     public boolean observeResolution(String puuid, String gameName, String tagLine) {
         return observeAll(List.of(new Observation(puuid, gameName, tagLine, clock.instant(),
                 KnownAccountSource.RESOLUTION))) > 0;
