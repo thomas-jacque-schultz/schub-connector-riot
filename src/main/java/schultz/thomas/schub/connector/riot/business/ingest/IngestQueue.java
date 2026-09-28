@@ -76,12 +76,16 @@ public class IngestQueue {
     // Sans la collecte de fond : ses tâches restent en file, intactes, jusqu'à sa réactivation.
     // Index {state, priority} : la file se lit dans l'ordre et la lecture s'arrête à la première tâche mûre.
     public Optional<IngestTask> claim(Duration lease, boolean includeBackground) {
+        return claim(lease, includeBackground ? Long.MIN_VALUE : 0);
+    }
+
+    public Optional<IngestTask> claim(Duration lease, long floor) {
         Instant now = clock.instant();
         requeueExpired(now);
 
         Criteria mures = Criteria.where("state").is(IngestTaskState.PENDING).and("notBefore").lte(now);
-        if (!includeBackground) {
-            mures = mures.and("priority").gte(0);
+        if (floor > Long.MIN_VALUE) {
+            mures = mures.and("priority").gte(floor);
         }
         Query query = Query.query(mures).with(Sort.by(Sort.Direction.DESC, "priority"));
 

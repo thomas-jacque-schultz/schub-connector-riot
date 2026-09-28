@@ -64,8 +64,11 @@ public record IngestTask(
     // Le relevé d'un joueur recherché : sous les joueurs actifs, au-dessus des parties de tous les aperçus.
     public static final long SEARCHED_PLAYER_PRIORITY = ACTIVE_OFFSET - 1;
 
+    // Seuil des tâches demandées par un joueur, actif ou recherché : les ouvriers réservés ne prennent rien en dessous.
+    public static final long PRIORITY_FLOOR = PREVIEW_OFFSET;
+
     public boolean prioritaire() {
-        return priority >= PREVIEW_OFFSET;
+        return priority >= PRIORITY_FLOOR;
     }
 
     public boolean background() {

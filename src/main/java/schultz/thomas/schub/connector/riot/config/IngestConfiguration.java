@@ -29,7 +29,7 @@ public class IngestConfiguration implements SchedulingConfigurer {
     @Bean
     public TaskScheduler ingestScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(properties.getIngest().getWorkers() + 3);
+        scheduler.setPoolSize(properties.getIngest().getWorkers() + properties.getIngest().getPriorityWorkers() + 3);
         scheduler.setThreadNamePrefix("riot-ingest-");
         scheduler.setWaitForTasksToCompleteOnShutdown(false);
         return scheduler;
@@ -40,6 +40,9 @@ public class IngestConfiguration implements SchedulingConfigurer {
         registrar.setTaskScheduler(ingestScheduler());
         for (int ouvrier = 0; ouvrier < properties.getIngest().getWorkers(); ouvrier++) {
             registrar.addFixedDelayTask(worker::drain, properties.getIngest().getPollInterval());
+        }
+        for (int ouvrier = 0; ouvrier < properties.getIngest().getPriorityWorkers(); ouvrier++) {
+            registrar.addFixedDelayTask(worker::drainPriority, properties.getIngest().getPollInterval());
         }
         registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
         registrar.addFixedDelayTask(sampler::round, properties.getCrawler().getInterval());

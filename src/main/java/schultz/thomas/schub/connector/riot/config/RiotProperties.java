@@ -115,6 +115,10 @@ public class RiotProperties {
         // de production. C'est le volume stocké (≈ 44 ko par partie) qui le borne.
         private int workers = 1;
 
+        // En plus des ouvriers : ils ne prennent que les tâches demandées par un joueur, jamais le fond. Sans eux, une
+        // demande arrivée pendant que tous les ouvriers attendent le quota pour le fond patientait plus d'une minute.
+        private int priorityWorkers = 4;
+
         private Duration pollInterval = Duration.ofSeconds(2);
 
         private int batchSize = 25;
