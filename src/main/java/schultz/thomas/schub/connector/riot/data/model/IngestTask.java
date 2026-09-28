@@ -39,7 +39,7 @@ public record IngestTask(
 
     // Les parties des graines du ladder passent avant celles de la collecte de fond : ce sont elles qui remplissent les
     // référentiels par palier, et leur nombre est borné. Toujours sous les tâches des pages et des comptes (-1).
-    private static final long SAMPLING_OFFSET = Long.MIN_VALUE / 4;
+    public static final long SAMPLING_OFFSET = Long.MIN_VALUE / 4;
 
     public static long samplingPriority(long priority) {
         return SAMPLING_OFFSET + priority;

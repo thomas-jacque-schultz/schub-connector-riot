@@ -25,6 +25,7 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFo
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
+import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
@@ -70,6 +71,7 @@ class RiotConnectorApiTest {
     @Mock private BackgroundCrawler crawler;
     @Mock private LadderSampler sampler;
     @Mock private IngestSummaryService summaryService;
+    @Mock private HistoryWindowService historyWindow;
 
     private MockMvc mockMvc;
 
@@ -78,7 +80,8 @@ class RiotConnectorApiTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
                                 masteryService, ingestService, playerSearchService),
-                        new IngestController(ingestService, projector, knownAccounts, crawler, sampler, summaryService),
+                        new IngestController(ingestService, projector, knownAccounts, crawler, sampler, summaryService,
+                                historyWindow),
                         new MatchController(matchDetailService),
                         new ChampionCatalogController(catalogService))
                 .setControllerAdvice(new RiotExceptionHandler())

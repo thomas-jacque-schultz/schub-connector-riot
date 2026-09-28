@@ -5,9 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
+import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
 import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
@@ -16,6 +18,7 @@ import schultz.thomas.schub.connector.riot.data.repository.PlayerHistoryCursorRe
 import schultz.thomas.schub.connector.riot.data.repository.PlayerMatchRefRepository;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,6 +37,7 @@ public class MatchHistoryService {
     private final PlayerHistoryCursorRepository cursors;
     private final MatchDetailService matchDetailService;
     private final IngestService ingestService;
+    private final HistoryWindowService windows;
     private final RiotProperties properties;
     private final Clock clock;
 
@@ -70,9 +74,17 @@ public class MatchHistoryService {
     public IdSyncResult syncIds(String puuid) {
         Instant startedAt = clock.instant();
         Optional<PlayerHistoryCursor> cursor = cursors.findById(puuid);
-        Instant queriedFrom = queryFloor(cursor, startedAt);
+        HistoryWindow window = windows.current();
+        Instant oldest = startedAt.minus(Duration.ofDays(window.maxAgeDays()));
+        Instant queriedFrom = cursor
+                .map(value -> value.lastSyncStartedAt().minus(properties.getCache().getHistoryOverlap()))
+                .filter(from -> from.isAfter(oldest))
+                .orElse(oldest);
 
-        List<String> seen = collectIds(puuid, queriedFrom);
+        List<String> seen = collectIds(puuid, queriedFrom, window.maxGames());
+        if (cursor.isEmpty() && seen.size() < window.minGames()) {
+            seen = collectIds(puuid, null, window.minGames());
+        }
         int created = recordNewReferences(puuid, seen, startedAt);
 
         cursors.save(new PlayerHistoryCursor(
@@ -92,25 +104,18 @@ public class MatchHistoryService {
                 .orElse(true);
     }
 
-    private Instant queryFloor(Optional<PlayerHistoryCursor> cursor, Instant now) {
-        return cursor
-                .map(value -> value.lastSyncStartedAt().minus(properties.getCache().getHistoryOverlap()))
-                .orElseGet(() -> now.minus(properties.getCache().getHistoryDepth()));
-    }
-
-    private List<String> collectIds(String puuid, Instant from) {
+    private List<String> collectIds(String puuid, Instant from, int limit) {
         int pageSize = properties.getCache().getIdPageSize();
         Set<String> ids = new LinkedHashSet<>();
 
-        for (int page = 0; page < properties.getCache().getMaxIdPages(); page++) {
-            List<String> batch = riotApiClient.matchIds(puuid, from, page * pageSize, pageSize);
+        for (int start = 0; start < limit; start += pageSize) {
+            int count = Math.min(pageSize, limit - start);
+            List<String> batch = riotApiClient.matchIds(puuid, from, start, count);
             ids.addAll(batch);
-            if (batch.size() < pageSize) {
-                return List.copyOf(ids);
+            if (batch.size() < count) {
+                break;
             }
         }
-        log.warn("Garde-fou de pagination atteint ({} pages) : l'historique sera complété au prochain passage.",
-                properties.getCache().getMaxIdPages());
         return List.copyOf(ids);
     }
 

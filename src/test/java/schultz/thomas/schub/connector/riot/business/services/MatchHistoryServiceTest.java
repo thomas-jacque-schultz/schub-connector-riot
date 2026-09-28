@@ -14,6 +14,8 @@ import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
+import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
+import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
@@ -47,6 +49,7 @@ class MatchHistoryServiceTest {
     @Mock private PlayerHistoryCursorRepository cursors;
     @Mock private MatchDetailService matchDetailService;
     @Mock private IngestService ingestService;
+    @Mock private HistoryWindowService windows;
 
     private RiotProperties properties;
     private TestClock clock;
@@ -57,21 +60,58 @@ class MatchHistoryServiceTest {
         properties = new RiotProperties();
         clock = new TestClock(MAINTENANT);
         service = new MatchHistoryService(riotApiClient, playerMatches, cursors,
-                matchDetailService, ingestService, properties, clock);
+                matchDetailService, ingestService, windows, properties, clock);
+        org.mockito.Mockito.lenient().when(windows.current()).thenReturn(new HistoryWindow(50, 14, 20));
     }
 
     @Test
-    @DisplayName("sans curseur, le premier remplissage remonte la profondeur configurée")
-    void premierRemplissageRemonteLaProfondeur() {
-        properties.getCache().setHistoryDepth(Duration.ofDays(365));
+    @DisplayName("sans curseur, le premier relevé demande les 50 dernières parties des 14 derniers jours")
+    void premierReleveBorneEnNombreEtEnAge() {
         when(cursors.findById(PUUID)).thenReturn(Optional.empty());
+        when(riotApiClient.matchIds(eq(PUUID), eq(MAINTENANT.minus(Duration.ofDays(14))), eq(0), eq(50)))
+                .thenReturn(ids(50));
+        when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
+
+        HistorySyncReport rapport = service.sync(PUUID);
+
+        assertThat(rapport.queriedFrom()).isEqualTo(MAINTENANT.minus(Duration.ofDays(14)));
+        assertThat(rapport.idsSeen()).isEqualTo(50);
+        verify(riotApiClient).matchIds(anyString(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    @DisplayName("un joueur qui joue peu a ses 20 dernières parties, même au-delà de 14 jours")
+    void plancherPourUnJoueurQuiJouePeu() {
+        when(cursors.findById(PUUID)).thenReturn(Optional.empty());
+        when(riotApiClient.matchIds(eq(PUUID), eq(MAINTENANT.minus(Duration.ofDays(14))), eq(0), eq(50)))
+                .thenReturn(ids(3));
+        when(riotApiClient.matchIds(PUUID, null, 0, 20)).thenReturn(ids(20));
+        when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
+        when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
+
+        HistorySyncReport rapport = service.sync(PUUID);
+
+        assertThat(rapport.idsSeen()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("un curseur plus vieux que la fenêtre ne fait pas remonter au-delà")
+    void curseurAncienBorneParLaFenetre() {
+        when(cursors.findById(PUUID)).thenReturn(Optional.of(new PlayerHistoryCursor(PUUID,
+                MAINTENANT.minus(Duration.ofDays(90)), MAINTENANT.minus(Duration.ofDays(60)), null)));
         when(riotApiClient.matchIds(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         when(playerMatches.findByPuuidAndPlayedAtIsNull(PUUID)).thenReturn(List.of());
         when(playerMatches.findFirstByPuuidAndPlayedAtNotNullOrderByPlayedAtDesc(PUUID)).thenReturn(Optional.empty());
 
         HistorySyncReport rapport = service.sync(PUUID);
 
-        assertThat(rapport.queriedFrom()).isEqualTo(MAINTENANT.minus(Duration.ofDays(365)));
+        assertThat(rapport.queriedFrom()).isEqualTo(MAINTENANT.minus(Duration.ofDays(14)));
+        verify(riotApiClient, never()).matchIds(PUUID, null, 0, 20);
+    }
+
+    private static List<String> ids(int count) {
+        return java.util.stream.IntStream.range(0, count).mapToObj(i -> "EUW1_" + (1000 + i)).toList();
     }
 
     @Test

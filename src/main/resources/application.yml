@@ -49,13 +49,17 @@ riot:
     # Une partie peut apparaître dans l'historique avec du retard.
     history-overlap: 1h
     history-freshness: 15m
-    history-depth: 365d
     ranking-ttl: 1h
     mastery-ttl: 6h
     game-version-ttl: 6h
     id-page-size: 100
-    max-id-pages: 50
     max-details-per-call: 60
+
+  # Fenêtre du premier relevé d'un joueur ; réglable ensuite depuis Schub › Configuration › Collecte.
+  history:
+    max-games: ${RIOT_HISTORY_MAX_GAMES:50}
+    max-age-days: ${RIOT_HISTORY_MAX_AGE_DAYS:14}
+    min-games: ${RIOT_HISTORY_MIN_GAMES:20}
 
   ingest:
     enabled: ${RIOT_INGEST_ENABLED:true}

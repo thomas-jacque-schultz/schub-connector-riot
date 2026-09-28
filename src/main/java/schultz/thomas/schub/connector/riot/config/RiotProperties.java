@@ -38,6 +38,8 @@ public class RiotProperties {
 
     private final Sampling sampling = new Sampling();
 
+    private final History history = new History();
+
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
     }
@@ -176,6 +178,18 @@ public class RiotProperties {
         private int maxPage = 50;
     }
 
+    // Valeurs par défaut : l'owner les règle depuis Schub (riot_history_window).
+    @Data
+    public static class History {
+
+        private int maxGames = 50;
+
+        private int maxAgeDays = 14;
+
+        // Plancher pour un joueur qui joue peu : ses N dernières parties, même au-delà de maxAgeDays.
+        private int minGames = 20;
+    }
+
     @Data
     public static class Cache {
 
@@ -183,8 +197,6 @@ public class RiotProperties {
         private Duration historyOverlap = Duration.ofHours(1);
 
         private Duration historyFreshness = Duration.ofMinutes(15);
-
-        private Duration historyDepth = Duration.ofDays(365);
 
         private Duration rankingTtl = Duration.ofHours(1);
 
@@ -194,8 +206,6 @@ public class RiotProperties {
 
         // Maximum Riot : 100.
         private int idPageSize = 100;
-
-        private int maxIdPages = 50;
 
         private int maxDetailsPerCall = 60;
     }

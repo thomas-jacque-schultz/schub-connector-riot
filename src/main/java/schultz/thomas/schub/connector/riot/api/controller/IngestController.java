@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
+import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
 import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.IngestSummary;
 import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
@@ -20,6 +21,7 @@ import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
+import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
@@ -41,6 +43,7 @@ public class IngestController {
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
     private final IngestSummaryService summaryService;
+    private final HistoryWindowService historyWindow;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -85,6 +88,20 @@ public class IngestController {
     @PutMapping("/crawler")
     public CrawlerStatus toggleCrawler(@RequestBody CrawlerToggleRequest request) {
         return crawler.toggle(request.enabled());
+    }
+
+    @Operation(summary = "La fenêtre du premier relevé d'un joueur")
+    @GetMapping("/history-window")
+    public HistoryWindow historyWindow() {
+        return historyWindow.current();
+    }
+
+    @Operation(summary = "Régler la fenêtre du premier relevé",
+            description = "Les détails de fond déjà en file sont abandonnés, et leurs joueurs relevés de nouveau "
+                    + "dans la nouvelle fenêtre. 400 hors des bornes.")
+    @PutMapping("/history-window")
+    public HistoryWindow updateHistoryWindow(@RequestBody HistoryWindow window) {
+        return historyWindow.update(window);
     }
 
     @Operation(summary = "Où en est la collecte d'un joueur",
