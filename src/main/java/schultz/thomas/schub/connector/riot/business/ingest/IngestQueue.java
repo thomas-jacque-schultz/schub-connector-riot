@@ -2,6 +2,8 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -27,6 +29,18 @@ public class IngestQueue {
 
     private final MongoTemplate mongo;
     private final Clock clock;
+
+    // Une seule réplique, arrêtée avant sa relève : au démarrage, une tâche en cours est celle d'un processus mort.
+    // Elle repart tout de suite plutôt qu'au bout de son bail, qui bloquerait une maintenance un quart d'heure.
+    @EventListener(ApplicationReadyEvent.class)
+    public void requeueOrphans() {
+        long orphelines = mongo.updateMulti(Query.query(Criteria.where("state").is(IngestTaskState.RUNNING)),
+                new Update().set("state", IngestTaskState.PENDING).unset("leaseUntil"), IngestTask.class)
+                .getModifiedCount();
+        if (orphelines > 0) {
+            log.info("{} tâche(s) laissée(s) en cours par le processus précédent : remises en file.", orphelines);
+        }
+    }
 
     public boolean enqueue(IngestTaskType type, String key, String puuid, long priority) {
         return enqueue(type, key, puuid, priority, clock.instant());
