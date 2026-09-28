@@ -13,6 +13,7 @@ import java.util.Objects;
 // Riot ne sert que le rang courant : un rang non relevé à l'époque d'une partie est perdu.
 @Document(RankSpan.COLLECTION)
 @CompoundIndex(name = "puuid_queue_lastSeenAt", def = "{'puuid': 1, 'queue': 1, 'lastSeenAt': -1}")
+@CompoundIndex(name = "queue_tier_lastSeenAt", def = "{'queue': 1, 'tier': 1, 'lastSeenAt': -1}")
 public record RankSpan(
         @Id String id,
         String puuid,

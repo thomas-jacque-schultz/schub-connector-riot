@@ -6,12 +6,14 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
+import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
 import schultz.thomas.schub.connector.riot.business.exceptions.CrawlerLockedException;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CrawlerSetting;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.data.repository.CrawlerSettingRepository;
 import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
 import schultz.thomas.schub.connector.riot.data.repository.KnownAccountRepository;
@@ -22,15 +24,21 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-// Comptes croisés les plus récemment d'abord : ce sont ceux qui rejoindront le plus probablement Schub.
+// La largeur avant la profondeur : chaque tour prend des joueurs de chaque palier, puis complète avec les comptes croisés
+// le plus récemment, ceux qui rejoindront le plus probablement Schub.
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class BackgroundCrawler {
 
     private static final Duration MESURE_VALIDE = Duration.ofMinutes(1);
+    private static final List<List<String>> PALIERS = List.of(List.of("IRON"), List.of("BRONZE"), List.of("SILVER"),
+            List.of("GOLD"), List.of("PLATINUM"), List.of("EMERALD"), List.of("DIAMOND"),
+            List.of("MASTER", "GRANDMASTER", "CHALLENGER"));
 
     private final RiotProperties properties;
     private final CrawlerSettingRepository settings;
@@ -117,16 +125,38 @@ public class BackgroundCrawler {
 
     private List<String> aRelever(RiotProperties.Crawler config) {
         Date seuil = Date.from(clock.instant().minus(config.getRefreshAfter()));
-        List<Document> pipeline = List.of(
+        int total = config.getAccountsPerRound();
+        int parPalier = Math.max(1, total / (PALIERS.size() + 1));
+
+        Set<String> choisis = new LinkedHashSet<>();
+        for (List<String> ligues : PALIERS) {
+            choisis.addAll(aRelever(RankSpan.COLLECTION, List.of(
+                    new Document("$match", new Document("queue", QueueKind.RANKED_SOLO.name())
+                            .append("tier", new Document("$in", ligues))),
+                    new Document("$sort", new Document("lastSeenAt", -1)),
+                    new Document("$project", new Document("_id", "$puuid"))), parPalier, seuil));
+        }
+        for (String puuid : aRelever("riot_known_account", List.of(
                 new Document("$sort", new Document("observedAt", -1)),
-                new Document("$lookup", new Document("from", "riot_player_cursor")
-                        .append("localField", "_id").append("foreignField", "_id").append("as", "cursor")),
-                new Document("$match", new Document("$or", List.of(
-                        new Document("cursor", new Document("$size", 0)),
-                        new Document("cursor.lastSyncStartedAt", new Document("$lt", seuil))))),
-                new Document("$limit", config.getAccountsPerRound()),
-                new Document("$project", new Document("_id", 1)));
-        return mongo.getCollection("riot_known_account").aggregate(pipeline).allowDiskUse(true)
+                new Document("$project", new Document("_id", 1))), total, seuil)) {
+            if (choisis.size() >= total) {
+                break;
+            }
+            choisis.add(puuid);
+        }
+        return List.copyOf(choisis);
+    }
+
+    private List<String> aRelever(String collection, List<Document> candidats, int limite, Date seuil) {
+        List<Document> pipeline = new ArrayList<>(candidats);
+        pipeline.add(new Document("$lookup", new Document("from", "riot_player_cursor")
+                .append("localField", "_id").append("foreignField", "_id").append("as", "cursor")));
+        pipeline.add(new Document("$match", new Document("$or", List.of(
+                new Document("cursor", new Document("$size", 0)),
+                new Document("cursor.lastSyncStartedAt", new Document("$lt", seuil))))));
+        pipeline.add(new Document("$limit", limite));
+        pipeline.add(new Document("$project", new Document("_id", 1)));
+        return mongo.getCollection(collection).aggregate(pipeline).allowDiskUse(true)
                 .map(document -> document.getString("_id"))
                 .into(new ArrayList<>());
     }
