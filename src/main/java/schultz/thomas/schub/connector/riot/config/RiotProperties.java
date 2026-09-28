@@ -82,8 +82,6 @@ public class RiotProperties {
 
         private int interactiveReserve = 10;
 
-        private Duration interactiveReserveIdle = Duration.ofMinutes(1);
-
         // Limites propres à chaque route, relevées sur le portail développeur le 2026-09-23. Une route absente
         // n'a que la limite de l'application.
         private Map<String, List<Window>> methods = new HashMap<>(Map.of(
