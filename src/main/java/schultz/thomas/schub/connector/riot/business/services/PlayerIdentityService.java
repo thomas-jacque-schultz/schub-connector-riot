@@ -35,10 +35,10 @@ public class PlayerIdentityService {
     // Un Riot ID relevé dans une partie ancienne a pu changer depuis : Riot ne le connaît plus, mais le puuid est stable.
     // Le nom actuel du joueur est rendu, et l'observation corrige l'index de recherche.
     private Optional<PlayerIdentity> renomme(String gameName, String tagLine) {
-        return knownAccounts.withRiotId(gameName, tagLine).stream().findFirst()
-                .flatMap(compte -> {
+        return knownAccounts.puuidsSeenAs(gameName, tagLine).stream().findFirst()
+                .flatMap(puuid -> {
                     try {
-                        return riotApiClient.accountByPuuid(compte.puuid()).map(mapper::toIdentity);
+                        return riotApiClient.accountByPuuid(puuid).map(mapper::toIdentity);
                     } catch (StalePuuidException autreCle) {
                         return Optional.empty();
                     }

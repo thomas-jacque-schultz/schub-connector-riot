@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 @Service
 public class KnownAccountIndex {
 
+    private static final int RENOMMES_LUS = 20;
+
     private static final int LOT = 500;
 
     private final KnownAccountRepository accounts;
@@ -60,15 +62,19 @@ public class KnownAccountIndex {
                 .findFirst();
     }
 
-    // Tous les comptes vus sous ce Riot ID, le plus récent d'abord : un pseudo abandonné peut être repris par un autre.
-    public List<KnownAccount> withRiotId(String gameName, String tagLine) {
+    // Les puuid vus en partie sous ce Riot ID, le plus récent d'abord. Les participations gardent le nom porté à chaque
+    // partie : l'index des comptes, lui, l'oublie dès que le joueur est observé sous son nouveau nom.
+    public List<String> puuidsSeenAs(String gameName, String tagLine) {
         String cle = SearchName.fold(gameName);
         if (cle == null || tagLine == null) {
             return List.of();
         }
-        return mongo.find(Query.query(Criteria.where("searchName").is(cle))
-                        .with(Sort.by(Sort.Direction.DESC, "observedAt")), KnownAccount.class).stream()
-                .filter(compte -> tagLine.equalsIgnoreCase(compte.tagLine()))
+        Query requete = Query.query(Criteria.where("searchName").is(cle))
+                .with(Sort.by(Sort.Direction.DESC, "startedAt")).limit(RENOMMES_LUS);
+        return mongo.find(requete, MatchParticipation.class).stream()
+                .filter(ligne -> tagLine.equalsIgnoreCase(ligne.tagLine()))
+                .map(MatchParticipation::puuid)
+                .distinct()
                 .toList();
     }
 
