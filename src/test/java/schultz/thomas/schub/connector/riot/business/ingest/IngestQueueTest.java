@@ -67,6 +67,21 @@ class IngestQueueTest {
     }
 
     @Test
+    @DisplayName("au démarrage, toute tâche en cours est remise en file, bail expiré ou non")
+    void remetEnFileAuDemarrage() {
+        when(mongo.updateMulti(any(Query.class), any(UpdateDefinition.class), eq(IngestTask.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(16, 16L, null));
+
+        queue.requeueOrphans();
+
+        ArgumentCaptor<Query> enCours = ArgumentCaptor.forClass(Query.class);
+        ArgumentCaptor<UpdateDefinition> remise = ArgumentCaptor.forClass(UpdateDefinition.class);
+        verify(mongo).updateMulti(enCours.capture(), remise.capture(), eq(IngestTask.class));
+        assertThat(enCours.getValue().getQueryObject().toString()).contains("RUNNING").doesNotContain("leaseUntil");
+        assertThat(remise.getValue().getUpdateObject().toString()).contains("PENDING");
+    }
+
+    @Test
     @DisplayName("sans la collecte de fond, les priorités négatives ne sont pas réclamables")
     void excluLaCollecteDeFond() {
         queue.claim(Duration.ofMinutes(15), false);
