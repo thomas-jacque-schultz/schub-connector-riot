@@ -46,14 +46,14 @@ public class KnownAccountIndex {
     private final Clock clock;
 
     // La résolution la plus récente de ce Riot ID, si elle date de moins de maxAge.
-    public Optional<KnownAccount> recentResolution(String gameName, String tagLine, Duration maxAge) {
+    // Résolution ou participation : les comptes d'un puuid refusé par Riot sont effacés de l'index.
+    public Optional<KnownAccount> recentObservation(String gameName, String tagLine, Duration maxAge) {
         String cle = SearchName.fold(gameName);
         if (cle == null || tagLine == null) {
             return Optional.empty();
         }
         Instant depuis = clock.instant().minus(maxAge);
         return mongo.find(Query.query(Criteria.where("searchName").is(cle)
-                                .and("source").is(KnownAccountSource.RESOLUTION)
                                 .and("observedAt").gte(depuis))
                         .with(Sort.by(Sort.Direction.DESC, "observedAt")), KnownAccount.class).stream()
                 .filter(compte -> tagLine.equalsIgnoreCase(compte.tagLine()))

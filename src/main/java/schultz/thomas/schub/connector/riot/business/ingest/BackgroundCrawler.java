@@ -154,6 +154,9 @@ public class BackgroundCrawler {
         pipeline.add(new Document("$match", new Document("$or", List.of(
                 new Document("cursor", new Document("$size", 0)),
                 new Document("cursor.lastSyncStartedAt", new Document("$lt", seuil))))));
+        pipeline.add(new Document("$lookup", new Document("from", "riot_puuid_check")
+                .append("localField", "_id").append("foreignField", "_id").append("as", "check")));
+        pipeline.add(new Document("$match", new Document("check.valid", new Document("$ne", false))));
         pipeline.add(new Document("$limit", limite));
         pipeline.add(new Document("$project", new Document("_id", 1)));
         return mongo.getCollection(collection).aggregate(pipeline).allowDiskUse(true)

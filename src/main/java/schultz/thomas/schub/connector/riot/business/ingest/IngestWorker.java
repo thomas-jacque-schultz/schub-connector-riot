@@ -6,12 +6,15 @@ import org.springframework.stereotype.Component;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
+import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
+import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -32,6 +35,8 @@ public class IngestWorker {
     private final MatchDetailService matchDetailService;
     private final MatchEnrichmentService enrichment;
     private final RankingService rankingService;
+    private final ChampionMasteryService masteryService;
+    private final PuuidValidityService validity;
     private final RiotProperties properties;
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
@@ -66,6 +71,10 @@ public class IngestWorker {
             queue.complete(task);
             throughput.record();
             return true;
+        } catch (StalePuuidException perime) {
+            validity.markStale(perime.getPuuid());
+            queue.complete(task);
+            return true;
         } catch (RiotQuotaExceededException saturated) {
             queue.release(task, config.getQuotaBackoff());
             log.info("Quota saturé, ingestion suspendue : {}", saturated.getMessage());
@@ -86,6 +95,9 @@ public class IngestWorker {
             case PLAYER_IDS -> collectIds(task);
             case PLAYER_PREVIEW -> collectPreview(task, false);
             case PLAYER_PREVIEW_SLOW -> collectPreview(task, true);
+            case PLAYER_RANK -> rankingService.rankings(task.key());
+            case PLAYER_MASTERY -> masteryService.refresh(task.key());
+            case PUUID_CHECK -> validity.verify(task.key());
             case MATCH_DETAIL -> collectDetail(task);
             case MATCH_TIMELINE -> enrichment.collectTimeline(task.key());
             case MATCH_TIMELINE_DIGEST -> enrichment.collectDigest(task.key());
@@ -117,7 +129,7 @@ public class IngestWorker {
     private void releveRang(String puuid) {
         try {
             rankingService.rankings(puuid);
-        } catch (RiotQuotaExceededException | RiotKeyMissingException bloquant) {
+        } catch (RiotQuotaExceededException | RiotKeyMissingException | StalePuuidException bloquant) {
             throw bloquant;
         } catch (RuntimeException failure) {
             log.debug("Rang non relevé pour un compte collecté : {}", failure.getMessage());

@@ -12,6 +12,7 @@ import org.springframework.web.util.UriBuilder;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.quota.MethodRateLimiter;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 // account-v1 et match-v5 : route régionale (europe). league-v4 et champion-mastery-v4 : plateforme (euw1).
 // Mauvais hôte = 403, qui ressemble à une clé invalide (vérifié le 18-09).
@@ -80,14 +82,14 @@ public class RiotApiClient {
     }
 
     public Optional<RiotAccountResponse> accountByPuuid(String puuid) {
-        return call(regional, RiotMethods.ACCOUNT, "account-v1 by-puuid", ACCOUNT, uri -> uri
+        return byPuuid(puuid, () -> call(regional, RiotMethods.ACCOUNT, "account-v1 by-puuid", ACCOUNT, uri -> uri
                 .path("/riot/account/v1/accounts/by-puuid/{puuid}")
-                .build(puuid));
+                .build(puuid)));
     }
 
     // startTime en secondes depuis l'époque, contrairement au reste de l'API Riot (millisecondes).
     public List<String> matchIds(String puuid, Instant startTime, int start, int count) {
-        return call(regional, RiotMethods.MATCH_IDS, "match-v5 ids", MATCH_IDS, uri -> {
+        return byPuuid(puuid, () -> call(regional, RiotMethods.MATCH_IDS, "match-v5 ids", MATCH_IDS, uri -> {
             uri.path("/lol/match/v5/matches/by-puuid/{puuid}/ids")
                     .queryParam("start", start)
                     .queryParam("count", count);
@@ -95,7 +97,7 @@ public class RiotApiClient {
                 uri.queryParam("startTime", startTime.getEpochSecond());
             }
             return uri.build(puuid);
-        }).orElseGet(List::of);
+        }).orElseGet(List::of));
     }
 
     // JSON non typé : ce qui n'est pas déclaré serait perdu, et Riot ne garde pas l'historique.
@@ -113,18 +115,18 @@ public class RiotApiClient {
     }
 
     public List<RiotLeagueEntryResponse> leagueEntries(String puuid) {
-        return call(platform, RiotMethods.LEAGUE_ENTRIES, "league-v4 entries", LEAGUE_ENTRIES, uri -> uri
+        return byPuuid(puuid, () -> call(platform, RiotMethods.LEAGUE_ENTRIES, "league-v4 entries", LEAGUE_ENTRIES, uri -> uri
                 .path("/lol/league/v4/entries/by-puuid/{puuid}")
-                .build(puuid)).orElseGet(List::of);
+                .build(puuid)).orElseGet(List::of));
     }
 
     public List<String> rankedMatchIds(String puuid, int queueId, int count) {
-        return call(regional, RiotMethods.MATCH_IDS, "match-v5 ids", MATCH_IDS, uri -> uri
+        return byPuuid(puuid, () -> call(regional, RiotMethods.MATCH_IDS, "match-v5 ids", MATCH_IDS, uri -> uri
                 .path("/lol/match/v5/matches/by-puuid/{puuid}/ids")
                 .queryParam("queue", queueId)
                 .queryParam("start", 0)
                 .queryParam("count", count)
-                .build(puuid)).orElseGet(List::of);
+                .build(puuid)).orElseGet(List::of));
     }
 
     // 205 joueurs par page avec leur puuid (vérifié le 23-09) ; au-delà de la dernière page, une liste vide.
@@ -155,9 +157,17 @@ public class RiotApiClient {
     }
 
     public List<RiotChampionMasteryResponse> masteries(String puuid) {
-        return call(platform, RiotMethods.MASTERY, "champion-mastery-v4", MASTERIES, uri -> uri
+        return byPuuid(puuid, () -> call(platform, RiotMethods.MASTERY, "champion-mastery-v4", MASTERIES, uri -> uri
                 .path("/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}")
-                .build(puuid)).orElseGet(List::of);
+                .build(puuid)).orElseGet(List::of));
+    }
+
+    private static <T> T byPuuid(String puuid, Supplier<T> appel) {
+        try {
+            return appel.get();
+        } catch (RejectedException refus) {
+            throw new StalePuuidException(puuid, refus.getMessage());
+        }
     }
 
     // Un 429 suspend puis reprend : réessayer aussitôt aggrave, les requêtes refusées comptent dans le quota.
@@ -187,6 +197,7 @@ public class RiotApiClient {
                     }
                     log.info("{} : 429, reprise dans {} (tentative {}).", label, result.retryAfter(), attempt + 1);
                 }
+                case REJECTED -> throw new RejectedException(label + " : " + result.message());
                 case FAILED -> throw new RiotApiException(label + " : " + result.message());
                 default -> throw new IllegalStateException("Issue d'appel non couverte.");
             }
@@ -217,6 +228,9 @@ public class RiotApiClient {
                             String portee = response.getHeaders().getFirst(RATE_LIMIT_TYPE);
                             return new Attempt<T>(null, Outcome.RATE_LIMITED, retryAfter(response.getHeaders()), null,
                                     portee == null || "application".equalsIgnoreCase(portee));
+                        }
+                        if (status == 400) {
+                            return new Attempt<T>(null, Outcome.REJECTED, Duration.ZERO, "HTTP 400", false);
                         }
                         if (status >= 400) {
                             return new Attempt<T>(null, Outcome.FAILED, Duration.ZERO,
@@ -258,7 +272,14 @@ public class RiotApiClient {
         }
     }
 
-    private enum Outcome { OK, NOT_FOUND, RATE_LIMITED, FAILED }
+    private enum Outcome { OK, NOT_FOUND, RATE_LIMITED, REJECTED, FAILED }
+
+    private static final class RejectedException extends RiotApiException {
+
+        private RejectedException(String message) {
+            super(message);
+        }
+    }
 
     private record Attempt<T>(T body, Outcome outcome, Duration retryAfter, String message, boolean applicationWide) {
     }

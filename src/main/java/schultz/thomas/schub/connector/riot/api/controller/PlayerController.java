@@ -182,7 +182,7 @@ public class PlayerController {
                     qui dit l'âge de ce qu'on affiche.""")
     @GetMapping("/{puuid}/rankings")
     public List<RankedStanding> rankings(@PathVariable String puuid) {
-        return rankingService.rankings(puuid);
+        return rankingService.current(puuid);
     }
 
     @Operation(summary = "Maîtrises de champions d'un joueur",
@@ -198,6 +198,6 @@ public class PlayerController {
             @PathVariable String puuid,
             @Parameter(description = "Nombre de champions rendus. Absent = tous.", example = "10")
             @RequestParam(required = false) Integer limit) {
-        return masteryService.masteries(puuid, limit);
+        return masteryService.current(puuid, limit);
     }
 }

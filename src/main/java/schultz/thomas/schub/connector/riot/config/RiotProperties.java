@@ -200,6 +200,9 @@ public class RiotProperties {
 
         private Duration rankingTtl = Duration.ofHours(1);
 
+        // Au-delà, l'écran sert quand même le dernier relevé et une actualisation part en file.
+        private Duration rankingRefreshAfter = Duration.ofHours(6);
+
         private Duration masteryTtl = Duration.ofHours(6);
 
         private Duration gameVersionTtl = Duration.ofHours(6);

@@ -9,12 +9,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLane;
 import schultz.thomas.schub.connector.riot.business.quota.QuotaLaneContext;
 import schultz.thomas.schub.connector.riot.business.services.IdSyncResult;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
+import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
+import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -51,13 +54,15 @@ class IngestWorkerTest {
     @Mock private RankingService rankingService;
     @Mock private BackgroundCrawler crawler;
     @Mock private LadderSampler sampler;
+    @Mock private ChampionMasteryService masteryService;
+    @Mock private PuuidValidityService validity;
 
     private IngestWorker worker;
 
     @BeforeEach
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
-                enrichment, rankingService, new RiotProperties(), crawler, sampler,
+                enrichment, rankingService, masteryService, validity, new RiotProperties(), crawler, sampler,
                 new IngestThroughput(java.time.Clock.systemUTC()));
     }
 
@@ -171,6 +176,21 @@ class IngestWorkerTest {
 
         assertThat(vue.get()).isEqualTo(QuotaLane.BULK);
         assertThat(QuotaLaneContext.current()).isEqualTo(QuotaLane.INTERACTIVE);
+    }
+
+    @Test
+    @DisplayName("un puuid refusé par Riot est oublié, et sa tâche n'est pas réessayée")
+    void unPuuidRefuseEstOublie() {
+        IngestTask releve = new IngestTask("PLAYER_IDS:p1", IngestTaskType.PLAYER_IDS, "p1", "p1",
+                IngestTaskState.RUNNING, -1L, MAINTENANT, MAINTENANT, MAINTENANT, 0, null);
+        when(queue.claim(any(), anyBoolean())).thenReturn(Optional.of(releve), Optional.empty());
+        when(historyService.syncIds("p1")).thenThrow(new StalePuuidException("p1", "HTTP 400"));
+
+        worker.drain();
+
+        verify(validity).markStale("p1");
+        verify(queue).complete(releve);
+        verify(queue, never()).fail(any(), anyString(), anyInt(), any());
     }
 
     private IngestTask detailTask() {

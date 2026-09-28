@@ -1,5 +1,6 @@
 package schultz.thomas.schub.connector.riot.api.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -15,12 +16,26 @@ import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusy
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
+import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
 
 import java.time.Duration;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class RiotExceptionHandler {
+
+    private final PuuidValidityService validity;
+
+    // 410 : le cœur doit résoudre de nouveau le Riot ID, ce puuid ne servira plus.
+    @ExceptionHandler(StalePuuidException.class)
+    public ProblemDetail handleStalePuuid(StalePuuidException exception) {
+        validity.markStale(exception.getPuuid());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.GONE, exception.getMessage());
+        detail.setTitle("Puuid relevé avec une autre clé");
+        return detail;
+    }
 
     @ExceptionHandler(RiotResourceNotFoundException.class)
     public ProblemDetail handleNotFound(RiotResourceNotFoundException exception) {

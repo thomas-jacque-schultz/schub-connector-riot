@@ -6,9 +6,12 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedRanking;
+import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedRankingRepository;
 
 import java.time.Clock;
@@ -26,7 +29,20 @@ public class RankingService {
     private final RiotStatsMapper mapper;
     private final RiotProperties properties;
     private final RankHistory history;
+    private final IngestQueue queue;
     private final Clock clock;
+
+    // Pour un écran : le dernier relevé sans attendre Riot ; Riot n'est appelé en direct que pour un joueur jamais relevé.
+    public List<RankedStanding> current(String puuid) {
+        Optional<CachedRanking> cached = rankings.findById(puuid);
+        if (cached.isEmpty()) {
+            return rankings(puuid);
+        }
+        if (cached.get().fetchedAt().plus(properties.getCache().getRankingRefreshAfter()).isBefore(clock.instant())) {
+            queue.enqueue(IngestTaskType.PLAYER_RANK, puuid, puuid, 0);
+        }
+        return cached.get().standings();
+    }
 
     public List<RankedStanding> rankings(String puuid) {
         Instant now = clock.instant();
@@ -44,6 +60,8 @@ public class RankingService {
             rankings.save(new CachedRanking(puuid, fresh, now));
             history.record(puuid, fresh);
             return fresh;
+        } catch (StalePuuidException perime) {
+            throw perime;
         } catch (RuntimeException failure) {
             if (cached.isPresent()) {
                 log.warn("Classement indisponible pour ce joueur, relevé du {} servi : {}",

@@ -6,9 +6,12 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMastery;
+import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMasteryRepository;
 
 import java.time.Clock;
@@ -28,10 +31,30 @@ public class ChampionMasteryService {
     private final ChampionCatalogService catalogService;
     private final RiotStatsMapper mapper;
     private final RiotProperties properties;
+    private final IngestQueue queue;
     private final Clock clock;
 
+    // Pour un écran : le dernier relevé sans attendre Riot, actualisé en file s'il a vieilli.
+    public List<ChampionMastery> current(String puuid, Integer limit) {
+        Optional<CachedMastery> cached = masteries.findById(puuid);
+        if (cached.isEmpty()) {
+            return masteries(puuid, limit);
+        }
+        if (cached.get().fetchedAt().plus(properties.getCache().getMasteryTtl()).isBefore(clock.instant())) {
+            queue.enqueue(IngestTaskType.PLAYER_MASTERY, puuid, puuid, 0);
+        }
+        return borne(cached.get().masteries(), limit);
+    }
+
+    public void refresh(String puuid) {
+        allMasteries(puuid);
+    }
+
     public List<ChampionMastery> masteries(String puuid, Integer limit) {
-        List<ChampionMastery> all = allMasteries(puuid);
+        return borne(allMasteries(puuid), limit);
+    }
+
+    private static List<ChampionMastery> borne(List<ChampionMastery> all, Integer limit) {
         if (limit == null || limit <= 0 || limit >= all.size()) {
             return all;
         }
@@ -55,6 +78,8 @@ public class ChampionMasteryService {
                     .toList();
             masteries.save(new CachedMastery(puuid, fresh, now));
             return fresh;
+        } catch (StalePuuidException perime) {
+            throw perime;
         } catch (RuntimeException failure) {
             if (cached.isPresent()) {
                 log.warn("Maîtrises indisponibles pour ce joueur, relevé du {} servi : {}",
