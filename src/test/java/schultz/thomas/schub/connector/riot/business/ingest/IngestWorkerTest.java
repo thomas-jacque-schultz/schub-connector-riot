@@ -56,6 +56,7 @@ class IngestWorkerTest {
     @Mock private LadderSampler sampler;
     @Mock private ChampionMasteryService masteryService;
     @Mock private PuuidValidityService validity;
+    @Mock private IngestPause pause;
 
     private IngestWorker worker;
 
@@ -63,7 +64,17 @@ class IngestWorkerTest {
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
                 enrichment, rankingService, masteryService, validity, new RiotProperties(), crawler, sampler,
-                new IngestThroughput(java.time.Clock.systemUTC()));
+                new IngestThroughput(java.time.Clock.systemUTC()), pause);
+    }
+
+    @Test
+    @DisplayName("en pause, l'ouvrier ne prend aucune tâche, même prioritaire")
+    void enPauseAucuneTache() {
+        when(pause.paused()).thenReturn(true);
+
+        worker.drain();
+
+        verify(queue, never()).claim(any(), anyBoolean());
     }
 
     @Test
