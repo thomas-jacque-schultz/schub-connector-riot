@@ -24,9 +24,11 @@ import schultz.thomas.schub.connector.riot.data.model.riot.RiotChampionMasteryRe
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueEntryResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueListResponse;
 
+import java.math.BigInteger;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,14 +106,35 @@ public class RiotApiClient {
     public Optional<Document> match(String matchId) {
         return call(regional, RiotMethods.MATCH, "match-v5 match", MATCH, uri -> uri
                 .path("/lol/match/v5/matches/{matchId}")
-                .build(matchId)).map(Document::new);
+                .build(matchId)).map(RiotApiClient::enDocument);
     }
 
     // Même politique que la partie : le brut entier, faute de pouvoir le redemander un jour.
     public Optional<Document> timeline(String matchId) {
         return call(regional, RiotMethods.TIMELINE, "match-v5 timeline", MATCH, uri -> uri
                 .path("/lol/match/v5/matches/{matchId}/timeline")
-                .build(matchId)).map(Document::new);
+                .build(matchId)).map(RiotApiClient::enDocument);
+    }
+
+    // Jackson lit en BigInteger un entier au-delà de Long, que le pilote Mongo refuse d'écrire : la partie était perdue.
+    static Document enDocument(Map<String, Object> brut) {
+        Map<String, Object> copie = new LinkedHashMap<>();
+        brut.forEach((cle, valeur) -> copie.put(cle, bsonSur(valeur)));
+        return new Document(copie);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object bsonSur(Object valeur) {
+        if (valeur instanceof BigInteger grand) {
+            return grand.doubleValue();
+        }
+        if (valeur instanceof Map<?, ?> objet) {
+            return enDocument((Map<String, Object>) objet);
+        }
+        if (valeur instanceof List<?> liste) {
+            return liste.stream().map(RiotApiClient::bsonSur).toList();
+        }
+        return valeur;
     }
 
     public List<RiotLeagueEntryResponse> leagueEntries(String puuid) {
