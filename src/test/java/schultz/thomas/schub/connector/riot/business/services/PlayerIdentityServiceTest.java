@@ -11,8 +11,13 @@ import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
+import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +50,21 @@ class PlayerIdentityServiceTest {
         assertThat(service.resolve("Thomas", "EUW").puuid()).isEqualTo("p1");
 
         verify(knownAccounts).observeResolution("p1", "Thomas", "EUW");
+    }
+
+    @Test
+    @DisplayName("un Riot ID abandonné depuis, mais relevé en partie, rend le nom actuel du joueur et corrige l'index")
+    void rendLeNomActuelDUnJoueurRenomme() {
+        when(riotApiClient.accountByRiotId("MimiQueue", "PIKA")).thenReturn(Optional.empty());
+        when(knownAccounts.withRiotId("MimiQueue", "PIKA")).thenReturn(List.of(new KnownAccount("p1", "MimiQueue",
+                "PIKA", "mimiqueue", Instant.parse("2026-09-14T20:24:11Z"), KnownAccountSource.PARTICIPATION)));
+        when(riotApiClient.accountByPuuid("p1")).thenReturn(Optional.of(new RiotAccountResponse("p1", "Memero", "MIAM")));
+
+        PlayerIdentity identite = service.resolve("MimiQueue", "PIKA");
+
+        assertThat(identite.gameName()).isEqualTo("Memero");
+        assertThat(identite.tagLine()).isEqualTo("MIAM");
+        verify(knownAccounts).observeResolution("p1", "Memero", "MIAM");
     }
 
     @Test
