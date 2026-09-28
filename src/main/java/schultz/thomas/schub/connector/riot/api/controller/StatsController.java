@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,8 +30,10 @@ import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.api.dto.TimelineHabits;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
+import schultz.thomas.schub.connector.riot.business.stats.TimelineHabitService;
 import schultz.thomas.schub.connector.riot.business.stats.MatchMetricsService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
@@ -51,6 +54,7 @@ public class StatsController {
     private final MatchEnrichmentService enrichment;
     private final ReferenceService references;
     private final PatchCalendar patches;
+    private final TimelineHabitService timelineHabits;
     private final MatchMetricsService matchMetrics;
 
     @Operation(summary = "Agréger des participations sur un axe",
@@ -177,5 +181,15 @@ public class StatsController {
     @PostMapping("/references")
     public List<PlayerReferences> references(@Valid @RequestBody ReferencesQuery query) {
         return metricScale.references(query.players());
+    }
+
+    @Operation(summary = "Habitudes de timeline d'un joueur",
+            description = "Moyennes par partie des signaux de timeline (morts isolées, premier mort des combats…) sur ses "
+                    + "30 dernières parties qui ont une timeline. Recalculées à chaque appel.")
+    @GetMapping("/players/{puuid}/timeline-habits")
+    public TimelineHabits timelineHabits(@PathVariable String puuid,
+                                         @RequestParam(required = false)
+                                         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.Instant since) {
+        return timelineHabits.of(puuid, since);
     }
 }
