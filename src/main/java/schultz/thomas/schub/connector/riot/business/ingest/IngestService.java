@@ -44,7 +44,7 @@ public class IngestService {
 
     public IngestEnqueueReport enqueuePreview(String puuid, boolean slow) {
         IngestTaskType type = slow ? IngestTaskType.PLAYER_PREVIEW_SLOW : IngestTaskType.PLAYER_PREVIEW;
-        boolean queued = queue.enqueue(type, puuid, puuid, Long.MAX_VALUE);
+        boolean queued = queue.enqueue(type, puuid, puuid, IngestTask.SEARCHED_PLAYER_PRIORITY);
         return new IngestEnqueueReport(puuid, queued, status());
     }
 
@@ -92,7 +92,7 @@ public class IngestService {
             }
             long sequence = IngestTask.sequenceOf(matchId);
             if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid,
-                    background ? IngestTask.backgroundPriority(sequence) : sequence)) {
+                    background ? IngestTask.backgroundPriority(sequence) : IngestTask.activePriority(sequence))) {
                 queued++;
             }
         }
