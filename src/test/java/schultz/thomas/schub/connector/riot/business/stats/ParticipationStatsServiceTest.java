@@ -113,6 +113,20 @@ class ParticipationStatsServiceTest {
     }
 
     @Test
+    @DisplayName("Restreinte à des parties, l'agrégation ne lit qu'elles ; une liste vide ne lit rien")
+    void restreinteADesParties() {
+        rows();
+        service().aggregate(List.of("p1"), StatsGrouping.OVERALL, StatsScope.ALL, null, List.of("EUW1_1", "EUW1_2"));
+
+        ArgumentCaptor<Aggregation> capture = ArgumentCaptor.forClass(Aggregation.class);
+        verify(mongo).aggregate(capture.capture(), eq(MatchParticipation.class), eq(Document.class));
+        assertThat(capture.getValue().toString()).contains("matchId").contains("EUW1_2");
+
+        assertThat(service().aggregate(List.of("p1"), StatsGrouping.OVERALL, StatsScope.ALL, null, List.of()))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("La Faille ne garde que ses files, et le poste inconnu n'est jamais un groupe")
     void failleEtPosteInconnu() {
         rows();
