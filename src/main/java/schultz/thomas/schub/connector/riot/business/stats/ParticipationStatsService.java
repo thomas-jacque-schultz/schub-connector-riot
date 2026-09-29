@@ -50,8 +50,14 @@ public class ParticipationStatsService {
 
     public List<ParticipationBucket> aggregate(List<String> puuids, StatsGrouping groupBy, StatsScope scope,
                                                Instant since) {
+        return aggregate(puuids, groupBy, scope, since, null);
+    }
+
+    // matchIds null : toutes les parties ; vide : aucune.
+    public List<ParticipationBucket> aggregate(List<String> puuids, StatsGrouping groupBy, StatsScope scope,
+                                               Instant since, List<String> matchIds) {
         List<String> propres = propres(puuids);
-        if (propres.isEmpty()) {
+        if (propres.isEmpty() || (matchIds != null && matchIds.isEmpty())) {
             return List.of();
         }
         GroupOperation group = Aggregation.group("puuid", "statsKey")
@@ -90,7 +96,7 @@ public class ParticipationStatsService {
             group = group.first("championName").as("championName");
         }
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(filtre(propres, since, groupBy, scope)),
+                Aggregation.match(filtre(propres, since, groupBy, scope, matchIds)),
                 context -> new Document("$addFields", new Document("statsKey", cle(groupBy))),
                 group);
 
@@ -231,9 +237,8 @@ public class ParticipationStatsService {
                 : (int) Math.clamp(limit.longValue(), 1, SHARED_MATCHES_LIMIT_MAX);
 
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(parmi == null || parmi.isEmpty()
-                        ? filtre(propres, since, null, StatsScope.ALL)
-                        : filtre(propres, since, null, StatsScope.ALL).and("matchId").in(parmi)),
+                Aggregation.match(filtre(propres, since, null, StatsScope.ALL,
+                        parmi == null || parmi.isEmpty() ? null : parmi)),
                 Aggregation.group("matchId")
                         .count().as("present")
                         .max("startedAt").as("startedAt"),
@@ -292,8 +297,11 @@ public class ParticipationStatsService {
     }
 
     private static Criteria filtre(List<String> puuids, Instant since, StatsGrouping groupBy,
-                                   StatsScope scope) {
+                                   StatsScope scope, List<String> matchIds) {
         Criteria criteria = Criteria.where("puuid").in(puuids);
+        if (matchIds != null) {
+            criteria = criteria.and("matchId").in(matchIds);
+        }
         if (scope == StatsScope.RIFT) {
             criteria = criteria.and("queueId").in(QueueKind.RIFT_QUEUE_IDS);
         }

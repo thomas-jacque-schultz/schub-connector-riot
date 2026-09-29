@@ -3,6 +3,8 @@ package schultz.thomas.schub.connector.riot.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,6 +14,8 @@ public record StatsQuery(
         @NotEmpty List<String> puuids,
         @NotNull StatsGrouping groupBy,
         @Schema(description = "Absente : ALL.") StatsScope scope,
-        @Schema(description = "Absente : tout l'historique connu.") Instant since
+        @Schema(description = "Absente : tout l'historique connu.") Instant since,
+        @Schema(description = "Absente : toutes les parties. Sinon, ces parties seulement (celles d'une équipe).")
+        @Size(max = ParticipationStatsService.SHARED_MATCHES_LIMIT_MAX) List<String> matchIds
 ) {
 }

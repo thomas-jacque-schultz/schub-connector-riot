@@ -72,7 +72,7 @@ public class StatsController {
     @PostMapping("/aggregate")
     public List<ParticipationBucket> aggregate(@Valid @RequestBody StatsQuery query) {
         return statsService.aggregate(query.puuids(), query.groupBy(),
-                query.scope() == null ? StatsScope.ALL : query.scope(), query.since());
+                query.scope() == null ? StatsScope.ALL : query.scope(), query.since(), query.matchIds());
     }
 
     @Operation(summary = "Sur quoi portent les chiffres de ces joueurs",
