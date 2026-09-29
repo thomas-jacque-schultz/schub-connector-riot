@@ -19,6 +19,8 @@ public record SharedMatchPlayer(
         int damageTaken,
         int visionScore,
         boolean afk,
-        @Schema(description = "Faux pour les autres joueurs de la partie, alliés comme adversaires.") boolean requested
+        @Schema(description = "Faux pour les autres joueurs de la partie, alliés comme adversaires.") boolean requested,
+        @Schema(description = "Pseudo#TAG tel que Riot l'a donné pour cette partie. Absent sur les parties anciennes.")
+        String riotId
 ) {
 }

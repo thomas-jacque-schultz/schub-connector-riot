@@ -293,7 +293,7 @@ public class ParticipationStatsService {
         return new SharedMatchPlayer(row.puuid(), row.championId(), row.championName(),
                 row.position(), row.win(), row.side(), row.kills(), row.deaths(), row.assists(),
                 row.minionsKilled(), row.goldEarned(), row.damageToChampions(), row.damageTaken(),
-                row.visionScore(), row.afk(), requested);
+                row.visionScore(), row.afk(), requested, row.riotId());
     }
 
     private static Criteria filtre(List<String> puuids, Instant since, StatsGrouping groupBy,
