@@ -3,8 +3,6 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.index.IndexOperations;
-import org.springframework.data.mongodb.core.index.IndexResolver;
 import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.RiotDataInventory;
@@ -61,13 +59,14 @@ public class RiotDataPurge {
 
     private final MongoTemplate mongo;
     private final IngestPause pause;
+    private final RiotCollections collections;
     private final Clock clock;
 
     public RiotDataInventory inventory() {
         return new RiotDataInventory(compte(), GARDEES.stream().map(mongo::getCollectionName).toList());
     }
 
-    // Supprimer la collection plutôt que ses documents : instantané quel que soit le volume ; les index sont reposés.
+    // Supprimer la collection plutôt que ses documents : instantané quel que soit le volume. Elle renaît en zstd.
     // La file doit être à l'arrêt : un ouvrier en route écrirait dans une collection pas encore réindexée.
     public synchronized RiotDataPurgeReport purge() {
         if (!pause.paused()) {
@@ -79,12 +78,7 @@ public class RiotDataPurge {
         }
         Instant startedAt = clock.instant();
         Map<String, Long> effaces = compte();
-        IndexResolver resolver = IndexResolver.create(mongo.getConverter().getMappingContext());
-        for (Class<?> type : PURGEES) {
-            mongo.dropCollection(type);
-            IndexOperations index = mongo.indexOps(type);
-            resolver.resolveIndexFor(type).forEach(index::ensureIndex);
-        }
+        PURGEES.forEach(collections::recree);
         long total = effaces.values().stream().mapToLong(Long::longValue).sum();
         log.warn("Données Riot effacées : {} documents dans {} collections.", total, effaces.size());
         return new RiotDataPurgeReport(effaces, total, startedAt, clock.instant());
