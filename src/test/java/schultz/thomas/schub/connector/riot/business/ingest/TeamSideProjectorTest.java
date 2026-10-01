@@ -36,7 +36,7 @@ class TeamSideProjectorTest {
                 gank(100, true), gank(100, false), gank(200, true)), List.of(),
                 List.of(new EarlyGame.Objectives(100, 1, 3, 0), new EarlyGame.Objectives(200, 0, 3, 1)));
 
-        List<TeamSide> camps = TeamSideProjector.camps(new MatchEarlyStats("EUW1_1", a15, early, 5), lignes);
+        List<TeamSide> camps = TeamSideProjector.camps(new MatchEarlyStats("EUW1_1", a15, early, null, null, 6), lignes);
 
         TeamSide bleu = camps.stream().filter(camp -> camp.side() == 100).findFirst().orElseThrow();
         assertThat(bleu.goldDiffAt15()).isEqualTo(1000);
@@ -57,7 +57,7 @@ class TeamSideProjectorTest {
         Map<String, MatchInsights.At15> a15 = new HashMap<>();
         IntStream.range(1, 10).forEach(i -> a15.put("p" + i, new MatchInsights.At15(5000, 6000, 100, 2000, 0, 0, 0)));
 
-        TeamSide bleu = TeamSideProjector.camps(new MatchEarlyStats("EUW1_1", a15, null, 5), lignes).getFirst();
+        TeamSide bleu = TeamSideProjector.camps(new MatchEarlyStats("EUW1_1", a15, null, null, null, 6), lignes).getFirst();
 
         assertThat(bleu.goldDiffAt15()).isNull();
         assertThat(bleu.tier()).isNull();

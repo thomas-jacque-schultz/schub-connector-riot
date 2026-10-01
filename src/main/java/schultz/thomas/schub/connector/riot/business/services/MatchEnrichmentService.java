@@ -145,8 +145,8 @@ public class MatchEnrichmentService {
                 .filter(cached -> cached.raw() != null)
                 .map(cached -> decoder.toDetail(cached.raw()).participants())
                 .orElse(List.of());
-        return new MatchEarlyStats(matchId, a15(timeline),
-                EarlyGameAnalyzer.analyse(timeline, participants), MatchEarlyStats.CURRENT_VERSION);
+        return new MatchEarlyStats(matchId, a15(timeline), EarlyGameAnalyzer.analyse(timeline, participants),
+                aLaFin(timeline), objectifsDeFin(timeline), MatchEarlyStats.CURRENT_VERSION);
     }
 
     public void collectRanks(String matchId) {
@@ -182,18 +182,22 @@ public class MatchEnrichmentService {
             MatchEarlyStats debut = parDebut.get(partie.getKey());
             MatchRankSnapshot rangs = parRangs.get(partie.getKey());
             Map<String, MatchInsights.At15> a15 = debut == null ? Map.of() : debut.byPuuid();
+            Map<String, MatchInsights.AtEnd> fin = debut == null || debut.endByPuuid() == null ? Map.of()
+                    : debut.endByPuuid();
             rendus.add(new MatchInsights(
                     partie.getKey(),
                     debut != null,
                     rangs == null ? null : rangs.observedAt(),
                     debut == null ? null : debut.game(),
+                    debut == null ? null : debut.endObjectives(),
                     partie.getValue().stream()
                             .map(place -> {
                                 List<RankedStanding> siens = rangs == null ? List.of()
                                         : rangs.byPuuid().getOrDefault(place.puuid(), List.of());
                                 return new MatchInsights.Participant(place.puuid(), place.side(), place.position(),
                                         place.championId(), file(siens, QueueKind.RANKED_SOLO),
-                                        file(siens, QueueKind.RANKED_FLEX), a15.get(place.puuid()));
+                                        file(siens, QueueKind.RANKED_FLEX), a15.get(place.puuid()),
+                                        fin.get(place.puuid()));
                             })
                             .toList()));
         }
@@ -258,6 +262,62 @@ public class MatchEnrichmentService {
                     siens[0], siens[1], siens[2]));
         }
         return parPuuid;
+    }
+
+    // La dernière image de la timeline tombe sur la fin de la partie.
+    static Map<String, MatchInsights.AtEnd> aLaFin(Map<String, Object> raw) {
+        List<Object> puuids = liste(objet(raw, "metadata"), "participants");
+        List<Object> frames = liste(objet(raw, "info"), "frames");
+        if (puuids.isEmpty() || frames.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, Integer> kills = new HashMap<>();
+        for (Object frame : frames) {
+            for (Object brut : liste(enObjet(frame), "events")) {
+                Map<String, Object> event = enObjet(brut);
+                if ("CHAMPION_KILL".equals(event.get("type"))) {
+                    kills.merge((int) nombre(event, "killerId"), 1, Integer::sum);
+                }
+            }
+        }
+        Map<String, Object> participantFrames = objet(enObjet(frames.getLast()), "participantFrames");
+        Map<String, MatchInsights.AtEnd> parPuuid = new HashMap<>();
+        for (int index = 0; index < puuids.size(); index++) {
+            int participantId = index + 1;
+            Map<String, Object> pf = objet(participantFrames, String.valueOf(participantId));
+            if (!pf.isEmpty()) {
+                parPuuid.put(String.valueOf(puuids.get(index)), new MatchInsights.AtEnd((int) nombre(pf, "totalGold"),
+                        (int) nombre(pf, "xp"), kills.getOrDefault(participantId, 0)));
+            }
+        }
+        return parPuuid;
+    }
+
+    static List<MatchInsights.EndObjectives> objectifsDeFin(Map<String, Object> raw) {
+        List<Object> frames = liste(objet(raw, "info"), "frames");
+        if (frames.isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, int[]> parCamp = new LinkedHashMap<>();
+        parCamp.put(100, new int[2]);
+        parCamp.put(200, new int[2]);
+        for (Object frame : frames) {
+            for (Object brut : liste(enObjet(frame), "events")) {
+                Map<String, Object> event = enObjet(brut);
+                int[] camp = parCamp.get((int) nombre(event, "killerTeamId"));
+                if (camp == null || !"ELITE_MONSTER_KILL".equals(event.get("type"))) {
+                    continue;
+                }
+                if ("DRAGON".equals(event.get("monsterType"))) {
+                    camp[0]++;
+                } else if ("RIFTHERALD".equals(event.get("monsterType"))) {
+                    camp[1]++;
+                }
+            }
+        }
+        return parCamp.entrySet().stream()
+                .map(e -> new MatchInsights.EndObjectives(e.getKey(), e.getValue()[0], e.getValue()[1]))
+                .toList();
     }
 
     @SuppressWarnings("unchecked")
