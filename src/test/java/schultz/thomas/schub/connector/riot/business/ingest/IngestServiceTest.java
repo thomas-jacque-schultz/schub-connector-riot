@@ -78,8 +78,8 @@ class IngestServiceTest {
         service.enqueueDetails("p1", List.of("EUW1_7000000000"), true);
 
         verify(queue).enqueue(eq(IngestTaskType.MATCH_DETAIL), eq("EUW1_7000000000"), eq("p1"),
-                eq(IngestTask.backgroundPriority(7_000_000_000L)));
-        assertThat(IngestTask.backgroundPriority(Long.MAX_VALUE / 4)).isNegative();
+                eq(IngestTask.backgroundPriority(MAINTENANT, 7_000_000_000L)));
+        assertThat(IngestTask.backgroundPriority(MAINTENANT, Long.MAX_VALUE / 4)).isNegative();
     }
 
     @Test
@@ -166,7 +166,7 @@ class IngestServiceTest {
         for (int i = 1; i <= 5; i++) {
             String id = "EUW1_70000000" + (10 + i);
             verify(queue).enqueue(IngestTaskType.MATCH_DETAIL, id, "p1",
-                    IngestTask.backgroundPriority(IngestTask.sequenceOf(id)));
+                    IngestTask.backgroundPriority(MAINTENANT, IngestTask.sequenceOf(id)));
         }
     }
 

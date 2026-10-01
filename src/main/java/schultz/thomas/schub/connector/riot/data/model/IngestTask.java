@@ -33,13 +33,21 @@ public record IngestTask(
     public static final long BACKGROUND_PLAYER_PRIORITY = -1;
     private static final long BACKGROUND_OFFSET = Long.MIN_VALUE / 2;
 
-    public static long backgroundPriority(long priority) {
-        return BACKGROUND_OFFSET + priority;
-    }
 
     // Les parties des graines du ladder passent avant celles de la collecte de fond : ce sont elles qui remplissent les
     // référentiels par palier, et leur nombre est borné. Toujours sous les tâches des pages et des comptes (-1).
     public static final long SAMPLING_OFFSET = Long.MIN_VALUE / 4;
+
+    // Collecte de fond : un compte relevé plus tôt se termine avant qu'un autre commence (riot#37), ses parties de la
+    // plus récente à la plus ancienne. La minute du relevé tient les bits hauts, la séquence les 35 bits bas.
+    private static final int BITS_SEQUENCE = 35;
+    private static final long MINUTES = (SAMPLING_OFFSET - BACKGROUND_OFFSET) >> BITS_SEQUENCE;
+
+    public static long backgroundPriority(Instant releve, long sequence) {
+        long minute = Math.clamp(releve.getEpochSecond() / 60, 0, MINUTES - 1);
+        long rang = Math.clamp(sequence, 0, (1L << BITS_SEQUENCE) - 1);
+        return BACKGROUND_OFFSET + ((MINUTES - 1 - minute) << BITS_SEQUENCE) + rang;
+    }
 
     public static long samplingPriority(long priority) {
         return SAMPLING_OFFSET + priority;

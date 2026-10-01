@@ -85,14 +85,15 @@ public class IngestService {
                 .map(CachedMatch::matchId)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
+        Instant releve = clock.instant();
         int queued = 0;
         for (String matchId : wanted) {
             if (alreadyStored.contains(matchId)) {
                 continue;
             }
             long sequence = IngestTask.sequenceOf(matchId);
-            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid,
-                    background ? IngestTask.backgroundPriority(sequence) : IngestTask.activePriority(sequence))) {
+            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid, background
+                    ? IngestTask.backgroundPriority(releve, sequence) : IngestTask.activePriority(sequence))) {
                 queued++;
             }
         }

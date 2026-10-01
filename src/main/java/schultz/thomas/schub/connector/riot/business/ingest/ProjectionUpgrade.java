@@ -30,6 +30,7 @@ public class ProjectionUpgrade {
     private final RankHistory rankHistory;
     private final ReferenceService references;
     private final TeamSideProjector teamSides;
+    private final IngestQueue queue;
     private final MongoTemplate mongo;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -39,6 +40,10 @@ public class ProjectionUpgrade {
         IndexOperations file = mongo.indexOps(IngestTask.class);
         if (file.getIndexInfo().stream().anyMatch(index -> INDEX_OBSOLETE.equals(index.getName()))) {
             file.dropIndex(INDEX_OBSOLETE);
+        }
+        int reclassees = queue.reprioritizeLegacyBackground();
+        if (reclassees > 0) {
+            log.info("{} partie(s) de la collecte de fond reclassée(s) par compte.", reclassees);
         }
         if (projector.outdated()) {
             log.info("Participations projetées par une version antérieure : reprojection sur place.");
