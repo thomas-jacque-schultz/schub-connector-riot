@@ -121,3 +121,8 @@ avec les sources en volume : `task dev` depuis ce dossier, puis `task logs -- sc
 `mvn package` suffit. Les tests sont écrits contre des **réponses réelles** capturées le 18-09
 sur l'API de production (`src/test/resources/fixtures/`), puis allégées. Aucun ne touche au
 réseau : un test qui dépend d'une clé de développement qui expire en 24 h n'est pas un test.
+
+
+## Licence
+
+[PolyForm Noncommercial 1.0.0](LICENSE) : le code se lit et se réutilise, sauf pour un usage commercial.
