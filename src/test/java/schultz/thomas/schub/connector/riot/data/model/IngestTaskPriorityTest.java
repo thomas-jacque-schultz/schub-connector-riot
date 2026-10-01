@@ -16,7 +16,7 @@ class IngestTaskPriorityTest {
         assertThat(IngestTask.SEARCHED_PLAYER_PRIORITY).isGreaterThan(IngestTask.previewPriority(SEQUENCE));
         assertThat(IngestTask.previewPriority(0)).isGreaterThan(0);
         assertThat(IngestTask.samplingPriority(SEQUENCE)).isLessThan(IngestTask.BACKGROUND_PLAYER_PRIORITY);
-        assertThat(IngestTask.backgroundPriority(SEQUENCE)).isLessThan(IngestTask.samplingPriority(0));
+        assertThat(IngestTask.backgroundPriority(java.time.Instant.now(), SEQUENCE)).isLessThan(IngestTask.samplingPriority(0));
         assertThat(IngestTask.activePriority(SEQUENCE)).isLessThan(Long.MAX_VALUE);
     }
 }

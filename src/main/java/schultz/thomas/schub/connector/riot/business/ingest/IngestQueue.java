@@ -2,9 +2,11 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -20,6 +22,7 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -40,6 +43,28 @@ public class IngestQueue {
         if (orphelines > 0) {
             log.info("{} tâche(s) laissée(s) en cours par le processus précédent : remises en file.", orphelines);
         }
+    }
+
+    // Avant riot#37, la priorité de fond ne portait que la séquence : ces tâches tombent toutes dans la tranche de la
+    // minute la plus lointaine. Reclassées par leur date de mise en file, qui est celle du relevé du compte.
+    public int reprioritizeLegacyBackground() {
+        Query anciennes = Query.query(Criteria.where("priority").gte(IngestTask.backgroundPriority(Instant.MAX, 0))
+                .lte(IngestTask.backgroundPriority(Instant.MAX, Long.MAX_VALUE)));
+        anciennes.fields().include("key", "enqueuedAt");
+        String collection = mongo.getCollectionName(IngestTask.class);
+        List<Document> taches = mongo.find(anciennes, Document.class, collection);
+        if (taches.isEmpty()) {
+            return 0;
+        }
+        BulkOperations lot = mongo.bulkOps(BulkOperations.BulkMode.UNORDERED, collection);
+        for (Document tache : taches) {
+            long priorite = IngestTask.backgroundPriority(tache.getDate("enqueuedAt").toInstant(),
+                    IngestTask.sequenceOf(tache.getString("key")));
+            lot.updateOne(Query.query(Criteria.where("_id").is(tache.get("_id"))),
+                    new Update().set("priority", priorite));
+        }
+        lot.execute();
+        return taches.size();
     }
 
     public boolean enqueue(IngestTaskType type, String key, String puuid, long priority) {
