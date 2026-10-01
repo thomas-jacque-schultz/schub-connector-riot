@@ -70,4 +70,22 @@ class MatchEnrichmentServiceTest {
                 .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0));
     }
 
+    @Test
+    @DisplayName("À la fin : la dernière image pour l'or et l'XP, les kills et les objectifs de toute la partie")
+    void aLaFin() {
+        Document dragon = new Document("type", "ELITE_MONSTER_KILL").append("timestamp", 1_500_000)
+                .append("killerTeamId", 200).append("monsterType", "DRAGON");
+        Document heraut = new Document("type", "ELITE_MONSTER_KILL").append("timestamp", 960_000)
+                .append("killerTeamId", 100).append("monsterType", "RIFTHERALD");
+        Document raw = new Document("metadata", new Document("participants", List.of("p1", "p2")))
+                .append("info", new Document("frames", List.of(
+                        image(900_000, 6100, 5300, List.of(kill(899_000, 2, 1, List.of()))),
+                        image(1_620_000, 12_400, 11_000, List.of(kill(1_400_000, 1, 2, List.of()),
+                                kill(1_500_000, 1, 2, List.of()), heraut, dragon)))));
+
+        assertThat(MatchEnrichmentService.aLaFin(raw)).containsEntry("p1", new MatchInsights.AtEnd(12_400, 7000, 2))
+                .containsEntry("p2", new MatchInsights.AtEnd(11_000, 6500, 1));
+        assertThat(MatchEnrichmentService.objectifsDeFin(raw)).containsExactly(
+                new MatchInsights.EndObjectives(100, 0, 1), new MatchInsights.EndObjectives(200, 1, 0));
+    }
 }
