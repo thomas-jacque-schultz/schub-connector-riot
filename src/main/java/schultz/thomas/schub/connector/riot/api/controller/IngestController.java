@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.AccountsByRank;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
 import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
@@ -70,6 +71,14 @@ public class IngestController {
     @GetMapping("/summary")
     public IngestSummary summary() {
         return summaryService.summary();
+    }
+
+    @Operation(summary = "Comptes relevés par rang",
+            description = "Le dernier rang solo/duo relevé de chaque compte suivi, et les graines du ladder. "
+                    + "La somme des comptes relevés égale `trackedAccounts` de la collecte de fond.")
+    @GetMapping("/accounts-by-rank")
+    public AccountsByRank accountsByRank() {
+        return summaryService.accountsByRank();
     }
 
     @Operation(summary = "La collecte de fond",
