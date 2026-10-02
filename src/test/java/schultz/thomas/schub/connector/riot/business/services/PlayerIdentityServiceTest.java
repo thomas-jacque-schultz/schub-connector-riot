@@ -8,11 +8,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import java.util.List;
 import java.util.Optional;
@@ -83,5 +88,42 @@ class PlayerIdentityServiceTest {
         assertThat(service.identify("p1").riotId()).isEqualTo("NouveauNom#FR1");
 
         verify(knownAccounts).observeResolution("p1", "NouveauNom", "FR1");
+    }
+
+    @Test
+    @DisplayName("Riot saturé : un appelant qui accepte l'index reçoit le dernier compte connu, quel que soit son âge")
+    void sertLeDernierCompteConnuQuandRiotEstSature() {
+        Duration semaine = Duration.ofDays(7);
+        when(knownAccounts.recentObservation("Thomas", "EUW", semaine)).thenReturn(Optional.empty());
+        when(riotApiClient.accountByRiotId("Thomas", "EUW"))
+                .thenThrow(new RiotConnectorBusyException("occupé", Duration.ZERO));
+        when(knownAccounts.latestObservation("Thomas", "EUW")).thenReturn(Optional.of(
+                new KnownAccount("p1", "Thomas", "EUW", "thomas", Instant.parse("2026-08-01T00:00:00Z"), null)));
+
+        assertThat(service.resolve("Thomas", "EUW", semaine).puuid()).isEqualTo("p1");
+    }
+
+    @Test
+    @DisplayName("Riot saturé et compte jamais vu : la saturation remonte telle quelle")
+    void laisseRemonterLaSaturationPourUnInconnu() {
+        Duration semaine = Duration.ofDays(7);
+        when(knownAccounts.recentObservation("Personne", "ZZZ", semaine)).thenReturn(Optional.empty());
+        when(riotApiClient.accountByRiotId("Personne", "ZZZ"))
+                .thenThrow(new RiotConnectorBusyException("occupé", Duration.ZERO));
+        when(knownAccounts.latestObservation("Personne", "ZZZ")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resolve("Personne", "ZZZ", semaine))
+                .isInstanceOf(RiotConnectorBusyException.class);
+    }
+
+    @Test
+    @DisplayName("sans maxAge, Riot saturé n'est jamais remplacé par l'index")
+    void neSertJamaisLIndexSansMaxAge() {
+        when(riotApiClient.accountByRiotId("Thomas", "EUW"))
+                .thenThrow(new RiotConnectorBusyException("occupé", Duration.ZERO));
+
+        assertThatThrownBy(() -> service.resolve("Thomas", "EUW", null))
+                .isInstanceOf(RiotConnectorBusyException.class);
+        verify(knownAccounts, never()).latestObservation(anyString(), anyString());
     }
 }
