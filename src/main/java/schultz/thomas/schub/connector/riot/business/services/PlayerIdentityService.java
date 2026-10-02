@@ -6,10 +6,13 @@ import org.springframework.stereotype.Service;
 
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
+import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 
 import java.util.Optional;
 
@@ -55,8 +58,23 @@ public class PlayerIdentityService {
             return resolve(gameName, tagLine);
         }
         return knownAccounts.recentObservation(gameName, tagLine, maxAge)
-                .map(compte -> new PlayerIdentity(compte.puuid(), compte.gameName(), compte.tagLine()))
-                .orElseGet(() -> resolve(gameName, tagLine));
+                .map(PlayerIdentityService::identite)
+                .orElseGet(() -> resolveOuDernierConnu(gameName, tagLine));
+    }
+
+    // Riot saturé ou en panne : le dernier compte connu sous ce Riot ID, quel que soit son âge, comme pour les rangs.
+    private PlayerIdentity resolveOuDernierConnu(String gameName, String tagLine) {
+        try {
+            return resolve(gameName, tagLine);
+        } catch (RiotQuotaExceededException | RiotApiException indisponible) {
+            return knownAccounts.latestObservation(gameName, tagLine)
+                    .map(PlayerIdentityService::identite)
+                    .orElseThrow(() -> indisponible);
+        }
+    }
+
+    private static PlayerIdentity identite(KnownAccount compte) {
+        return new PlayerIdentity(compte.puuid(), compte.gameName(), compte.tagLine());
     }
 
     public PlayerIdentity identify(String puuid) {
