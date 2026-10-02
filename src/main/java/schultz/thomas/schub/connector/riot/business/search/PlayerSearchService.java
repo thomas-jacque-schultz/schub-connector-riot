@@ -43,7 +43,7 @@ public class PlayerSearchService {
     public List<PlayerIdentity> tracked(int limit) {
         List<String> puuids = mongo.find(new Query()
                                 .with(Sort.by(
-                                        Sort.Direction.DESC, "newestMatchAt"))
+                                        Sort.Direction.DESC, "lastSyncStartedAt"))
                                 .limit(limit),
                         PlayerHistoryCursor.class).stream()
                 .map(PlayerHistoryCursor::puuid)
