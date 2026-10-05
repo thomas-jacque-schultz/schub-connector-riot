@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import schultz.thomas.schub.connector.riot.api.dto.ChampionCombo;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQuery;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
@@ -33,6 +35,7 @@ import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
 import schultz.thomas.schub.connector.riot.api.dto.TimelineHabits;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
+import schultz.thomas.schub.connector.riot.business.stats.ChampionComboService;
 import schultz.thomas.schub.connector.riot.business.stats.TimelineHabitService;
 import schultz.thomas.schub.connector.riot.business.stats.MatchMetricsService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
@@ -56,6 +59,17 @@ public class StatsController {
     private final PatchCalendar patches;
     private final TimelineHabitService timelineHabits;
     private final MatchMetricsService matchMetrics;
+    private final ChampionComboService championCombos;
+
+    @Operation(summary = "Combos de champions, tous joueurs confondus",
+            description = """
+                    Deux ou trois emplacements (un poste, des champions candidats) : chaque combo trouvé
+                    dans un même camp, avec ses parties et ses victoires. Sert de repère aux conseils de
+                    draft. Pas de découpage par patch ni par palier. 400 si les postes se répètent.""")
+    @PostMapping("/champion-combos")
+    public List<ChampionCombo> championCombos(@RequestBody ChampionCombosQuery query) {
+        return championCombos.combos(query);
+    }
 
     @Operation(summary = "Agréger des participations sur un axe",
             description = """

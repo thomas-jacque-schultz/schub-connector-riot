@@ -15,6 +15,8 @@ import java.time.Instant;
 @CompoundIndex(name = "puuid_champion", def = "{'puuid': 1, 'championId': 1}")
 @CompoundIndex(name = "puuid_queue", def = "{'puuid': 1, 'queueId': 1}")
 @CompoundIndex(name = "patch_startedAt", def = "{'patch': 1, 'startedAt': 1}")
+@CompoundIndex(name = "champion_position_partie",
+        def = "{'championId': 1, 'position': 1, 'matchId': 1, 'side': 1, 'win': 1}")
 public record MatchParticipation(
         @Id String id,
         @Indexed String puuid,
