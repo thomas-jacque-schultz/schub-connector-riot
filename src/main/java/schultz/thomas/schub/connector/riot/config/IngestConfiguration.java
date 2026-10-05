@@ -13,6 +13,7 @@ import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestWorker;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
+import schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers;
 
 // Pas de @Scheduled(fixedDelayString) : il n'accepte que des ms ou de l'ISO-8601, pas « 2s ».
 @Configuration
@@ -25,11 +26,12 @@ public class IngestConfiguration implements SchedulingConfigurer {
     private final BackgroundCrawler crawler;
     private final LadderSampler sampler;
     private final ReferenceService references;
+    private final IndexablePlayers indexablePlayers;
 
     @Bean
     public TaskScheduler ingestScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(properties.getIngest().getWorkers() + properties.getIngest().getPriorityWorkers() + 3);
+        scheduler.setPoolSize(properties.getIngest().getWorkers() + properties.getIngest().getPriorityWorkers() + 4);
         scheduler.setThreadNamePrefix("riot-ingest-");
         scheduler.setWaitForTasksToCompleteOnShutdown(false);
         return scheduler;
@@ -46,6 +48,7 @@ public class IngestConfiguration implements SchedulingConfigurer {
         }
         registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
         registrar.addFixedDelayTask(sampler::round, properties.getCrawler().getInterval());
+        registrar.addFixedDelayTask(indexablePlayers::refresh, properties.getSeo().getRefreshInterval());
         registrar.addCronTask(references::refresh, "0 0 5 * * *");
         registrar.addCronTask(references::refreshIfIncomplete, "0 30 * * * *");
     }

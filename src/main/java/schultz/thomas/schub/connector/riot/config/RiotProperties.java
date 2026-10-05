@@ -40,6 +40,8 @@ public class RiotProperties {
 
     private final History history = new History();
 
+    private final Seo seo = new Seo();
+
     public String regionalBaseUrl() {
         return "https://" + region + ".api.riotgames.com";
     }
@@ -181,6 +183,17 @@ public class RiotProperties {
     }
 
     // Valeurs par défaut : l'owner les règle depuis Schub (riot_history_window).
+    @Data
+    public static class Seo {
+
+        // Sous ce seuil, une fiche est trop maigre pour être indexée ; même valeur que le noindex du BFF.
+        private int minGames = 20;
+
+        private Duration apexRecency = Duration.ofDays(30);
+
+        private Duration refreshInterval = Duration.ofHours(6);
+    }
+
     @Data
     public static class History {
 

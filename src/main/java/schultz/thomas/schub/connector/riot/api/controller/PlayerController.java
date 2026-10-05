@@ -18,11 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
 import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
+import schultz.thomas.schub.connector.riot.api.dto.IndexablePlayer;
 import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
 import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
+import schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
@@ -46,6 +48,7 @@ public class PlayerController {
     private final ChampionMasteryService masteryService;
     private final IngestService ingestService;
     private final PlayerSearchService playerSearchService;
+    private final IndexablePlayers indexablePlayers;
 
     @Operation(summary = "Résoudre un Riot ID en joueur",
             description = """
@@ -93,11 +96,14 @@ public class PlayerController {
         return playerSearchService.search(q, limit);
     }
 
-    @Operation(summary = "Les joueurs dont l'historique a été relevé",
-            description = "Pour le plan du site de PremadeLab : ce sont les profils qui ont une page à montrer.")
-    @GetMapping("/tracked")
-    public List<PlayerIdentity> tracked(@RequestParam(defaultValue = "50000") int limit) {
-        return playerSearchService.tracked(Math.clamp(limit, 1, 50_000));
+    @Operation(summary = "Les profils à indexer",
+            description = """
+                    Pour le plan du site de PremadeLab : les joueurs qui ont au moins `riot.seo.min-games`
+                    parties relevées. Les apex récents et les créateurs de contenu viennent en tête
+                    (`featured`). Liste recalculée en tâche de fond : vide juste après le démarrage.""")
+    @GetMapping("/indexable")
+    public List<IndexablePlayer> indexable(@RequestParam(defaultValue = "50000") int limit) {
+        return indexablePlayers.list(Math.clamp(limit, 1, 50_000));
     }
 
     @Operation(summary = "Le Riot ID courant d'un joueur",
