@@ -60,6 +60,11 @@ public class RiotExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleInvalidQuery(IllegalArgumentException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
     @ExceptionHandler(RiotConnectorBusyException.class)
     public ResponseEntity<ProblemDetail> handleBusy(RiotConnectorBusyException exception) {
         log.info("Appel interactif renoncé, connecteur occupé : {}", exception.getMessage());
