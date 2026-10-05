@@ -39,23 +39,6 @@ public class PlayerSearchService {
 
     private final MongoTemplate mongo;
 
-    // Les joueurs dont l'historique a été relevé, les plus actifs d'abord : ce sont eux qui ont une page à montrer.
-    public List<PlayerIdentity> tracked(int limit) {
-        List<String> puuids = mongo.find(new Query()
-                                .with(Sort.by(
-                                        Sort.Direction.DESC, "lastSyncStartedAt"))
-                                .limit(limit),
-                        PlayerHistoryCursor.class).stream()
-                .map(PlayerHistoryCursor::puuid)
-                .toList();
-        return mongo.find(Query.query(
-                                Criteria.where("_id").in(puuids)),
-                        KnownAccount.class).stream()
-                .filter(compte -> compte.gameName() != null && compte.tagLine() != null)
-                .map(compte -> new PlayerIdentity(compte.puuid(), compte.gameName(), compte.tagLine()))
-                .toList();
-    }
-
     public List<PlayerSuggestion> search(String saisie, int limit) {
         Recherche recherche = Recherche.de(saisie);
         if (recherche == null) {

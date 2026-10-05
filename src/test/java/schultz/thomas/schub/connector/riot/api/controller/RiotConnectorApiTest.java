@@ -76,6 +76,7 @@ class RiotConnectorApiTest {
     @Mock private HistoryWindowService historyWindow;
     @Mock private PuuidValidityService validity;
     @Mock private IngestPause pause;
+    @Mock private schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers indexablePlayers;
 
     private MockMvc mockMvc;
 
@@ -83,7 +84,7 @@ class RiotConnectorApiTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
-                                masteryService, ingestService, playerSearchService),
+                                masteryService, ingestService, playerSearchService, indexablePlayers),
                         new IngestController(ingestService, projector, knownAccounts, crawler, sampler, summaryService,
                                 historyWindow, pause),
                         new MatchController(matchDetailService),

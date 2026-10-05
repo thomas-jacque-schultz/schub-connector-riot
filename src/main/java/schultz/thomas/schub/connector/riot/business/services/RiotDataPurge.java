@@ -31,6 +31,7 @@ import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
 import schultz.thomas.schub.connector.riot.data.model.PuuidCheck;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
+import schultz.thomas.schub.connector.riot.data.model.SeoCreator;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
 import schultz.thomas.schub.connector.riot.data.model.StoredReference;
 import schultz.thomas.schub.connector.riot.data.model.TeamSide;
@@ -55,6 +56,7 @@ public class RiotDataPurge {
             LadderSeed.class, StoredReference.class, StoredChampionReference.class, IngestTask.class);
 
     static final List<Class<?>> GARDEES = List.of(CrawlerSetting.class, HistoryWindowSetting.class, IngestPauseSetting.class,
+            SeoCreator.class,
             CachedChampionCatalog.class, CachedGameVersion.class, LadderBound.class);
 
     private final MongoTemplate mongo;
