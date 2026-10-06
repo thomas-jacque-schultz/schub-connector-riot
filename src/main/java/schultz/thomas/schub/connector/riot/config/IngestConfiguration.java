@@ -1,6 +1,7 @@
 package schultz.thomas.schub.connector.riot.config;
 
 import lombok.RequiredArgsConstructor;
+import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
@@ -14,6 +15,7 @@ import schultz.thomas.schub.connector.riot.business.ingest.IngestWorker;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
 import schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers;
+import schultz.thomas.schub.connector.riot.business.stats.ChampionComboTable;
 
 // Pas de @Scheduled(fixedDelayString) : il n'accepte que des ms ou de l'ISO-8601, pas « 2s ».
 @Configuration
@@ -27,11 +29,12 @@ public class IngestConfiguration implements SchedulingConfigurer {
     private final LadderSampler sampler;
     private final ReferenceService references;
     private final IndexablePlayers indexablePlayers;
+    private final ChampionComboTable championCombos;
 
     @Bean
     public TaskScheduler ingestScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(properties.getIngest().getWorkers() + properties.getIngest().getPriorityWorkers() + 4);
+        scheduler.setPoolSize(properties.getIngest().getWorkers() + properties.getIngest().getPriorityWorkers() + 5);
         scheduler.setThreadNamePrefix("riot-ingest-");
         scheduler.setWaitForTasksToCompleteOnShutdown(false);
         return scheduler;
@@ -49,6 +52,7 @@ public class IngestConfiguration implements SchedulingConfigurer {
         registrar.addFixedDelayTask(crawler::round, properties.getCrawler().getInterval());
         registrar.addFixedDelayTask(sampler::round, properties.getCrawler().getInterval());
         registrar.addFixedDelayTask(indexablePlayers::refresh, properties.getSeo().getRefreshInterval());
+        registrar.addFixedDelayTask(championCombos::refresh, Duration.ofDays(1));
         registrar.addCronTask(references::refresh, "0 0 5 * * *");
         registrar.addCronTask(references::refreshIfIncomplete, "0 30 * * * *");
     }
