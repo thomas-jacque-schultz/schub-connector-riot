@@ -28,6 +28,7 @@ public class ChampionComboService {
     static final int EMPLACEMENTS_MAX = 3;
 
     private final MongoTemplate mongo;
+    private final ChampionComboTable table;
 
     public List<ChampionCombo> combos(ChampionCombosQuery query) {
         List<ChampionCombosQuery.Slot> slots = query.slots();
@@ -35,6 +36,12 @@ public class ChampionComboService {
                 || slots.stream().map(ChampionCombosQuery.Slot::position).distinct().count() != slots.size()) {
             throw new IllegalArgumentException("Deux ou trois emplacements, à des postes distincts");
         }
+        return table.combos(query).orElseGet(() -> enDirect(query));
+    }
+
+    // Repli tant que la table du jour n'est pas calculée : quelques secondes par requête.
+    private List<ChampionCombo> enDirect(ChampionCombosQuery query) {
+        List<ChampionCombosQuery.Slot> slots = query.slots();
         Set<Integer> champions = new HashSet<>();
         slots.forEach(slot -> champions.addAll(slot.championIds()));
         Aggregation agregation = Aggregation.newAggregation(
