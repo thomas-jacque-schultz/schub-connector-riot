@@ -135,7 +135,7 @@ public class IngestWorker {
             List<String> ids = historyService.backfillIds(task.key(), demande.since());
             backfills.save(new PlayerBackfill(demande.puuid(), demande.since(), demande.requestedAt(), ids,
                     Instant.now()));
-            int queued = ingestService.enqueueDetails(task.key(), ids, true);
+            int queued = ingestService.enqueueBackfillDetails(task.key(), ids);
             log.info("Rattrapage d'un compte lié : {} parties depuis le {}, {} détails empilés.", ids.size(),
                     demande.since(), queued);
         });

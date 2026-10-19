@@ -37,4 +37,12 @@ class IngestTaskTest {
                 .isLessThan(IngestTask.samplingPriority(0));
         assertThat(IngestTask.backgroundPriority(Instant.MAX, 0)).isEqualTo(Long.MIN_VALUE / 2);
     }
+
+    @Test
+    @DisplayName("le rattrapage passe après les demandes des joueurs et avant la collecte de fond, même coupée (Schub#113)")
+    void rattrapageEntreLesJoueursEtLeFond() {
+        long rattrapage = IngestTask.backfillPriority(IngestTask.sequenceOf("EUW1_7990209944"));
+        assertThat(rattrapage).isPositive().isLessThan(IngestTask.PRIORITY_FLOOR);
+        assertThat(IngestTask.BACKFILL_IDS_PRIORITY).isGreaterThan(rattrapage).isLessThan(IngestTask.PRIORITY_FLOOR);
+    }
 }

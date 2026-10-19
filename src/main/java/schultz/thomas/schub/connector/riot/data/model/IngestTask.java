@@ -72,6 +72,15 @@ public record IngestTask(
     // Le relevé d'un joueur recherché : sous les joueurs actifs, au-dessus des parties de tous les aperçus.
     public static final long SEARCHED_PLAYER_PRIORITY = ACTIVE_OFFSET - 1;
 
+    // Rattrapage d'un compte lié (Schub#113) : sous les demandes des joueurs, hors de la voie PRIORITY, mais au-dessus
+    // de la collecte de fond, pour qu'il avance même quand elle est coupée. Les parties de la plus récente à la plus ancienne.
+    private static final long BACKFILL_OFFSET = Long.MAX_VALUE / 8;
+    public static final long BACKFILL_IDS_PRIORITY = Long.MAX_VALUE / 2 - 1;
+
+    public static long backfillPriority(long sequence) {
+        return BACKFILL_OFFSET + sequence;
+    }
+
     // Seuil des tâches demandées par un joueur, actif ou recherché : les ouvriers réservés ne prennent rien en dessous.
     public static final long PRIORITY_FLOOR = PREVIEW_OFFSET;
 
