@@ -1,0 +1,3552 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "description" : "Traduit l'API Riot Games en vocabulaire de domaine, et rien d'autre.\nCe service ne connaÃ®t ni la notion d'Ã©quipe, ni la rÃ¨gle Â« au moins\n4 des 5 membres Â» : elles vivent dans le cÅur.\n\nIl dÃ©tient en revanche ce qui est propre au systÃ¨me externe : la clÃ©,\nle routage rÃ©gional/plateforme, le quota et les quatre politiques de\ncache.",
+    "title" : "Connecteur Riot",
+    "version" : "0.1.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "security" : [ {
+    "internalSecret" : [ ]
+  } ],
+  "tags" : [ {
+    "description" : "Catalogue Data Dragon, figÃ© par version.",
+    "name" : "Champions"
+  }, {
+    "description" : "File de collecte, avancement et reconstruction.",
+    "name" : "Ingestion"
+  }, {
+    "description" : "Ce que le plan du site de PremadeLab met en avant.",
+    "name" : "RÃ©fÃ©rencement"
+  }, {
+    "description" : "Tout ce que la collecte a rapportÃ©, Ã  jeter aprÃ¨s un changement de clÃ©.",
+    "name" : "DonnÃ©es Riot"
+  }, {
+    "description" : "Riot chiffre le puuid pour chaque clÃ© : ceux d'une autre clÃ© sont refusÃ©s.",
+    "name" : "Puuid"
+  }, {
+    "description" : "IdentitÃ©, historique, classements et maÃ®trises.",
+    "name" : "Joueurs"
+  }, {
+    "description" : "DÃ©tail normalisÃ© des parties terminÃ©es.",
+    "name" : "Parties"
+  }, {
+    "description" : "AgrÃ©gats sur les participations dÃ©jÃ  collectÃ©es.",
+    "name" : "Statistiques"
+  } ],
+  "paths" : {
+    "/champions" : {
+      "get" : {
+        "description" : "Immuable **par version**, donc gardÃ© pour toujours avec la version pour clÃ©.\nC'est ce qui permet de rouvrir une composition prÃ©parÃ©e en mars et de la voir\njuste, au lieu d'y lire des champions rÃ©Ã©quilibrÃ©s depuis â ou qui\nn'existaient pas.\n\nLa version est **toujours rendue**, y compris quand l'appelant ne l'a pas\ndemandÃ©e : une composition doit pouvoir enregistrer celle qu'elle a utilisÃ©e.\n\nLes URL d'icÃ´nes sont absolues et dÃ©jÃ  versionnÃ©es : le front n'a pas Ã \nsavoir composer une URL Data Dragon.",
+        "operationId" : "champions",
+        "parameters" : [ {
+          "description" : "Version Data Dragon. Absente = la version courante.",
+          "example" : "16.18.1",
+          "in" : "query",
+          "name" : "version",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChampionCatalogDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Le catalogue des champions",
+        "tags" : [ "Champions" ]
+      }
+    },
+    "/game-version" : {
+      "get" : {
+        "description" : "La seule part mouvante de Data Dragon, et donc la seule Ã  porter un TTL. Ã figer au moment oÃ¹ une composition est enregistrÃ©e.",
+        "operationId" : "gameVersion",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "La version courante du jeu",
+        "tags" : [ "Champions" ]
+      }
+    },
+    "/ingest" : {
+      "get" : {
+        "description" : "En attente, en cours, en Ã©chec â et surtout le **temps d'Ã©coulement estimÃ©**\nau dÃ©bit autorisÃ© courant.\n\nC'est le seul chiffre qui rÃ©ponde Ã  Â« quand mes donnÃ©es seront-elles\nprÃªtes ? Â» : Â« 4 300 en attente Â» ne dit rien, Â« prÃªt dans 1 h 25 Â» si.\nUne pÃ©nalitÃ© 429 en cours est ajoutÃ©e Ã  l'estimation.",
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "OÃ¹ en est la collecte",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/accounts-by-rank" : {
+      "get" : {
+        "description" : "Le dernier rang solo/duo relevÃ© de chaque compte suivi, et les graines du ladder. La somme des comptes relevÃ©s Ã©gale `trackedAccounts` de la collecte de fond.",
+        "operationId" : "accountsByRank",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountsByRankDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Comptes relevÃ©s par rang",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/crawler" : {
+      "get" : {
+        "description" : "Toujours active en prod ; en dev, `switchable` permet de la basculer. Elle se suspend d'elle-mÃªme au-delÃ  du seuil de volume de la base.",
+        "operationId" : "crawler",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrawlerStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "La collecte de fond",
+        "tags" : [ "Ingestion" ]
+      },
+      "put" : {
+        "description" : "409 lÃ  oÃ¹ elle n'est pas basculable.",
+        "operationId" : "toggleCrawler",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrawlerToggleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrawlerStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Basculer la collecte de fond",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/failures" : {
+      "get" : {
+        "description" : "Une tÃ¢che Ã©puisÃ©e en tentatives n'est jamais reprise d'elle-mÃªme. Elle est donc ici, avec sa derniÃ¨re erreur, plutÃ´t que perdue.",
+        "operationId" : "failures",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/IngestTaskDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les tÃ¢ches abandonnÃ©es",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/history-window" : {
+      "get" : {
+        "operationId" : "historyWindow",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HistoryWindowDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "La fenÃªtre du premier relevÃ© d'un joueur",
+        "tags" : [ "Ingestion" ]
+      },
+      "put" : {
+        "description" : "Les dÃ©tails de fond dÃ©jÃ  en file sont abandonnÃ©s, et leurs joueurs relevÃ©s de nouveau dans la nouvelle fenÃªtre. 400 hors des bornes.",
+        "operationId" : "updateHistoryWindow",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HistoryWindowDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HistoryWindowDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©gler la fenÃªtre du premier relevÃ©",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/known-accounts/rebuild" : {
+      "post" : {
+        "description" : "Rejoue `riot_participation` dans `riot_known_account`, **sans aucun appel Ã \nRiot** â les participations sont elles-mÃªmes reconstructibles depuis\n`riot_match`.\n\n**Ne purge pas.** Un compte confirmÃ© par Riot et jamais croisÃ© en partie\nn'existe nulle part ailleurs : l'effacer pour le reconstruire le perdrait.\nUne entrÃ©e n'est rÃ©Ã©crite que si l'observation rejouÃ©e est plus rÃ©cente que\ncelle en place, donc rejouer deux fois ne change rien.",
+        "operationId" : "rebuildKnownAccounts",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/KnownAccountRebuildReportDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Reprojeter les participations dans l'index des comptes connus",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/participations/rebuild" : {
+      "post" : {
+        "description" : "Recalcule `riot_participation` depuis `riot_match`, **sans un seul appel Ã \nRiot**. C'est la propriÃ©tÃ© que le stockage du JSON brut sert Ã  prÃ©server :\nchanger le modÃ¨le d'analyse ne coÃ»te que cet appel.\n\n`unusableMatches` compte les parties stockÃ©es avant le passage au brut :\nelles ne produisent aucune participation et doivent Ãªtre recollectÃ©es.",
+        "operationId" : "rebuild",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RebuildReportDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Reconstruire la couche d'analyse",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/pause" : {
+      "get" : {
+        "description" : "`running` compte les tÃ¢ches prises avant la pause et pas encore terminÃ©es.",
+        "operationId" : "pause",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestPauseStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "La pause de l'ingest",
+        "tags" : [ "Ingestion" ]
+      },
+      "put" : {
+        "description" : "Toute la file, voie prioritaire comprise, en prod comme en dev. Les tÃ¢ches en route\nfinissent ; les autres attendent la reprise. La pause survit Ã  un redÃ©marrage.",
+        "operationId" : "updatePause",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IngestPauseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestPauseStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Mettre l'ingest en pause, ou le reprendre",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/players/{puuid}" : {
+      "get" : {
+        "description" : "Le mÃªme chiffre que ci-dessus, mais pour un seul `puuid` : c'est ce qu'un\nÃ©cran de profil peut afficher, lÃ  oÃ¹ l'Ã©tat global de la file ne lui dit rien.\n\n`estimatedReadyAt` est nul quand rien n'est en file pour ce joueur. Un `puuid`\ninconnu rÃ©pond comme un joueur sans travail en attente : tout est Ã  zÃ©ro,\nplutÃ´t qu'un 404 que l'appelant devrait traduire.",
+        "operationId" : "playerStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlayerIngestStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "OÃ¹ en est la collecte d'un joueur",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/retry-failed" : {
+      "post" : {
+        "description" : "Geste explicite : un empilement ordinaire ne rÃ©arme pas un Ã©chec, sinon une partie dÃ©finitivement absente serait redemandÃ©e sans fin.",
+        "operationId" : "retryFailed",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©armer les tÃ¢ches abandonnÃ©es",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/sampling" : {
+      "get" : {
+        "description" : "Graines tirÃ©es dans les classements, par palier, sur la fenÃªtre glissante. Suit la collecte de fond : suspendu quand elle l'est.",
+        "operationId" : "sampling",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SamplingStatusDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "L'Ã©chantillon par palier",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/ingest/summary" : {
+      "get" : {
+        "description" : "Des parties et des profils, pas des tÃ¢ches. Une partie est analysÃ©e quand plus\naucune tÃ¢che d'enrichissement (timeline, digest, rangs) ne l'attend ; un profil,\nquand son historique a Ã©tÃ© relevÃ© et que plus rien n'est en file pour lui.",
+        "operationId" : "summary",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestSummaryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Ce que la collecte a produit",
+        "tags" : [ "Ingestion" ]
+      }
+    },
+    "/matches/by-ids" : {
+      "post" : {
+        "description" : "Un POST pour une lecture, Ã  contre-courant de l'habitude : cent identifiants\nde parties ne tiennent pas dans une URL, et le cÅur en demande cent d'un coup\nquand il constitue l'historique d'une Ã©quipe.\n\nLes parties dÃ©jÃ  en cache sont rendues sans aucun appel sortant. Pour les\nautres, le nombre d'appels Ã  Riot est **bornÃ© par requÃªte** : ce qui dÃ©passe\nrevient dans `pending`, et un nouvel appel le prendra. Une rÃ©ponse partielle\nannoncÃ©e vaut mieux qu'une requÃªte qui pend cinq minutes.\n\n`unavailable` liste ce que Riot refuse : partie inexistante ou purgÃ©e.",
+        "operationId" : "details",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MatchIdsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatchDetailsResponseDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Le dÃ©tail de plusieurs parties",
+        "tags" : [ "Parties" ]
+      }
+    },
+    "/matches/{matchId}" : {
+      "get" : {
+        "description" : "Une partie terminÃ©e est **immuable** : une fois rÃ©cupÃ©rÃ©e, elle n'est plus\njamais redemandÃ©e Ã  Riot. C'est le cÅur de l'exigence Â« ce qui a Ã©tÃ© pull un\njour ne doit pas l'Ãªtre une deuxiÃ¨me fois Â», et c'est la seule copie de cette\ndonnÃ©e dans Schub â le cÅur ne stocke aucune partie.\n\nLa timeline (plusieurs mÃ©gaoctets) n'est ni rÃ©cupÃ©rÃ©e ni conservÃ©e.\n\n404 si Riot ne connaÃ®t pas cette partie.",
+        "operationId" : "detail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "matchId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatchDetailDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Le dÃ©tail d'une partie",
+        "tags" : [ "Parties" ]
+      }
+    },
+    "/players" : {
+      "get" : {
+        "description" : "`Pseudo#TAG` â `puuid`. C'est l'appel de la liaison de compte.\n\nLe `puuid` est la **seule** clÃ© stable : un joueur peut changer de Riot ID,\ndonc un pseudo ne doit jamais servir d'identifiant. Sans cache, volontairement â\ngarder une correspondance pÃ©rimÃ©e reviendrait Ã  rÃ©pondre faux.\n\n404 si ce Riot ID n'existe pas.",
+        "operationId" : "resolve",
+        "parameters" : [ {
+          "description" : "Partie gauche du Riot ID.",
+          "example" : "J1HUIV",
+          "in" : "query",
+          "name" : "gameName",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Partie droite du Riot ID, sans le #.",
+          "example" : "000",
+          "in" : "query",
+          "name" : "tagLine",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "maxAge",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlayerIdentityDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©soudre un Riot ID en joueur",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/indexable" : {
+      "get" : {
+        "description" : "Pour le plan du site de PremadeLab : les joueurs qui ont au moins `riot.seo.min-games`\nparties relevÃ©es. Les apex rÃ©cents et les crÃ©ateurs de contenu viennent en tÃªte\n(`featured`). Liste recalculÃ©e en tÃ¢che de fond : vide juste aprÃ¨s le dÃ©marrage.",
+        "operationId" : "indexable",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50000
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/IndexablePlayerDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les profils Ã  indexer",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/search" : {
+      "get" : {
+        "description" : "**L'API Riot ne sait pas chercher par pseudo partiel** : `account-v1` ne\nrÃ©sout qu'un `gameName#tagLine` exact, `summoner-v4/by-name` n'existe plus.\nCette route ne l'appelle donc pas : elle cherche dans les Riot ID que le brut\nde `match-v5` porte pour chacun des dix participants de chaque partie\ncollectÃ©e â un seul compte ingÃ©rÃ© en fait connaÃ®tre environ 2 150.\n\nCasse et accents ignorÃ©s, sous-chaÃ®ne acceptÃ©e, et une faute de frappe tolÃ©rÃ©e\ntous les quatre caractÃ¨res Ã  condition que les trois premiers soient bons.\n`Pseudo#TAG` collÃ© entier est compris : le tag filtre alors les homonymes.\n\nLes chiffres rendus portent sur **nos** donnÃ©es â parties oÃ¹ on a croisÃ© ce\njoueur, postes qu'on l'y a vu tenir, derniÃ¨re d'entre elles. Ils servent Ã \nreconnaÃ®tre son propre compte, pas Ã  dÃ©crire une carriÃ¨re.\n\nListe vide si rien ne ressemble. Ce n'est pas une erreur : la rÃ©solution\nexacte d'un Riot ID reste le chemin toujours disponible.",
+        "operationId" : "search",
+        "parameters" : [ {
+          "description" : "Pseudo, mÃªme partiel. `Pseudo#TAG` acceptÃ©.",
+          "example" : "J1HUIV",
+          "in" : "query",
+          "name" : "q",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Nombre de propositions rendues.",
+          "example" : 10,
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 10
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PlayerSuggestionDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Chercher un compte parmi nos participations",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}" : {
+      "get" : {
+        "description" : "L'inverse de la rÃ©solution : c'est par lÃ  qu'on rattrape un changement de Riot ID sur un compte dÃ©jÃ  liÃ©.",
+        "operationId" : "identify",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlayerIdentityDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Le Riot ID courant d'un joueur",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/champion-mastery" : {
+      "get" : {
+        "description" : "Du plus maÃ®trisÃ© au moins maÃ®trisÃ©. Cache de **six heures** : un pool de\nchampions n'a pas besoin d'Ãªtre Ã  la seconde.\n\nLe connecteur rend des maÃ®trises, pas un Â« pool jouable par poste Â» : dÃ©cider\nqu'un joueur peut tenir un poste est un jugement de domaine, et il vit dans\nle cÅur.",
+        "operationId" : "masteries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Nombre de champions rendus. Absent = tous.",
+          "example" : 10,
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChampionMasteryDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "MaÃ®trises de champions d'un joueur",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/matches" : {
+      "get" : {
+        "description" : "Rend les identifiants de parties connus, servis du cache du connecteur.\n\nL'historique est **append-only** : Riot n'est rappelÃ© que si le dernier relevÃ©\nest plus vieux que la fraÃ®cheur configurÃ©e, et alors uniquement pour ce qui\nsuit ce relevÃ© â moins une heure de recouvrement, parce qu'une partie peut\napparaÃ®tre avec du retard.\n\n`refreshed` dit si cet appel a interrogÃ© Riot ; `syncedAt` date le dernier\nrelevÃ©. Si Riot est injoignable, la rÃ©ponse reste servie depuis le cache avec\n`refreshed = false` plutÃ´t que d'Ã©chouer.\n\nLes parties dont le dÃ©tail n'a pas encore Ã©tÃ© rÃ©cupÃ©rÃ© sont incluses : leur\nid est connu, leur date ne l'est pas encore.",
+        "operationId" : "matches",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Borne basse, ISO-8601. Absente = tout l'historique connu.",
+          "example" : "2026-09-01T00:00:00Z",
+          "in" : "query",
+          "name" : "since",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatchHistoryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les parties d'un joueur depuis une date",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/matches/backfill" : {
+      "post" : {
+        "description" : "Empile en fond le relevÃ© des parties des riot.ingest.backfill-days derniers jours (Schub#113),\npuis leurs dÃ©tails. queued=false si le rattrapage est dÃ©sactivÃ© (0 jour) ou dÃ©jÃ  demandÃ©.\nL'avancement est dans GET /ingest/players/{puuid}, champ backfill.",
+        "operationId" : "backfill",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestEnqueueReportDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Rattraper l'historique d'un compte liÃ©",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/matches/sync" : {
+      "post" : {
+        "description" : "**Empile, puis rÃ©pond immÃ©diatement.** Un premier remplissage coÃ»te un appel\npar partie et Riot en garde environ mille par joueur : compter dessus dans le\ntemps d'une requÃªte HTTP n'a pas de sens.\n\nL'empilement est idempotent â redemander pendant que la collecte tourne ne\nduplique rien â et `status` donne le temps d'Ã©coulement estimÃ©.",
+        "operationId" : "sync",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestEnqueueReportDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Empiler la collecte de l'historique d'un joueur",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/matches/sync-now" : {
+      "post" : {
+        "description" : "Voie synchrone, conservÃ©e pour le diagnostic : quand la file n'avance pas,\nelle rend l'erreur de Riot dans la rÃ©ponse au lieu de la laisser dans les\njournaux.\n\nBornÃ©e par `max-details-per-call` ; `detailsPending` dit ce qui reste. Ce\nn'est pas la voie normale â pour constituer un historique, empiler.",
+        "operationId" : "syncNow",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HistorySyncReportDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Relever l'historique tout de suite, sans passer par la file",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/preview" : {
+      "post" : {
+        "description" : "RelÃ¨ve ses identifiants de parties, puis empile ses derniÃ¨res parties sur la voie\ninteractive et le reste de son historique en fond. `slow` : les parties de\nl'aperÃ§u arrivent au compte-gouttes, une par intervalle. Jamais de refus.",
+        "operationId" : "preview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "slow",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IngestEnqueueReportDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "AperÃ§u d'un joueur recherchÃ©",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/players/{puuid}/rankings" : {
+      "get" : {
+        "description" : "Une entrÃ©e par file classÃ©e jouÃ©e. RelevÃ© mis en cache **une heure** :\nafficher un LP d'hier serait un bug visible.\n\nChaque entrÃ©e porte `observedAt`, la date de son relevÃ©. Si Riot est\ninjoignable, le dernier relevÃ© connu est servi tel quel â c'est `observedAt`\nqui dit l'Ã¢ge de ce qu'on affiche.",
+        "operationId" : "rankings",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RankedStandingDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rang et LP d'un joueur",
+        "tags" : [ "Joueurs" ]
+      }
+    },
+    "/puuids/check" : {
+      "post" : {
+        "description" : "Rend ceux qu'on sait dÃ©jÃ  refusÃ©s ; les autres, pas vÃ©rifiÃ©s depuis une semaine, partent en file et apparaÃ®tront dans /puuids/stale s'ils sont refusÃ©s.",
+        "operationId" : "check",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PuuidListRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "VÃ©rifier des puuid",
+        "tags" : [ "Puuid" ]
+      }
+    },
+    "/puuids/stale" : {
+      "get" : {
+        "description" : "Le cÅur s'en sert pour rÃ©soudre de nouveau le Riot ID des comptes liÃ©s et des places d'Ã©quipe.",
+        "operationId" : "stale",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "since",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les puuid refusÃ©s par Riot depuis une date",
+        "tags" : [ "Puuid" ]
+      }
+    },
+    "/riot-data" : {
+      "delete" : {
+        "description" : "Parties, participations, comptes connus, rangs, maÃ®trises, rÃ©fÃ©rentiels et file de collecte.\nRestent les rÃ©glages de la collecte et les catalogues Data Dragon.\n\n409 tant que l'ingest n'est pas en pause ou qu'une tÃ¢che est encore en route.\nLa double confirmation est l'affaire du cÅur : ce service n'est joignable que par lui.",
+        "operationId" : "purge",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RiotDataPurgeReportDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Effacer les donnÃ©es Riot",
+        "tags" : [ "DonnÃ©es Riot" ]
+      },
+      "get" : {
+        "description" : "Nombres estimÃ©s, sans parcourir les collections.",
+        "operationId" : "inventory",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RiotDataInventoryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Ce qu'un effacement emporterait",
+        "tags" : [ "DonnÃ©es Riot" ]
+      }
+    },
+    "/seo/creators" : {
+      "get" : {
+        "operationId" : "creators",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SeoCreatorsDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les crÃ©ateurs de contenu suivis",
+        "tags" : [ "RÃ©fÃ©rencement" ]
+      },
+      "put" : {
+        "description" : "Chaque Riot ID est rÃ©solu chez Riot ; un nouveau venu voit son historique relevÃ©. Les Riot ID inconnus sont rendus dans `unknown` et laissÃ©s hors de la liste.",
+        "operationId" : "replace",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SeoCreatorsDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Remplacer la liste des crÃ©ateurs de contenu",
+        "tags" : [ "RÃ©fÃ©rencement" ]
+      }
+    },
+    "/stats/aggregate" : {
+      "post" : {
+        "description" : "Des sommes par joueur et par clÃ© de groupe â champion, poste, file, patch,\nmois, cÃ´tÃ©, ou tout confondu. **Aucun appel Ã  Riot** : le calcul porte sur ce\nqui est dÃ©jÃ  collectÃ©.\n\n`scope: RIFT` ne garde que la Faille en 5 contre 5 : les indicateurs par\nminute d'une ARAM ou d'une ArÃ¨ne ne se comparent pas aux autres. Le poste\ninconnu (modes sans couloirs, remakes) n'est jamais un groupe.\n\nUn joueur sans participation n'a simplement aucun groupe dans la rÃ©ponse â\npas une erreur, et `/stats/coverage` dit pourquoi.",
+        "operationId" : "aggregate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatsQuery"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ParticipationBucketDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "AgrÃ©ger des participations sur un axe",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/champion-combos" : {
+      "post" : {
+        "description" : "Deux ou trois emplacements (un poste, des champions candidats) : chaque combo trouvÃ©\ndans un mÃªme camp, avec ses parties et ses victoires. Sert de repÃ¨re aux conseils de\ndraft. Pas de dÃ©coupage par patch ni par palier. 400 si les postes se rÃ©pÃ¨tent.",
+        "operationId" : "championCombos",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChampionCombosQueryDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChampionComboDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Combos de champions, tous joueurs confondus",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/coverage" : {
+      "post" : {
+        "description" : "Combien de parties, sur quelle pÃ©riode, et **est-ce ce joueur-lÃ  qu'on\ncollecte**.\n\nLa distinction n'est pas cosmÃ©tique : les participations portent les dix\njoueurs de chaque partie collectÃ©e, donc un compte jamais ingÃ©rÃ© a quand mÃªme\ndes lignes dÃ¨s qu'il a croisÃ© quelqu'un qu'on suit. Ses chiffres sont alors\nvrais mais partiels, et `tracked = false` est la seule chose qui le dise.",
+        "operationId" : "coverage",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PuuidListRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PlayerCoverageDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Sur quoi portent les chiffres de ces joueurs",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/match-insights" : {
+      "post" : {
+        "description" : "Aucun appel Ã  Riot : ce qui manque est rendu absent, et se collecte via `enrich`.",
+        "operationId" : "matchInsights",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MatchIdsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MatchInsightsDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rangs relevÃ©s et chiffres Ã  15 minutes de parties dÃ©jÃ  collectÃ©es",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/matches/{matchId}/metrics" : {
+      "get" : {
+        "description" : "MÃªmes expressions que la grille GAME : chaque valeur se place directement sur la rÃ©partition du poste.",
+        "operationId" : "matchMetrics",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "matchId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MatchPlayerMetricsDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les indicateurs de chaque joueur sur une partie",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/patches" : {
+      "get" : {
+        "description" : "Le plus rÃ©cent d'abord. Sert Ã  traduire Â« les 2 derniers patchs Â» en date de dÃ©but.",
+        "operationId" : "patches",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "count",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 4
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PatchStartDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les derniers patchs et la date de leur premiÃ¨re partie collectÃ©e",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/players/{puuid}/timeline-habits" : {
+      "get" : {
+        "description" : "Moyennes par partie des signaux de timeline (morts isolÃ©es, premier mort des combatsâ¦) sur ses 30 derniÃ¨res parties qui ont une timeline. RecalculÃ©es Ã  chaque appel.",
+        "operationId" : "timelineHabits",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "puuid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "since",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimelineHabitsDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Habitudes de timeline d'un joueur",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/references" : {
+      "post" : {
+        "description" : "Pour chaque joueur : son dernier palier relevÃ©, et les bornes p5âp95 de ses adversaires\ndirects sur la pÃ©riode, calculÃ©es Ã  la demande. Le palier lui-mÃªme se note avec\n`GET /stats/references/{poste}`.\n\nMoins de dix adversaires : rendu absent plutÃ´t que bruitÃ©.",
+        "operationId" : "references",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReferencesQueryDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PlayerReferencesDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Palier et adversaires directs de joueurs Ã  un poste",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/references/champions/{championId}" : {
+      "get" : {
+        "description" : "`tier` est le palier du joueur Ã  noter ; il est ramenÃ© Ã  son groupe (Or â SILVER_GOLD).\nUne mÃ©trique absente de la rÃ©ponse : pas assez de joueurs, se rabattre sur le poste.",
+        "operationId" : "championGrid",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "championId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tier",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChampionReferenceGridDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©partition des moyennes des joueurs d'un champion, dans le groupe de paliers donnÃ©",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/references/team" : {
+      "get" : {
+        "description" : "Ãcarts d'or, d'XP et de kills Ã  l'autre camp, objectifs pris, ganks dÃ©cisifs faits et\nsubis. Une partie par ligne : c'est une partie d'Ã©quipe qui se situe dedans, pas une moyenne.",
+        "operationId" : "teamGrid",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "patch",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tier",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReferenceGridDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©partition des chiffres d'un camp Ã  15 minutes, par palier moyen du camp",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/references/{position}" : {
+      "get" : {
+        "description" : "RecalculÃ©e chaque jour sur les deux derniers patchs, parties classÃ©es solo et flex.\nAvec `patch`, la rÃ©fÃ©rence de ce patch s'il y en a une, sinon la plus rÃ©cente. Avec\n`tier`, seulement la grille de ce palier (plus celle du ladder) : c'est ce qu'il\nfaut pour noter un joueur, et vingt fois moins lourd.",
+        "operationId" : "referenceGrid",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "position",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "MEAN"
+          }
+        }, {
+          "in" : "query",
+          "name" : "patch",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tier",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReferenceGridDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "RÃ©partition des mÃ©triques Ã  un poste, par palier et sur tout le ladder",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/shared-matches" : {
+      "post" : {
+        "description" : "Rend les parties oÃ¹ au moins `minimumPlayers` des `puuids` donnÃ©s Ã©taient\nprÃ©sents, les plus rÃ©centes d'abord, **toutes files confondues**.\n\nLe connecteur compte des prÃ©sences ; il ne sait pas ce qu'est une Ã©quipe, et\nle seuil vient donc de l'appelant.\n\nUne partie oÃ¹ les joueurs demandÃ©s n'Ã©taient pas du mÃªme camp est rendue avec\n`splitSides` et sans rÃ©sultat commun â la compter en victoire ou en dÃ©faite\nserait faux dans les deux sens.",
+        "operationId" : "sharedMatches",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SharedMatchesQuery"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SharedMatchesDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les parties oÃ¹ plusieurs de ces joueurs se retrouvent",
+        "tags" : [ "Statistiques" ]
+      }
+    },
+    "/stats/tier-combos" : {
+      "get" : {
+        "description" : "Duo bas (ADC_SUP), jungle-milieu (JGL_MID) ou trio jungle/milieu/support (JGL_MID_SUP),\npour IRON_BRONZE, SILVER_GOLD, PLATINUM_EMERALD, DIAMOND ou MASTER_PLUS. ClassÃ©s par la\nborne basse de Wilson. 503 tant que la table du jour n'est pas calculÃ©e.",
+        "operationId" : "tierCombos",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "tier",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "kind",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "minGames",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 3
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 30
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TierCombosDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Les meilleurs combos d'un groupe de paliers",
+        "tags" : [ "Statistiques" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "AccountsByRankDto" : {
+        "type" : "object",
+        "properties" : {
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Row"
+            }
+          }
+        },
+        "description" : "Comptes relevÃ©s et graines du ladder, par rang solo/duo, de UNRANKED Ã  CHALLENGER."
+      },
+      "At15" : {
+        "type" : "object",
+        "properties" : {
+          "assists" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "cs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "damageToChampions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deaths" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "gold" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "xp" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Absent : pas de timeline, ou partie finie avant 15 minutes."
+      },
+      "AtEnd" : {
+        "type" : "object",
+        "properties" : {
+          "gold" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "xp" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Or et XP de la derniÃ¨re image de la timeline, kills de toute la partie."
+      },
+      "Backfill" : {
+        "type" : "object",
+        "properties" : {
+          "collected" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "found" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Rattrapage d'historique en cours ou fait ; absent s'il n'a jamais Ã©tÃ© demandÃ©."
+      },
+      "Bound" : {
+        "type" : "object",
+        "properties" : {
+          "high" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "low" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }
+      },
+      "ChampionCardDto" : {
+        "type" : "object",
+        "properties" : {
+          "iconUrl" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 24
+          },
+          "key" : {
+            "type" : "string",
+            "example" : "Jax"
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "Jax"
+          },
+          "tags" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "title" : {
+            "type" : "string",
+            "example" : "MaÃ®tre d'armes"
+          }
+        },
+        "description" : "Un champion, figÃ© Ã  une version du jeu."
+      },
+      "ChampionCatalogDto" : {
+        "type" : "object",
+        "properties" : {
+          "champions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChampionCardDto"
+            }
+          },
+          "locale" : {
+            "type" : "string",
+            "example" : "fr_FR"
+          },
+          "version" : {
+            "type" : "string",
+            "example" : "16.18.1"
+          }
+        },
+        "description" : "Catalogue des champions figÃ© Ã  une version Data Dragon."
+      },
+      "ChampionComboDto" : {
+        "type" : "object",
+        "properties" : {
+          "championIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "games" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "wins" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ChampionCombosQueryDto" : {
+        "type" : "object",
+        "properties" : {
+          "minGames" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "slots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Slot"
+            }
+          }
+        }
+      },
+      "ChampionGridMetric" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "polarity" : {
+            "type" : "string"
+          },
+          "values" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          }
+        }
+      },
+      "ChampionMasteryDto" : {
+        "type" : "object",
+        "properties" : {
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championName" : {
+            "type" : "string"
+          },
+          "lastPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "level" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "observedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "points" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "MaÃ®trise d'un champion par un joueur."
+      },
+      "ChampionReferenceGridDto" : {
+        "type" : "object",
+        "properties" : {
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "computedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "group" : {
+            "type" : "string"
+          },
+          "metrics" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/ChampionGridMetric"
+            }
+          },
+          "patches" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "percentiles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          }
+        },
+        "description" : "Moyennes des joueurs d'un champion (au moins 5 parties sur la fenÃªtre), dans un groupe de paliers :\nIRON_BRONZE, SILVER_GOLD, PLATINUM_EMERALD, DIAMOND, MASTER_PLUS. Une mÃ©trique absente : moins de\n30 joueurs dans le groupe, l'appelant se rabat sur le rÃ©fÃ©rentiel du poste."
+      },
+      "Counts" : {
+        "type" : "object",
+        "properties" : {
+          "analysed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "pending" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "retrieved" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "CrawlerStatusDto" : {
+        "type" : "object",
+        "properties" : {
+          "backgroundPending" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "databaseBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "knownAccounts" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastRoundAccounts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lastRoundAt" : {
+            "type" : "string",
+            "description" : "Absent tant qu'aucun tour n'a empilÃ© de compte.",
+            "format" : "date-time"
+          },
+          "running" : {
+            "type" : "boolean",
+            "description" : "ActivÃ©e et sous le seuil de volume."
+          },
+          "storageAlert" : {
+            "type" : "boolean",
+            "description" : "Le volume de la base dÃ©passe le seuil : la collecte de fond est suspendue."
+          },
+          "storageAlertBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "switchable" : {
+            "type" : "boolean",
+            "description" : "Faux en prod : la collecte de fond y tourne toujours."
+          },
+          "trackedAccounts" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "description" : "La collecte de fond : elle relÃ¨ve l'historique des comptes croisÃ©s, sans qu'on le demande."
+      },
+      "CrawlerToggleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "EarlyGameDto" : {
+        "type" : "object",
+        "properties" : {
+          "ganks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Gank"
+            }
+          },
+          "junglers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JunglePresence"
+            }
+          },
+          "objectives" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Objectives"
+            }
+          }
+        },
+        "description" : "Les quinze premiÃ¨res minutes lues dans la timeline : ganks, prÃ©sence des junglers, objectifs."
+      },
+      "EndObjectives" : {
+        "type" : "object",
+        "properties" : {
+          "dragons" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "heralds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Objectifs pris sur toute la partie. Absent : pas de timeline."
+      },
+      "Gank" : {
+        "type" : "object",
+        "properties" : {
+          "attackerSide" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "attackersLost" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "casualtyPuuids" : {
+            "type" : "array",
+            "description" : "Les joueurs morts pendant le gank, des deux camps.",
+            "items" : {
+              "type" : "string",
+              "description" : "Les joueurs morts pendant le gank, des deux camps."
+            }
+          },
+          "decisive" : {
+            "type" : "boolean",
+            "description" : "Aucune perte pour l'attaquant, et un mort en face ou un objectif pris."
+          },
+          "defendersLost" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "junglerPuuid" : {
+            "type" : "string"
+          },
+          "lane" : {
+            "type" : "string",
+            "enum" : [ "TOP", "MID", "BOT" ]
+          },
+          "objectiveFollowUp" : {
+            "type" : "boolean",
+            "description" : "Objectif du cÃ´tÃ© du couloir pris par l'attaquant dans les 90 secondes."
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "KILL", "TRADE", "SURVIVED", "COUNTER" ]
+          },
+          "second" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "targetPuuids" : {
+            "type" : "array",
+            "description" : "Les joueurs du couloir visÃ©.",
+            "items" : {
+              "type" : "string",
+              "description" : "Les joueurs du couloir visÃ©."
+            }
+          }
+        },
+        "description" : "Une venue du jungler sur un couloir adverse. Sans kill, elle n'est vue qu'aux images de la timeline, une par minute : une venue brÃ¨ve entre deux images Ã©chappe."
+      },
+      "HistorySyncReportDto" : {
+        "type" : "object",
+        "properties" : {
+          "detailsFetched" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "detailsPending" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "idsNew" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "idsSeen" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "queriedFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "syncedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Compte rendu d'une synchronisation d'historique."
+      },
+      "HistoryWindowDto" : {
+        "type" : "object",
+        "properties" : {
+          "maxAgeDays" : {
+            "type" : "integer",
+            "description" : "Aucune partie plus vieille que ce nombre de jours, sauf pour atteindre le plancher.",
+            "format" : "int32"
+          },
+          "maxGames" : {
+            "type" : "integer",
+            "description" : "Au plus ce nombre de parties.",
+            "format" : "int32"
+          },
+          "minGames" : {
+            "type" : "integer",
+            "description" : "Plancher : ce nombre de parties, mÃªme au-delÃ  de l'Ã¢ge maximal.",
+            "format" : "int32"
+          }
+        },
+        "description" : "Ce que le premier relevÃ© d'un joueur va chercher : ses derniÃ¨res parties, bornÃ©es en nombre et en Ã¢ge."
+      },
+      "IndexablePlayerDto" : {
+        "type" : "object",
+        "properties" : {
+          "featured" : {
+            "type" : "boolean"
+          },
+          "gameName" : {
+            "type" : "string"
+          },
+          "tagLine" : {
+            "type" : "string"
+          }
+        }
+      },
+      "IngestEnqueueReportDto" : {
+        "type" : "object",
+        "properties" : {
+          "puuid" : {
+            "type" : "string"
+          },
+          "queued" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/IngestStatusDto"
+          }
+        },
+        "description" : "Ce qu'un empilement a ajoutÃ© Ã  la file."
+      },
+      "IngestPauseRequest" : {
+        "type" : "object",
+        "properties" : {
+          "paused" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "IngestPauseStatusDto" : {
+        "type" : "object",
+        "properties" : {
+          "paused" : {
+            "type" : "boolean"
+          },
+          "running" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Pause de toute la file. running : tÃ¢ches prises avant la pause et pas encore terminÃ©es."
+      },
+      "IngestStatusDto" : {
+        "type" : "object",
+        "properties" : {
+          "callsPerMinute" : {
+            "type" : "number",
+            "format" : "double",
+            "example" : 49.0
+          },
+          "estimatedDrain" : {
+            "type" : "string",
+            "format" : "duration",
+            "example" : "PT2H36M20S"
+          },
+          "estimatedReadyAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "pending" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "running" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "throttledFor" : {
+            "type" : "string",
+            "format" : "duration",
+            "example" : "PT2H36M20S"
+          }
+        },
+        "description" : "Ãtat de la file d'ingestion et temps d'Ã©coulement estimÃ©."
+      },
+      "IngestSummaryDto" : {
+        "type" : "object",
+        "properties" : {
+          "matches" : {
+            "$ref" : "#/components/schemas/Counts"
+          },
+          "profiles" : {
+            "$ref" : "#/components/schemas/Counts"
+          }
+        },
+        "description" : "Ce que la collecte a produit, en parties et en profils plutÃ´t qu'en tÃ¢ches."
+      },
+      "IngestTaskDto" : {
+        "type" : "object",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "enqueuedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "lastError" : {
+            "type" : "string"
+          },
+          "leaseUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "notBefore" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "priority" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "RUNNING", "FAILED" ]
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "PLAYER_IDS", "PLAYER_PREVIEW", "PLAYER_PREVIEW_SLOW", "PLAYER_BACKFILL", "PLAYER_RANK", "PLAYER_MASTERY", "PUUID_CHECK", "MATCH_DETAIL", "MATCH_TIMELINE", "MATCH_TIMELINE_DIGEST", "MATCH_RANKS", "LADDER_PAGE", "SEED_MATCHES" ]
+          }
+        }
+      },
+      "JunglePresence" : {
+        "type" : "object",
+        "properties" : {
+          "botMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "midMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "topMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Minutes passÃ©es par le jungler de chaque cÃ´tÃ© de la carte, de 2 Ã  14 minutes."
+      },
+      "KnownAccountRebuildReportDto" : {
+        "type" : "object",
+        "properties" : {
+          "accountsRead" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "accountsWritten" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Reprojection des participations dans l'index des comptes connus."
+      },
+      "MatchDetailDto" : {
+        "type" : "object",
+        "properties" : {
+          "complete" : {
+            "type" : "boolean"
+          },
+          "durationSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "gameVersion" : {
+            "type" : "string",
+            "example" : "16.18.817.5716"
+          },
+          "matchId" : {
+            "type" : "string",
+            "example" : "EUW1_7987650481"
+          },
+          "participants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MatchParticipantDto"
+            }
+          },
+          "platform" : {
+            "type" : "string",
+            "example" : "EUW1"
+          },
+          "queue" : {
+            "type" : "string",
+            "enum" : [ "NORMAL_DRAFT", "NORMAL_BLIND", "QUICKPLAY", "SWIFTPLAY", "RANKED_SOLO", "RANKED_FLEX", "ARAM", "ARAM_MAYHEM", "CLASH", "ARAM_CLASH", "COOP_VS_AI", "ARURF", "URF", "ONE_FOR_ALL", "NEXUS_BLITZ", "ULTIMATE_SPELLBOOK", "ARENA", "SWARM", "BRAWL", "TUTORIAL", "CUSTOM", "OTHER" ]
+          },
+          "queueId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 420
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "teams" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MatchTeamResultDto"
+            }
+          }
+        },
+        "description" : "Une partie terminÃ©e, normalisÃ©e. Immuable : jamais redemandÃ©e Ã  Riot."
+      },
+      "MatchDetailsResponseDto" : {
+        "type" : "object",
+        "properties" : {
+          "matches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MatchDetailDto"
+            }
+          },
+          "pending" : {
+            "type" : "array",
+            "description" : "Ids dont le dÃ©tail reste Ã  rÃ©cupÃ©rer : rappeler pour les obtenir.",
+            "items" : {
+              "type" : "string",
+              "description" : "Ids dont le dÃ©tail reste Ã  rÃ©cupÃ©rer : rappeler pour les obtenir."
+            }
+          },
+          "unavailable" : {
+            "type" : "array",
+            "description" : "Ids refusÃ©s par Riot (partie inexistante ou purgÃ©e).",
+            "items" : {
+              "type" : "string",
+              "description" : "Ids refusÃ©s par Riot (partie inexistante ou purgÃ©e)."
+            }
+          }
+        },
+        "description" : "DÃ©tails de parties, Ã©ventuellement partiels."
+      },
+      "MatchHistoryDto" : {
+        "type" : "object",
+        "properties" : {
+          "ingestQueued" : {
+            "type" : "boolean"
+          },
+          "matchIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "syncedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Ids de parties d'un joueur depuis une date, servis du cache du connecteur."
+      },
+      "MatchIdsRequest" : {
+        "required" : [ "matchIds" ],
+        "type" : "object",
+        "properties" : {
+          "matchIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "description" : "Une liste d'identifiants de parties dont on veut le dÃ©tail."
+      },
+      "MatchInsightsDto" : {
+        "type" : "object",
+        "properties" : {
+          "early" : {
+            "$ref" : "#/components/schemas/EarlyGameDto"
+          },
+          "endObjectives" : {
+            "type" : "array",
+            "description" : "Objectifs pris sur toute la partie. Absent : pas de timeline.",
+            "items" : {
+              "$ref" : "#/components/schemas/EndObjectives"
+            }
+          },
+          "matchId" : {
+            "type" : "string"
+          },
+          "participants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Participant"
+            }
+          },
+          "ranksObservedAt" : {
+            "type" : "string",
+            "description" : "Absente : les rangs n'ont pas encore Ã©tÃ© relevÃ©s.",
+            "format" : "date-time"
+          },
+          "timelineAvailable" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Ce qu'une partie d'Ã©quipe apporte en plus de son dÃ©tail : rangs relevÃ©s et chiffres Ã  15 minutes."
+      },
+      "MatchParticipantDto" : {
+        "type" : "object",
+        "properties" : {
+          "afk" : {
+            "type" : "boolean"
+          },
+          "assists" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championLevel" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championName" : {
+            "type" : "string"
+          },
+          "damageTaken" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "damageToChampions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deaths" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "gameName" : {
+            "type" : "string"
+          },
+          "goldEarned" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minionsKilled" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "summonerSpell1" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "summonerSpell2" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "tagLine" : {
+            "type" : "string"
+          },
+          "teamId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "visionScore" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "win" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Un joueur dans une partie, forme normalisÃ©e."
+      },
+      "MatchPlayerMetricsDto" : {
+        "type" : "object",
+        "properties" : {
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "tier" : {
+            "type" : "string",
+            "description" : "Palier tenu Ã  la date de la partie ; absent s'il n'a pas Ã©tÃ© relevÃ©."
+          },
+          "tierEstimated" : {
+            "type" : "boolean",
+            "description" : "Palier de la graine qui a fait collecter la partie, pas celui du joueur."
+          },
+          "values" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "number",
+              "description" : "ClÃ© de mÃ©trique â valeur ; null quand la partie ne permet pas de la calculer.",
+              "format" : "double"
+            },
+            "description" : "ClÃ© de mÃ©trique â valeur ; null quand la partie ne permet pas de la calculer."
+          }
+        },
+        "description" : "Les indicateurs d'un joueur sur une seule partie, calculÃ©s comme la grille GAME de son poste."
+      },
+      "MatchTeamResultDto" : {
+        "type" : "object",
+        "properties" : {
+          "bannedChampionIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "objectives" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "teamId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "win" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Le rÃ©sultat d'un camp : victoire, bans, objectifs."
+      },
+      "MetricReferenceDto" : {
+        "type" : "object",
+        "properties" : {
+          "bounds" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/Bound"
+            }
+          },
+          "minimumGames" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "population" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "tier" : {
+            "type" : "string",
+            "description" : "Palier de la population, absent pour les adversaires rencontrÃ©s."
+          }
+        },
+        "description" : "Bornes des indicateurs d'une population de joueurs Ã  un poste : 5e et 95e percentiles de\nleurs moyennes sur la Faille. Une population locale â les comptes collectÃ©s â pas une\nrÃ©fÃ©rence mondiale."
+      },
+      "Objectives" : {
+        "type" : "object",
+        "properties" : {
+          "dragons" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "grubs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "heralds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Objectifs neutres pris avant 15 minutes."
+      },
+      "Participant" : {
+        "type" : "object",
+        "properties" : {
+          "at15" : {
+            "$ref" : "#/components/schemas/At15"
+          },
+          "atEnd" : {
+            "$ref" : "#/components/schemas/AtEnd"
+          },
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "flex" : {
+            "$ref" : "#/components/schemas/RankedStandingDto"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "solo" : {
+            "$ref" : "#/components/schemas/RankedStandingDto"
+          }
+        }
+      },
+      "ParticipationBucketDto" : {
+        "type" : "object",
+        "properties" : {
+          "afkGames" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "assists" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "championName" : {
+            "type" : "string",
+            "description" : "CHAMPION seulement : le nom portÃ© Ã  l'Ã©poque."
+          },
+          "damageTaken" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "damageToChampions" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "deaths" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "firstPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "games" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "goldEarned" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "groupedBy" : {
+            "type" : "string",
+            "enum" : [ "OVERALL", "CHAMPION", "POSITION", "QUEUE", "PATCH", "MONTH", "SIDE" ]
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minionsKilled" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "performance" : {
+            "$ref" : "#/components/schemas/PerformanceSumsDto"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "secondsPlayed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "teamDeaths" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "teamKills" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "visionScore" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "wins" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "description" : "Sommes brutes d'un groupe de participations."
+      },
+      "PatchStartDto" : {
+        "type" : "object",
+        "properties" : {
+          "patch" : {
+            "type" : "string"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "PerformanceSumsDto" : {
+        "type" : "object",
+        "properties" : {
+          "controlWardsPlaced" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "csDiffAt15" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "epicMonsterDamage" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "goldDiffAt15" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "killsDiffAt15" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "laningGames" : {
+            "type" : "integer",
+            "description" : "Parties oÃ¹ les Ã©carts Ã  15 min sont connus.",
+            "format" : "int64"
+          },
+          "platesDiff" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "platesGames" : {
+            "type" : "integer",
+            "description" : "Parties oÃ¹ l'Ã©cart de plaques est connu.",
+            "format" : "int64"
+          },
+          "teamDamageToChampions" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "timeDeadSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "turretDamage" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "turretTakedowns" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "wardsKilled" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "wardsPlaced" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "xpDiffAt15" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "description" : "Sommes des mÃ©triques de partie de la projection v3. Les Ã©carts Ã  15 min n'existent que pour les\nparties Ã  timeline : leur dÃ©nominateur est laningGames, pas games."
+      },
+      "Player" : {
+        "required" : [ "position", "puuid" ],
+        "type" : "object",
+        "properties" : {
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "PlayerCoverageDto" : {
+        "type" : "object",
+        "properties" : {
+          "analysedMatches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "firstPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "firstSyncAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "knownMatches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastSyncAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "tracked" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "L'assise des statistiques d'un joueur."
+      },
+      "PlayerIdentityDto" : {
+        "type" : "object",
+        "properties" : {
+          "gameName" : {
+            "type" : "string",
+            "example" : "J1HUIV"
+          },
+          "puuid" : {
+            "type" : "string",
+            "example" : "c7E2IrpJgQxASKVyvRTWUJaJnmTwna7y1aIbc_C2aWwvO2KcC0nvLKCHkxrda6qCLWUCBovcaqa76w"
+          },
+          "tagLine" : {
+            "type" : "string",
+            "example" : "000"
+          }
+        },
+        "description" : "Un joueur Riot. Le puuid est la seule clÃ© stable ; le Riot ID peut changer."
+      },
+      "PlayerIngestStatusDto" : {
+        "type" : "object",
+        "properties" : {
+          "backfill" : {
+            "$ref" : "#/components/schemas/Backfill"
+          },
+          "callsPerMinute" : {
+            "type" : "number",
+            "format" : "double",
+            "example" : 49.0
+          },
+          "estimatedReadyAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "estimatedRemaining" : {
+            "type" : "string",
+            "format" : "duration",
+            "example" : "PT2H36M20S"
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "pending" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "priorityPending" : {
+            "type" : "integer",
+            "description" : "TÃ¢ches demandÃ©es pour ce joueur (aperÃ§u d'un joueur recherchÃ©) encore en file.",
+            "format" : "int64"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "queuedAhead" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "running" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "description" : "Avancement de la collecte pour un joueur."
+      },
+      "PlayerReferencesDto" : {
+        "type" : "object",
+        "properties" : {
+          "met" : {
+            "$ref" : "#/components/schemas/MetricReferenceDto"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string",
+            "description" : "Palier retenu : solo, Ã  dÃ©faut flex. Absent si le joueur n'est pas classÃ©."
+          }
+        },
+        "description" : "Le palier se note avec GET /stats/references/{poste} ; ici, seulement les adversaires rencontrÃ©s."
+      },
+      "PlayerSuggestionDto" : {
+        "type" : "object",
+        "properties" : {
+          "gameName" : {
+            "type" : "string"
+          },
+          "lastPlayedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "matchCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "observedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "positions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PositionPlayed"
+            }
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "riotId" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string",
+            "enum" : [ "PARTICIPATION", "RESOLUTION" ]
+          },
+          "tagLine" : {
+            "type" : "string"
+          }
+        },
+        "description" : "Un compte connu de notre index, avec de quoi le reconnaÃ®tre et le dater."
+      },
+      "PositionPlayed" : {
+        "type" : "object",
+        "properties" : {
+          "matches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          }
+        },
+        "description" : "Un poste et le nombre de parties qu'on y a vu ce joueur."
+      },
+      "PuuidListRequest" : {
+        "required" : [ "puuids" ],
+        "type" : "object",
+        "properties" : {
+          "puuids" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "Ranked" : {
+        "type" : "object",
+        "properties" : {
+          "championIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "games" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lowerBound" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "wins" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "RankedStandingDto" : {
+        "type" : "object",
+        "properties" : {
+          "division" : {
+            "type" : "string",
+            "example" : "I"
+          },
+          "hotStreak" : {
+            "type" : "boolean"
+          },
+          "inactive" : {
+            "type" : "boolean"
+          },
+          "leaguePoints" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "losses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "observedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "queue" : {
+            "type" : "string",
+            "enum" : [ "NORMAL_DRAFT", "NORMAL_BLIND", "QUICKPLAY", "SWIFTPLAY", "RANKED_SOLO", "RANKED_FLEX", "ARAM", "ARAM_MAYHEM", "CLASH", "ARAM_CLASH", "COOP_VS_AI", "ARURF", "URF", "ONE_FOR_ALL", "NEXUS_BLITZ", "ULTIMATE_SPELLBOOK", "ARENA", "SWARM", "BRAWL", "TUTORIAL", "CUSTOM", "OTHER" ]
+          },
+          "riotQueueType" : {
+            "type" : "string",
+            "example" : "RANKED_SOLO_5x5"
+          },
+          "tier" : {
+            "type" : "string",
+            "example" : "CHALLENGER"
+          },
+          "wins" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Rang et LP dans une file classÃ©e, avec la date du relevÃ©."
+      },
+      "RebuildReportDto" : {
+        "type" : "object",
+        "properties" : {
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "matchesRead" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "participationsWritten" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "unusableMatches" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Reconstruction de la couche d'analyse depuis le stockÃ©, sans aucun appel Ã  Riot."
+      },
+      "ReferenceGridDto" : {
+        "type" : "object",
+        "properties" : {
+          "computedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "metrics" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/ReferenceGridMetric"
+            }
+          },
+          "patches" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "percentiles" : {
+            "type" : "array",
+            "description" : "Les rangs des quantiles de chaque grille, de 0 Ã  1.",
+            "items" : {
+              "type" : "number",
+              "description" : "Les rangs des quantiles de chaque grille, de 0 Ã  1.",
+              "format" : "double"
+            }
+          },
+          "position" : {
+            "type" : "string",
+            "description" : "Un poste, ou TEAM pour un camp entier."
+          },
+          "scope" : {
+            "type" : "string",
+            "description" : "GAME : une partie isolÃ©e. MEAN : la moyenne d'un joueur Ã  au moins 10 parties."
+          }
+        },
+        "description" : "RÃ©partition d'une mÃ©trique Ã  un poste : une grille de quantiles par palier. La note se calcule chez\nl'appelant : une valeur se situe dans la grille de son palier par interpolation, et prend le palier dont\nla moyenne est la plus proche quand `rankMeans` est prÃ©sent."
+      },
+      "ReferenceGridMetric" : {
+        "type" : "object",
+        "properties" : {
+          "missingTiers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "polarity" : {
+            "type" : "string",
+            "description" : "HIGHER, LOWER (moins vaut mieux : inverser le percentile), NEUTRAL."
+          },
+          "rankMeans" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "number",
+              "description" : "Moyenne par partie de chaque palier assez fourni, du plus bas au plus haut. Absente quand la\nmÃ©trique ne suit pas le rang : moyennes qui ne montent pas d'un palier Ã  l'autre, ou trop peu\nface Ã  l'Ã©cart ordinaire au sein d'un palier.",
+              "format" : "double"
+            },
+            "description" : "Moyenne par partie de chaque palier assez fourni, du plus bas au plus haut. Absente quand la\nmÃ©trique ne suit pas le rang : moyennes qui ne montent pas d'un palier Ã  l'autre, ou trop peu\nface Ã  l'Ã©cart ordinaire au sein d'un palier."
+          },
+          "tiers" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/ReferenceGridTier"
+            },
+            "description" : "Par palier : effectif et grille. Seulement le palier demandÃ©, si demandÃ©."
+          }
+        }
+      },
+      "ReferenceGridTier" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "values" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          }
+        },
+        "description" : "Par palier : effectif et grille. Seulement le palier demandÃ©, si demandÃ©."
+      },
+      "ReferencesQueryDto" : {
+        "required" : [ "players" ],
+        "type" : "object",
+        "properties" : {
+          "players" : {
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Player"
+            }
+          }
+        }
+      },
+      "RiotDataInventoryDto" : {
+        "type" : "object",
+        "properties" : {
+          "kept" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "purged" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          }
+        },
+        "description" : "Ce qu'un effacement des donnÃ©es Riot emporterait (documents par collection) et ce qu'il garde."
+      },
+      "RiotDataPurgeReportDto" : {
+        "type" : "object",
+        "properties" : {
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "removed" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "description" : "Effacement des donnÃ©es Riot : documents supprimÃ©s par collection."
+      },
+      "Row" : {
+        "type" : "object",
+        "properties" : {
+          "seeds" : {
+            "type" : "integer",
+            "description" : "Graines tirÃ©es dans les classements, au rang du tirage.",
+            "format" : "int64"
+          },
+          "tier" : {
+            "type" : "string",
+            "description" : "UNRANKED quand aucun rang solo/duo n'a Ã©tÃ© relevÃ©."
+          },
+          "tracked" : {
+            "type" : "integer",
+            "description" : "Comptes dont l'historique a Ã©tÃ© relevÃ©, Ã  leur dernier rang.",
+            "format" : "int64"
+          }
+        }
+      },
+      "SamplingStatusDto" : {
+        "type" : "object",
+        "properties" : {
+          "lobbies" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "tiers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SamplingTier"
+            }
+          },
+          "window" : {
+            "type" : "string",
+            "format" : "duration",
+            "example" : "PT2H36M20S"
+          }
+        },
+        "description" : "Ãchantillon par palier : graines tirÃ©es dans les classements sur la fenÃªtre, contre la cible."
+      },
+      "SamplingTier" : {
+        "type" : "object",
+        "properties" : {
+          "seeds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "target" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "tier" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SeoCreatorsDto" : {
+        "type" : "object",
+        "properties" : {
+          "creators" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "unknown" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "SharedMatchDto" : {
+        "type" : "object",
+        "properties" : {
+          "complete" : {
+            "type" : "boolean"
+          },
+          "durationSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "matchId" : {
+            "type" : "string"
+          },
+          "patch" : {
+            "type" : "string"
+          },
+          "players" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SharedMatchPlayerDto"
+            }
+          },
+          "presentPlayers" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "queue" : {
+            "type" : "string",
+            "enum" : [ "NORMAL_DRAFT", "NORMAL_BLIND", "QUICKPLAY", "SWIFTPLAY", "RANKED_SOLO", "RANKED_FLEX", "ARAM", "ARAM_MAYHEM", "CLASH", "ARAM_CLASH", "COOP_VS_AI", "ARURF", "URF", "ONE_FOR_ALL", "NEXUS_BLITZ", "ULTIMATE_SPELLBOOK", "ARENA", "SWARM", "BRAWL", "TUTORIAL", "CUSTOM", "OTHER" ]
+          },
+          "queueId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "splitSides" : {
+            "type" : "boolean"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "win" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Une partie commune, avec les joueurs demandÃ©s qui y Ã©taient."
+      },
+      "SharedMatchPlayerDto" : {
+        "type" : "object",
+        "properties" : {
+          "afk" : {
+            "type" : "boolean"
+          },
+          "assists" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "championName" : {
+            "type" : "string"
+          },
+          "damageTaken" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "damageToChampions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deaths" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "goldEarned" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minionsKilled" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "requested" : {
+            "type" : "boolean",
+            "description" : "Faux pour les autres joueurs de la partie, alliÃ©s comme adversaires."
+          },
+          "riotId" : {
+            "type" : "string",
+            "description" : "Pseudo#TAG tel que Riot l'a donnÃ© pour cette partie. Absent sur les parties anciennes."
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "visionScore" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "win" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Un joueur d'une partie partagÃ©e â les dix y sont."
+      },
+      "SharedMatchesDto" : {
+        "type" : "object",
+        "properties" : {
+          "matches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SharedMatchDto"
+            }
+          },
+          "minimumPlayers" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pool" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalMatches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "truncated" : {
+            "type" : "boolean"
+          }
+        },
+        "description" : "Les parties communes trouvÃ©es, les plus rÃ©centes d'abord."
+      },
+      "SharedMatchesQuery" : {
+        "required" : [ "puuids" ],
+        "type" : "object",
+        "properties" : {
+          "enrich" : {
+            "type" : "boolean",
+            "description" : "Empile timeline et rangs des parties rendues qui ne les ont pas encore."
+          },
+          "limit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "matchIds" : {
+            "type" : "array",
+            "description" : "Restreint la recherche Ã  ces parties : vÃ©rifier qu'une partie est commune sans relire tout l'historique.",
+            "items" : {
+              "type" : "string",
+              "description" : "Restreint la recherche Ã  ces parties : vÃ©rifier qu'une partie est commune sans relire tout l'historique."
+            }
+          },
+          "minimumPlayers" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "puuids" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Les parties oÃ¹ plusieurs de ces joueurs se retrouvent."
+      },
+      "Slot" : {
+        "type" : "object",
+        "properties" : {
+          "championIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "position" : {
+            "type" : "string",
+            "enum" : [ "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", "UNKNOWN" ]
+          }
+        }
+      },
+      "StatsQuery" : {
+        "required" : [ "groupBy", "puuids" ],
+        "type" : "object",
+        "properties" : {
+          "groupBy" : {
+            "type" : "string",
+            "enum" : [ "OVERALL", "CHAMPION", "POSITION", "QUEUE", "PATCH", "MONTH", "SIDE" ]
+          },
+          "matchIds" : {
+            "maxItems" : 1000,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "Absente : toutes les parties. Sinon, ces parties seulement (celles d'une Ã©quipe).",
+            "items" : {
+              "type" : "string",
+              "description" : "Absente : toutes les parties. Sinon, ces parties seulement (celles d'une Ã©quipe)."
+            }
+          },
+          "puuids" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "scope" : {
+            "type" : "string",
+            "description" : "Absente : ALL.",
+            "enum" : [ "ALL", "RIFT" ]
+          },
+          "since" : {
+            "type" : "string",
+            "description" : "Absente : tout l'historique connu.",
+            "format" : "date-time"
+          }
+        },
+        "description" : "Ce qu'on veut agrÃ©ger, et sur quel axe."
+      },
+      "TierCombosDto" : {
+        "type" : "object",
+        "properties" : {
+          "combos" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Ranked"
+            }
+          },
+          "computedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "games" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string"
+          }
+        }
+      },
+      "TimelineHabitsDto" : {
+        "type" : "object",
+        "properties" : {
+          "counts" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "description" : "Signal â nombre de parties oÃ¹ il est mesurÃ© (certains exigent une timeline complÃ¨te).",
+              "format" : "int32"
+            },
+            "description" : "Signal â nombre de parties oÃ¹ il est mesurÃ© (certains exigent une timeline complÃ¨te)."
+          },
+          "games" : {
+            "type" : "integer",
+            "description" : "Parties dont la timeline (complÃ¨te ou digest) a servi.",
+            "format" : "int32"
+          },
+          "means" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "number",
+              "description" : "Signal â moyenne sur les parties oÃ¹ il est mesurÃ©.",
+              "format" : "double"
+            },
+            "description" : "Signal â moyenne sur les parties oÃ¹ il est mesurÃ©."
+          }
+        },
+        "description" : "Moyennes par partie des signaux de timeline d'un joueur, sur ses parties qui ont une timeline."
+      }
+    },
+    "securitySchemes" : {
+      "internalSecret" : {
+        "description" : "Secret partagÃ© par tous les services Schub.",
+        "in" : "header",
+        "name" : "X-Internal-Secret",
+        "type" : "apiKey"
+      }
+    }
+  }
+}

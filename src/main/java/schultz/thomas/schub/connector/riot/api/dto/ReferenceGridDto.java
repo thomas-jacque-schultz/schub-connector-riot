@@ -20,6 +20,7 @@ public record ReferenceGridDto(
         Map<String, Metric> metrics
 ) {
 
+    @Schema(name = "ReferenceGridMetric")
     public record Metric(
             @Schema(description = "HIGHER, LOWER (moins vaut mieux : inverser le percentile), NEUTRAL.") String polarity,
             @Schema(description = "Par palier : effectif et grille. Seulement le palier demandé, si demandé.")
@@ -33,6 +34,7 @@ public record ReferenceGridDto(
     ) {
     }
 
+    @Schema(name = "ReferenceGridTier")
     public record Tier(long count, List<Double> values) {
     }
 }
