@@ -33,7 +33,8 @@ public class IngestSummaryService {
             IngestTaskType.MATCH_TIMELINE, IngestTaskType.MATCH_TIMELINE_DIGEST, IngestTaskType.MATCH_RANKS);
     private static final List<IngestTaskState> QUEUED = List.of(IngestTaskState.PENDING, IngestTaskState.RUNNING);
     private static final List<IngestTaskType> PROFILE_TASKS = List.of(
-            IngestTaskType.PLAYER_IDS, IngestTaskType.PLAYER_PREVIEW, IngestTaskType.PLAYER_PREVIEW_SLOW);
+            IngestTaskType.PLAYER_IDS, IngestTaskType.PLAYER_PREVIEW, IngestTaskType.PLAYER_PREVIEW_SLOW,
+            IngestTaskType.PLAYER_BACKFILL);
 
     static final String UNRANKED = "UNRANKED";
     static final List<String> TIERS = List.of(UNRANKED, "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",

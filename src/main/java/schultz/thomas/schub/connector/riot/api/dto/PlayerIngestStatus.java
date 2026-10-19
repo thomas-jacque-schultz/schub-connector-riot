@@ -16,6 +16,12 @@ public record PlayerIngestStatus(
         Duration estimatedRemaining,
         Instant estimatedReadyAt,
         @Schema(description = "Tâches demandées pour ce joueur (aperçu d'un joueur recherché) encore en file.")
-        long priorityPending
+        long priorityPending,
+        @Schema(description = "Rattrapage d'historique en cours ou fait ; absent s'il n'a jamais été demandé.")
+        Backfill backfill
 ) {
+
+    // found : null tant que les identifiants ne sont pas relevés.
+    public record Backfill(Instant since, Integer found, long collected) {
+    }
 }

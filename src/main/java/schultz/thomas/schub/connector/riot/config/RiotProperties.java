@@ -111,6 +111,13 @@ public class RiotProperties {
 
         private boolean enabled = true;
 
+        // Rattrapage à la liaison d'un compte (Schub#113). 0 : aucun. Avec une clé de développement, un rattrapage
+        // de 3 mois vide le quota du site pendant une heure : à n'ouvrir en prod qu'avec la clé de production (#34).
+        private int backfillDays = 0;
+
+        // Riot garde environ mille parties par joueur.
+        private int backfillMaxGames = 1000;
+
         // Chaque ouvrier attend Riot en série : le débit tient au nombre d'ouvriers bien avant le quota d'une clé
         // de production. C'est le volume stocké (≈ 44 ko par partie) qui le borne.
         private int workers = 1;

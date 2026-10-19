@@ -36,7 +36,7 @@ public class PuuidValidityService {
 
     private static final Duration VERIFICATION_VALABLE = Duration.ofDays(7);
     private static final List<IngestTaskType> TACHES_DU_JOUEUR = List.of(IngestTaskType.PLAYER_IDS,
-            IngestTaskType.PLAYER_PREVIEW, IngestTaskType.PLAYER_PREVIEW_SLOW, IngestTaskType.PLAYER_RANK,
+            IngestTaskType.PLAYER_PREVIEW, IngestTaskType.PLAYER_PREVIEW_SLOW, IngestTaskType.PLAYER_BACKFILL, IngestTaskType.PLAYER_RANK,
             IngestTaskType.PLAYER_MASTERY);
 
     private final PuuidCheckRepository checks;

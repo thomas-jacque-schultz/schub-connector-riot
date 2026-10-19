@@ -16,6 +16,8 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
+import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
 import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
@@ -41,6 +43,7 @@ class IngestServiceTest {
     @Mock private IngestQueue queue;
     @Mock private IngestTaskRepository tasks;
     @Mock private CachedMatchRepository matches;
+    @Mock private PlayerBackfillRepository backfills;
 
     private RiotProperties properties;
     private RiotRateLimiter limiter;
@@ -53,7 +56,29 @@ class IngestServiceTest {
         limiter = new RiotRateLimiter(properties.getQuota(), clock, duration -> {
             throw new UnsupportedOperationException("Le statut ne doit rien attendre.");
         });
-        service = new IngestService(queue, tasks, matches, limiter, new IngestThroughput(clock), properties, clock);
+        service = new IngestService(queue, tasks, matches, backfills, limiter, new IngestThroughput(clock), properties,
+                clock);
+    }
+
+    @Test
+    @DisplayName("rattrapage désactivé (0 jour) : rien n'est empilé (Schub#113)")
+    void rattrapageDesactive() {
+        assertThat(service.enqueueBackfill("p1")).isFalse();
+        verify(queue, never()).enqueue(any(), anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    @DisplayName("le rattrapage d'un compte lié part une fois, en fond, sur la profondeur réglée")
+    void rattrapageUneFois() {
+        properties.getIngest().setBackfillDays(90);
+        when(backfills.findById("p1")).thenReturn(java.util.Optional.empty());
+        when(queue.enqueue(eq(IngestTaskType.PLAYER_BACKFILL), eq("p1"), eq("p1"), anyLong())).thenReturn(true);
+
+        assertThat(service.enqueueBackfill("p1")).isTrue();
+
+        when(backfills.findById("p1")).thenReturn(java.util.Optional.of(new PlayerBackfill("p1",
+                MAINTENANT.minus(java.time.Duration.ofDays(90)), MAINTENANT, List.of(), null)));
+        assertThat(service.enqueueBackfill("p1")).isFalse();
     }
 
     @Test

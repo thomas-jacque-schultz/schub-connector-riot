@@ -153,6 +153,17 @@ public class PlayerController {
         return ingestService.enqueuePlayer(puuid);
     }
 
+    @Operation(summary = "Rattraper l'historique d'un compte lié",
+            description = """
+                    Empile en fond le relevé des parties des riot.ingest.backfill-days derniers jours (Schub#113),
+                    puis leurs détails. queued=false si le rattrapage est désactivé (0 jour) ou déjà demandé.
+                    L'avancement est dans GET /ingest/players/{puuid}, champ backfill.""")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PostMapping("/{puuid}/matches/backfill")
+    public IngestEnqueueReport backfill(@PathVariable String puuid) {
+        return new IngestEnqueueReport(puuid, ingestService.enqueueBackfill(puuid), ingestService.status());
+    }
+
     @Operation(summary = "Aperçu d'un joueur recherché",
             description = """
                     Relève ses identifiants de parties, puis empile ses dernières parties sur la voie

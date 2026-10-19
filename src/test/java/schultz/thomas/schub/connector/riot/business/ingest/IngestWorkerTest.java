@@ -57,6 +57,7 @@ class IngestWorkerTest {
     @Mock private ChampionMasteryService masteryService;
     @Mock private PuuidValidityService validity;
     @Mock private IngestPause pause;
+    @Mock private schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository backfills;
 
     private IngestWorker worker;
 
@@ -64,7 +65,7 @@ class IngestWorkerTest {
     void setUp() {
         worker = new IngestWorker(queue, ingestService, historyService, matchDetailService,
                 enrichment, rankingService, masteryService, validity, new RiotProperties(), crawler, sampler,
-                new IngestThroughput(java.time.Clock.systemUTC()), pause);
+                new IngestThroughput(java.time.Clock.systemUTC()), pause, backfills);
     }
 
     @Test
