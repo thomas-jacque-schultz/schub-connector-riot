@@ -1,4 +1,4 @@
-package schultz.thomas.schub.connector.riot.business.client;
+package schultz.thomas.schub.connector.riot.api.client;
 
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.quota.MethodRateLimiter;
@@ -32,13 +31,13 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-class RiotApiClientTest {
+class RestRiotApiClientTest {
 
     private static final String PUUID = "puuid-de-test";
 
     private RiotProperties properties;
     private TestClock clock;
-    private RiotApiClient client;
+    private RestRiotApiClient client;
     private MockRestServiceServer regionalServer;
     private MockRestServiceServer platformServer;
     private RiotRateLimiter limiteur;
@@ -59,7 +58,7 @@ class RiotApiClientTest {
 
         limiteur = new RiotRateLimiter(properties.getQuota(), clock,
                 clock::advance);
-        client = new RiotApiClient(regional.build(), platform.build(), limiteur,
+        client = new RestRiotApiClient(regional.build(), platform.build(), limiteur,
                 new MethodRateLimiter(properties.getQuota().getMethods(),
                 properties.getQuota().getWindowGuard(), clock, clock::advance), properties);
     }
