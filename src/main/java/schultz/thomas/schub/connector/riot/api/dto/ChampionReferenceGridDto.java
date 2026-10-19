@@ -19,6 +19,7 @@ public record ChampionReferenceGridDto(
         Map<String, Metric> metrics
 ) {
 
+    @Schema(name = "ChampionGridMetric")
     public record Metric(String polarity, long count, List<Double> values) {
     }
 }

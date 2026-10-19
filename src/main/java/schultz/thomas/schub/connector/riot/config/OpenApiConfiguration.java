@@ -3,15 +3,25 @@ package schultz.thomas.schub.connector.riot.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
 
 @Configuration
 public class OpenApiConfiguration {
 
     private static final String SECRET_SCHEME = "internalSecret";
+
+    // Jackson écrit une Duration en ISO-8601 (« PT2H36M20S ») ; sans cela le contrat la décrirait comme un objet.
+    static {
+        SpringDocUtils.getConfig().replaceWithSchema(Duration.class,
+                new StringSchema().format("duration").example("PT2H36M20S"));
+    }
 
     @Bean
     public OpenAPI riotConnectorOpenApi() {
