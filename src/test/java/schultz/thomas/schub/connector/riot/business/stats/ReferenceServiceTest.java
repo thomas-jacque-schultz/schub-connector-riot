@@ -1,5 +1,6 @@
 package schultz.thomas.schub.connector.riot.business.stats;
 
+import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,16 +9,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
-
-import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
+import schultz.thomas.schub.connector.riot.business.model.ReferenceGrid;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.data.model.RankSpan;
-import org.bson.Document;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
-import schultz.thomas.schub.connector.riot.data.model.StoredReference;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.data.model.StoredChampionReference;
+import schultz.thomas.schub.connector.riot.data.model.StoredReference;
 import schultz.thomas.schub.connector.riot.data.repository.StoredChampionReferenceRepository;
 import schultz.thomas.schub.connector.riot.data.repository.StoredReferenceRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
@@ -32,9 +31,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

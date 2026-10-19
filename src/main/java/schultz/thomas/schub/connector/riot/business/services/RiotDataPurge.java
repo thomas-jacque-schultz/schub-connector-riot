@@ -4,11 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.RiotDataInventory;
-import schultz.thomas.schub.connector.riot.api.dto.RiotDataPurgeReport;
 import schultz.thomas.schub.connector.riot.business.exceptions.IngestNotPausedException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
+import schultz.thomas.schub.connector.riot.business.model.RiotDataInventory;
+import schultz.thomas.schub.connector.riot.business.model.RiotDataPurgeReport;
 import schultz.thomas.schub.connector.riot.data.model.CachedChampionCatalog;
 import schultz.thomas.schub.connector.riot.data.model.CachedGameVersion;
 import schultz.thomas.schub.connector.riot.data.model.CachedMastery;

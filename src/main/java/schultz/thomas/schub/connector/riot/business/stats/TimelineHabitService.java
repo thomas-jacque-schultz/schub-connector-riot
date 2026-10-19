@@ -7,8 +7,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.TimelineHabits;
+import schultz.thomas.schub.connector.riot.business.model.TimelineHabits;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 
 import java.time.Instant;

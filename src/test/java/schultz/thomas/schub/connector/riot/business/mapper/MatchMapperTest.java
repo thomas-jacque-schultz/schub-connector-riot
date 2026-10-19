@@ -2,11 +2,10 @@ package schultz.thomas.schub.connector.riot.business.mapper;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
-import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetail;
+import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
 

@@ -3,14 +3,13 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMastery;
+import schultz.thomas.schub.connector.riot.data.model.ChampionMastery;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMasteryRepository;
 

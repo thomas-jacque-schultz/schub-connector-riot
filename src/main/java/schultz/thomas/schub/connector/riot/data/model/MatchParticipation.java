@@ -5,9 +5,6 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-
 import java.time.Instant;
 
 @Document(MatchParticipation.COLLECTION)

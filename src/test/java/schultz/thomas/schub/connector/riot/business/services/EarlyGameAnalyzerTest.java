@@ -3,12 +3,12 @@ package schultz.thomas.schub.connector.riot.business.services;
 import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame;
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame.Lane;
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame.Outcome;
-import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapperImpl;
+import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame.Lane;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame.Outcome;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -157,7 +157,8 @@ class EarlyGameAnalyzerTest {
         EarlyGame.Gank gank = new EarlyGame.Gank(300, Lane.TOP, 200, "jgl-r", List.of("top-b"), Outcome.KILL, 1, 0,
                 List.of("top-b"), false);
 
-        assertThat(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(gank))
+        assertThat(new com.fasterxml.jackson.databind.ObjectMapper()
+                .writeValueAsString(new RiotDtoMapperImpl().toDto(gank)))
                 .contains("\"decisive\":true");
     }
 

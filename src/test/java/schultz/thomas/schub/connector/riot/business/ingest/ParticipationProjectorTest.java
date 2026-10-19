@@ -1,5 +1,6 @@
 package schultz.thomas.schub.connector.riot.business.ingest;
 
+import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,28 +9,26 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
-import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
-
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
-import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
-import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
-import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.business.model.RebuildReport;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
-import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
+import schultz.thomas.schub.connector.riot.business.services.RankHistory;
+import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
+import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
+import schultz.thomas.schub.connector.riot.data.model.MatchLobby;
+import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.RankSpan;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
+import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchLobbyRepository;
-import schultz.thomas.schub.connector.riot.business.services.RankHistory;
-import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
-import schultz.thomas.schub.connector.riot.data.model.MatchLobby;
-import schultz.thomas.schub.connector.riot.data.model.RankSpan;
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
+import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;
 import schultz.thomas.schub.connector.riot.support.Fixtures;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 

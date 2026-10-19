@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCatalog;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionCatalogDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogService;
 
 import java.util.Map;
@@ -19,6 +19,7 @@ import java.util.Map;
 public class ChampionCatalogController {
 
     private final ChampionCatalogService catalogService;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Le catalogue des champions",
             description = """
@@ -33,11 +34,11 @@ public class ChampionCatalogController {
                     Les URL d'icônes sont absolues et déjà versionnées : le front n'a pas à
                     savoir composer une URL Data Dragon.""")
     @GetMapping("/champions")
-    public ChampionCatalog champions(
+    public ChampionCatalogDto champions(
             @Parameter(description = "Version Data Dragon. Absente = la version courante.",
                     example = "16.18.1")
             @RequestParam(required = false) String version) {
-        return catalogService.catalog(version);
+        return dtos.toDto(catalogService.catalog(version));
     }
 
     @Operation(summary = "La version courante du jeu",

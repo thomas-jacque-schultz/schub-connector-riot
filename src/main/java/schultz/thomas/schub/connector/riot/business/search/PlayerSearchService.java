@@ -8,13 +8,10 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.business.model.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
-import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.time.Instant;
 import java.util.ArrayList;

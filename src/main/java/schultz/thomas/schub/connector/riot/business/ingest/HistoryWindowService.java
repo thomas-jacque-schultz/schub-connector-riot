@@ -8,9 +8,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
 import schultz.thomas.schub.connector.riot.business.exceptions.InvalidHistoryWindowException;
+import schultz.thomas.schub.connector.riot.business.model.HistoryWindow;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.HistoryWindowSetting;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
@@ -20,7 +19,6 @@ import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.repository.HistoryWindowSettingRepository;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
 
 @Slf4j

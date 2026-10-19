@@ -4,10 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchPlayerMetrics;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.business.model.MatchPlayerMetrics;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

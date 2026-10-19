@@ -3,14 +3,13 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
-import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
-import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.model.HistorySyncReport;
+import schultz.thomas.schub.connector.riot.business.model.HistoryWindow;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetailsResponse;
+import schultz.thomas.schub.connector.riot.business.model.MatchHistory;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;

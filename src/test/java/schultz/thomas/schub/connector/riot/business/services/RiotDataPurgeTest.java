@@ -8,10 +8,9 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.mapping.Document;
-
-import schultz.thomas.schub.connector.riot.api.dto.RiotDataPurgeReport;
 import schultz.thomas.schub.connector.riot.business.exceptions.IngestNotPausedException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
+import schultz.thomas.schub.connector.riot.business.model.RiotDataPurgeReport;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.support.TestClock;

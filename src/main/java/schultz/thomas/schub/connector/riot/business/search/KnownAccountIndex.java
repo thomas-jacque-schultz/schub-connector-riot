@@ -10,10 +10,9 @@ import org.springframework.data.mongodb.core.aggregation.AggregationOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
-import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.business.model.KnownAccountRebuildReport;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.KnownAccountRepository;
 
@@ -25,11 +24,11 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // Une observation n'est retenue que si elle est plus récente, vérifié par Mongo à l'écriture : l'ordre des écritures
 // est indifférent, même avec plusieurs ouvriers.

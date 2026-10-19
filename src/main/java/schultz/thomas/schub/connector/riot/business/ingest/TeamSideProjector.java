@@ -6,11 +6,10 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame;
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.TeamSide;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;

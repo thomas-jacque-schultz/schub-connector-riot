@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.RiotDataInventory;
-import schultz.thomas.schub.connector.riot.api.dto.RiotDataPurgeReport;
+import schultz.thomas.schub.connector.riot.api.dto.RiotDataInventoryDto;
+import schultz.thomas.schub.connector.riot.api.dto.RiotDataPurgeReportDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.services.RiotDataPurge;
 
 @RestController
@@ -19,11 +19,12 @@ import schultz.thomas.schub.connector.riot.business.services.RiotDataPurge;
 public class RiotDataController {
 
     private final RiotDataPurge purge;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Ce qu'un effacement emporterait", description = "Nombres estimés, sans parcourir les collections.")
     @GetMapping
-    public RiotDataInventory inventory() {
-        return purge.inventory();
+    public RiotDataInventoryDto inventory() {
+        return dtos.toDto(purge.inventory());
     }
 
     @Operation(summary = "Effacer les données Riot",
@@ -34,7 +35,7 @@ public class RiotDataController {
                     409 tant que l'ingest n'est pas en pause ou qu'une tâche est encore en route.
                     La double confirmation est l'affaire du cœur : ce service n'est joignable que par lui.""")
     @DeleteMapping
-    public RiotDataPurgeReport purge() {
-        return purge.purge();
+    public RiotDataPurgeReportDto purge() {
+        return dtos.toDto(purge.purge());
     }
 }

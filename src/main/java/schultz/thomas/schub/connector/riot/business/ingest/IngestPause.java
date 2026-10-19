@@ -6,8 +6,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
-
-import schultz.thomas.schub.connector.riot.api.dto.IngestPauseStatus;
+import schultz.thomas.schub.connector.riot.business.model.IngestPauseStatus;
 import schultz.thomas.schub.connector.riot.data.model.IngestPauseSetting;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;

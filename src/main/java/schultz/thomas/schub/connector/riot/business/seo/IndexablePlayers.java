@@ -9,11 +9,11 @@ import org.springframework.data.mongodb.core.aggregation.AggregationOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-import schultz.thomas.schub.connector.riot.api.dto.IndexablePlayer;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
+import schultz.thomas.schub.connector.riot.business.model.IndexablePlayer;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 
 import java.time.Clock;

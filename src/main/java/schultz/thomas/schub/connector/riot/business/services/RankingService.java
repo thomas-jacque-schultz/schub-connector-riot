@@ -3,8 +3,6 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestQueue;
@@ -12,6 +10,7 @@ import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedRanking;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
+import schultz.thomas.schub.connector.riot.data.model.RankedStanding;
 import schultz.thomas.schub.connector.riot.data.repository.CachedRankingRepository;
 
 import java.time.Clock;

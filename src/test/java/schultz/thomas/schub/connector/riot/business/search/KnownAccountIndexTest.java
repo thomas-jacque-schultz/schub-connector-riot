@@ -10,16 +10,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
-
-import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.repository.KnownAccountRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Stream;
 

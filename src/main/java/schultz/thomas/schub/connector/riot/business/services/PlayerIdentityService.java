@@ -3,14 +3,13 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.exceptions.StalePuuidException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 

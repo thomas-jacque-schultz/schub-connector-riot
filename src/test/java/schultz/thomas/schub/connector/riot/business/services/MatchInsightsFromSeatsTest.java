@@ -6,10 +6,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 import schultz.thomas.schub.connector.riot.data.model.MatchSeat;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchEarlyStatsRepository;
 import schultz.thomas.schub.connector.riot.data.repository.MatchParticipationRepository;

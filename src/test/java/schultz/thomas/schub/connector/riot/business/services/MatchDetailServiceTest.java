@@ -6,13 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.MatchMapper;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetail;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;

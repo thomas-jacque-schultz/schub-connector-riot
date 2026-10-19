@@ -3,7 +3,6 @@ package schultz.thomas.schub.connector.riot.api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -15,23 +14,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
-import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReport;
-import schultz.thomas.schub.connector.riot.api.dto.IndexablePlayer;
-import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
-import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
-import schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionMasteryDto;
+import schultz.thomas.schub.connector.riot.api.dto.HistorySyncReportDto;
+import schultz.thomas.schub.connector.riot.api.dto.IndexablePlayerDto;
+import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReportDto;
+import schultz.thomas.schub.connector.riot.api.dto.MatchHistoryDto;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentityDto;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestionDto;
+import schultz.thomas.schub.connector.riot.api.dto.RankedStandingDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.model.IngestEnqueueReport;
+import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
+import schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers;
 import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.business.services.PlayerIdentityService;
-import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
 
@@ -49,6 +50,7 @@ public class PlayerController {
     private final IngestService ingestService;
     private final PlayerSearchService playerSearchService;
     private final IndexablePlayers indexablePlayers;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Résoudre un Riot ID en joueur",
             description = """
@@ -60,13 +62,13 @@ public class PlayerController {
 
                     404 si ce Riot ID n'existe pas.""")
     @GetMapping
-    public PlayerIdentity resolve(
+    public PlayerIdentityDto resolve(
             @Parameter(description = "Partie gauche du Riot ID.", example = "J1HUIV")
             @RequestParam @NotBlank String gameName,
             @Parameter(description = "Partie droite du Riot ID, sans le #.", example = "000")
             @RequestParam @NotBlank String tagLine,
             @RequestParam(required = false) java.time.Duration maxAge) {
-        return identityService.resolve(gameName, tagLine, maxAge);
+        return dtos.toDto(identityService.resolve(gameName, tagLine, maxAge));
     }
 
     @Operation(summary = "Chercher un compte parmi nos participations",
@@ -88,12 +90,12 @@ public class PlayerController {
                     Liste vide si rien ne ressemble. Ce n'est pas une erreur : la résolution
                     exacte d'un Riot ID reste le chemin toujours disponible.""")
     @GetMapping("/search")
-    public List<PlayerSuggestion> search(
+    public List<PlayerSuggestionDto> search(
             @Parameter(description = "Pseudo, même partiel. `Pseudo#TAG` accepté.", example = "J1HUIV")
             @RequestParam @NotBlank String q,
             @Parameter(description = "Nombre de propositions rendues.", example = "10")
             @RequestParam(defaultValue = "10") int limit) {
-        return playerSearchService.search(q, limit);
+        return dtos.toPlayerSuggestionDtos(playerSearchService.search(q, limit));
     }
 
     @Operation(summary = "Les profils à indexer",
@@ -102,16 +104,16 @@ public class PlayerController {
                     parties relevées. Les apex récents et les créateurs de contenu viennent en tête
                     (`featured`). Liste recalculée en tâche de fond : vide juste après le démarrage.""")
     @GetMapping("/indexable")
-    public List<IndexablePlayer> indexable(@RequestParam(defaultValue = "50000") int limit) {
-        return indexablePlayers.list(Math.clamp(limit, 1, 50_000));
+    public List<IndexablePlayerDto> indexable(@RequestParam(defaultValue = "50000") int limit) {
+        return dtos.toIndexablePlayerDtos(indexablePlayers.list(Math.clamp(limit, 1, 50_000)));
     }
 
     @Operation(summary = "Le Riot ID courant d'un joueur",
             description = "L'inverse de la résolution : c'est par là qu'on rattrape un "
                     + "changement de Riot ID sur un compte déjà lié.")
     @GetMapping("/{puuid}")
-    public PlayerIdentity identify(@PathVariable String puuid) {
-        return identityService.identify(puuid);
+    public PlayerIdentityDto identify(@PathVariable String puuid) {
+        return dtos.toDto(identityService.identify(puuid));
     }
 
     @Operation(summary = "Les parties d'un joueur depuis une date",
@@ -130,13 +132,13 @@ public class PlayerController {
                     Les parties dont le détail n'a pas encore été récupéré sont incluses : leur
                     id est connu, leur date ne l'est pas encore.""")
     @GetMapping("/{puuid}/matches")
-    public MatchHistory matches(
+    public MatchHistoryDto matches(
             @PathVariable String puuid,
             @Parameter(description = "Borne basse, ISO-8601. Absente = tout l'historique connu.",
                     example = "2026-09-01T00:00:00Z")
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant since) {
-        return historyService.history(puuid, since);
+        return dtos.toDto(historyService.history(puuid, since));
     }
 
     @Operation(summary = "Empiler la collecte de l'historique d'un joueur",
@@ -149,8 +151,8 @@ public class PlayerController {
                     duplique rien — et `status` donne le temps d'écoulement estimé.""")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PostMapping("/{puuid}/matches/sync")
-    public IngestEnqueueReport sync(@PathVariable String puuid) {
-        return ingestService.enqueuePlayer(puuid);
+    public IngestEnqueueReportDto sync(@PathVariable String puuid) {
+        return dtos.toDto(ingestService.enqueuePlayer(puuid));
     }
 
     @Operation(summary = "Rattraper l'historique d'un compte lié",
@@ -160,8 +162,8 @@ public class PlayerController {
                     L'avancement est dans GET /ingest/players/{puuid}, champ backfill.""")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PostMapping("/{puuid}/matches/backfill")
-    public IngestEnqueueReport backfill(@PathVariable String puuid) {
-        return new IngestEnqueueReport(puuid, ingestService.enqueueBackfill(puuid), ingestService.status());
+    public IngestEnqueueReportDto backfill(@PathVariable String puuid) {
+        return dtos.toDto(new IngestEnqueueReport(puuid, ingestService.enqueueBackfill(puuid), ingestService.status()));
     }
 
     @Operation(summary = "Aperçu d'un joueur recherché",
@@ -171,9 +173,9 @@ public class PlayerController {
                     l'aperçu arrivent au compte-gouttes, une par intervalle. Jamais de refus.""")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PostMapping("/{puuid}/preview")
-    public IngestEnqueueReport preview(@PathVariable String puuid,
+    public IngestEnqueueReportDto preview(@PathVariable String puuid,
                                        @RequestParam(defaultValue = "false") boolean slow) {
-        return ingestService.enqueuePreview(puuid, slow);
+        return dtos.toDto(ingestService.enqueuePreview(puuid, slow));
     }
 
     @Operation(summary = "Relever l'historique tout de suite, sans passer par la file",
@@ -185,8 +187,8 @@ public class PlayerController {
                     Bornée par `max-details-per-call` ; `detailsPending` dit ce qui reste. Ce
                     n'est pas la voie normale — pour constituer un historique, empiler.""")
     @PostMapping("/{puuid}/matches/sync-now")
-    public HistorySyncReport syncNow(@PathVariable String puuid) {
-        return historyService.sync(puuid);
+    public HistorySyncReportDto syncNow(@PathVariable String puuid) {
+        return dtos.toDto(historyService.sync(puuid));
     }
 
     @Operation(summary = "Rang et LP d'un joueur",
@@ -198,8 +200,8 @@ public class PlayerController {
                     injoignable, le dernier relevé connu est servi tel quel — c'est `observedAt`
                     qui dit l'âge de ce qu'on affiche.""")
     @GetMapping("/{puuid}/rankings")
-    public List<RankedStanding> rankings(@PathVariable String puuid) {
-        return rankingService.current(puuid);
+    public List<RankedStandingDto> rankings(@PathVariable String puuid) {
+        return dtos.toRankedStandingDtos(rankingService.current(puuid));
     }
 
     @Operation(summary = "Maîtrises de champions d'un joueur",
@@ -211,10 +213,10 @@ public class PlayerController {
                     qu'un joueur peut tenir un poste est un jugement de domaine, et il vit dans
                     le cœur.""")
     @GetMapping("/{puuid}/champion-mastery")
-    public List<ChampionMastery> masteries(
+    public List<ChampionMasteryDto> masteries(
             @PathVariable String puuid,
             @Parameter(description = "Nombre de champions rendus. Absent = tous.", example = "10")
             @RequestParam(required = false) Integer limit) {
-        return masteryService.current(puuid, limit);
+        return dtos.toChampionMasteryDtos(masteryService.current(puuid, limit));
     }
 }

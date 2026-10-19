@@ -3,11 +3,9 @@ package schultz.thomas.schub.connector.riot.data.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
-
 import java.time.Instant;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Les classements des dix joueurs, relevés à la collecte. Riot ne sert que le rang courant : pour

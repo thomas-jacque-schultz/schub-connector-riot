@@ -3,14 +3,13 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.mapper.RawMatchDecoder;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetail;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetailsResponse;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
