@@ -66,6 +66,8 @@ riot:
     # seuil storage-alert-bytes suspend la collecte de fond avant qu'il ne soit plein.
     workers: ${RIOT_INGEST_WORKERS:16}
     priority-workers: ${RIOT_INGEST_PRIORITY_WORKERS:4}
+    # Rattrapage à la liaison d'un compte (Schub#113), en jours. 0 : aucun, tant que la clé de production manque.
+    backfill-days: ${RIOT_INGEST_BACKFILL_DAYS:0}
     poll-interval: 2s
     batch-size: 25
     # Doit dépasser quota.acquire-timeout.
