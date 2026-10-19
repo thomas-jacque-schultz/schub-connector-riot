@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionCombo;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQuery;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
+import schultz.thomas.schub.connector.riot.api.dto.TierCombos;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
 import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
 import schultz.thomas.schub.connector.riot.api.dto.MatchPlayerMetrics;
@@ -36,6 +39,7 @@ import schultz.thomas.schub.connector.riot.api.dto.TimelineHabits;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.stats.ChampionComboService;
+import schultz.thomas.schub.connector.riot.business.stats.ChampionComboTable;
 import schultz.thomas.schub.connector.riot.business.stats.TimelineHabitService;
 import schultz.thomas.schub.connector.riot.business.stats.MatchMetricsService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
@@ -60,6 +64,7 @@ public class StatsController {
     private final TimelineHabitService timelineHabits;
     private final MatchMetricsService matchMetrics;
     private final ChampionComboService championCombos;
+    private final ChampionComboTable championComboTable;
 
     @Operation(summary = "Combos de champions, tous joueurs confondus",
             description = """
@@ -69,6 +74,24 @@ public class StatsController {
     @PostMapping("/champion-combos")
     public List<ChampionCombo> championCombos(@RequestBody ChampionCombosQuery query) {
         return championCombos.combos(query);
+    }
+
+    @Operation(summary = "Les meilleurs combos d'un groupe de paliers",
+            description = """
+                    Duo bas (ADC_SUP), jungle-milieu (JGL_MID) ou trio jungle/milieu/support (JGL_MID_SUP),
+                    pour IRON_BRONZE, SILVER_GOLD, PLATINUM_EMERALD, DIAMOND ou MASTER_PLUS. Classés par la
+                    borne basse de Wilson. 503 tant que la table du jour n'est pas calculée.""")
+    @GetMapping("/tier-combos")
+    public ResponseEntity<TierCombos> tierCombos(@RequestParam String tier, @RequestParam String kind,
+                                                 @RequestParam(defaultValue = "3") int minGames,
+                                                 @RequestParam(defaultValue = "30") int limit) {
+        if (!ChampionComboTable.TYPES_PAR_PALIER.containsKey(kind)
+                || !List.of("IRON_BRONZE", "SILVER_GOLD", "PLATINUM_EMERALD", "DIAMOND", "MASTER_PLUS").contains(tier)) {
+            throw new IllegalArgumentException("Palier ou type de combo inconnu");
+        }
+        return championComboTable.tierCombos(tier, kind, minGames, Math.min(limit, 100))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
 
     @Operation(summary = "Agréger des participations sur un axe",
