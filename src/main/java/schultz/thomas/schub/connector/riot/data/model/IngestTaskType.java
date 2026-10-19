@@ -7,6 +7,8 @@ public enum IngestTaskType {
     PLAYER_PREVIEW,
     // Même chose au-delà du budget du visiteur : les parties arrivent au compte-gouttes.
     PLAYER_PREVIEW_SLOW,
+    // Compte lié : ses parties des derniers mois, en fond (Schub#113).
+    PLAYER_BACKFILL,
     // Rang ou maîtrises périmés à l'écran : actualisés hors de la visite, qui sert le dernier relevé.
     PLAYER_RANK,
     PLAYER_MASTERY,

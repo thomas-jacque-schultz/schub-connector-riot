@@ -14,6 +14,8 @@ import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
+import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
+import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
 import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
 
 import java.time.Clock;
@@ -32,6 +34,7 @@ public class IngestService {
     private final IngestQueue queue;
     private final IngestTaskRepository tasks;
     private final CachedMatchRepository matches;
+    private final PlayerBackfillRepository backfills;
     private final RiotRateLimiter rateLimiter;
     private final IngestThroughput throughput;
     private final RiotProperties properties;
@@ -100,6 +103,31 @@ public class IngestService {
         return queued;
     }
 
+    // Idempotent : un rattrapage déjà demandé sur la même profondeur n'est pas relancé.
+    public boolean enqueueBackfill(String puuid) {
+        int jours = properties.getIngest().getBackfillDays();
+        if (jours <= 0) {
+            return false;
+        }
+        Instant depuis = clock.instant().minus(Duration.ofDays(jours));
+        boolean dejaCouvert = backfills.findById(puuid)
+                .map(existant -> !existant.since().isAfter(depuis.plus(Duration.ofDays(1))))
+                .orElse(false);
+        if (dejaCouvert) {
+            return false;
+        }
+        backfills.save(new PlayerBackfill(puuid, depuis, clock.instant(), List.of(), null));
+        return queue.enqueue(IngestTaskType.PLAYER_BACKFILL, puuid, puuid, IngestTask.BACKGROUND_PLAYER_PRIORITY);
+    }
+
+    private PlayerIngestStatus.Backfill rattrapage(String puuid) {
+        return backfills.findById(puuid)
+                .map(b -> new PlayerIngestStatus.Backfill(b.since(),
+                        b.idsCollectedAt() == null ? null : b.matchIds().size(),
+                        b.matchIds().isEmpty() ? 0 : matches.findStoredIds(b.matchIds()).size()))
+                .orElse(null);
+    }
+
     public PlayerIngestStatus statusOf(String puuid) {
         long pending = tasks.countByPuuidAndState(puuid, IngestTaskState.PENDING);
         long running = tasks.countByPuuidAndState(puuid, IngestTaskState.RUNNING);
@@ -109,7 +137,8 @@ public class IngestService {
                 List.of(IngestTaskState.PENDING, IngestTaskState.RUNNING), IngestTask.previewPriority(0));
 
         if (pending + running == 0 || perMinute <= 0) {
-            return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null, prioritaires);
+            return new PlayerIngestStatus(puuid, pending, running, failed, 0, perMinute, null, null, prioritaires,
+                    rattrapage(puuid));
         }
 
         long ahead = tasks.findFirstByPuuidAndStateOrderByPriorityAsc(puuid, IngestTaskState.PENDING)
@@ -121,7 +150,7 @@ public class IngestService {
         Duration throttled = rateLimiter.throttledFor();
         Duration remaining = Duration.ofSeconds(Math.round(ahead / perMinute * 60.0)).plus(throttled);
         return new PlayerIngestStatus(puuid, pending, running, failed, ahead, perMinute,
-                remaining, clock.instant().plus(remaining), prioritaires);
+                remaining, clock.instant().plus(remaining), prioritaires, rattrapage(puuid));
     }
 
     public IngestStatus status() {

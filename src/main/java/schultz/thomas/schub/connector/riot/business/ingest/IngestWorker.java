@@ -18,8 +18,11 @@ import schultz.thomas.schub.connector.riot.business.services.PuuidValidityServic
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
+import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
+import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +45,7 @@ public class IngestWorker {
     private final LadderSampler sampler;
     private final IngestThroughput throughput;
     private final IngestPause pause;
+    private final PlayerBackfillRepository backfills;
 
     public void drain() {
         QuotaLaneContext.runAsBulk(() -> drainTasks(false));
@@ -105,6 +109,7 @@ public class IngestWorker {
             case PLAYER_IDS -> collectIds(task);
             case PLAYER_PREVIEW -> collectPreview(task, false);
             case PLAYER_PREVIEW_SLOW -> collectPreview(task, true);
+            case PLAYER_BACKFILL -> backfill(task);
             case PLAYER_RANK -> rankingService.rankings(task.key());
             case PLAYER_MASTERY -> masteryService.refresh(task.key());
             case PUUID_CHECK -> validity.verify(task.key());
@@ -123,6 +128,17 @@ public class IngestWorker {
         int queued = ingestService.enqueueDetails(task.key(), relevé.seen(), task.background());
         log.info("Historique relevé : {} ids vus, {} nouveaux, {} détails empilés.",
                 relevé.seen().size(), relevé.created(), queued);
+    }
+
+    private void backfill(IngestTask task) {
+        backfills.findById(task.key()).ifPresent(demande -> {
+            List<String> ids = historyService.backfillIds(task.key(), demande.since());
+            backfills.save(new PlayerBackfill(demande.puuid(), demande.since(), demande.requestedAt(), ids,
+                    Instant.now()));
+            int queued = ingestService.enqueueDetails(task.key(), ids, true);
+            log.info("Rattrapage d'un compte lié : {} parties depuis le {}, {} détails empilés.", ids.size(),
+                    demande.since(), queued);
+        });
     }
 
     // Une page d'identifiants au lieu de tout l'historique : l'aperçu part en quelques appels.

@@ -96,6 +96,14 @@ public class MatchHistoryService {
         return new IdSyncResult(puuid, queriedFrom, seen, created, startedAt);
     }
 
+    // Rattrapage (Schub#113) : de la plus récente à la plus ancienne partie depuis since. Les parties déjà connues
+    // sont filtrées par enqueueDetails.
+    public List<String> backfillIds(String puuid, Instant since) {
+        List<String> ids = collectIds(puuid, since, properties.getIngest().getBackfillMaxGames());
+        recordNewReferences(puuid, ids, clock.instant());
+        return ids;
+    }
+
     private boolean needsSync(String puuid) {
         return cursors.findById(puuid)
                 .map(cursor -> cursor.lastSyncStartedAt()

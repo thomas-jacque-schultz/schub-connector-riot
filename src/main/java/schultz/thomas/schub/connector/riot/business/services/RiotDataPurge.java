@@ -27,6 +27,7 @@ import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchLobby;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
+import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
 import schultz.thomas.schub.connector.riot.data.model.PlayerMatchRef;
 import schultz.thomas.schub.connector.riot.data.model.PuuidCheck;
@@ -51,7 +52,7 @@ public class RiotDataPurge {
 
     static final List<Class<?>> PURGEES = List.of(CachedMatch.class, CachedTimeline.class,
             CachedTimelineDigest.class, MatchParticipation.class, MatchEarlyStats.class, MatchLobby.class,
-            MatchRankSnapshot.class, TeamSide.class, PlayerMatchRef.class, PlayerHistoryCursor.class,
+            MatchRankSnapshot.class, TeamSide.class, PlayerMatchRef.class, PlayerHistoryCursor.class, PlayerBackfill.class,
             KnownAccount.class, PuuidCheck.class, CachedRanking.class, RankSpan.class, CachedMastery.class,
             LadderSeed.class, StoredReference.class, StoredChampionReference.class, IngestTask.class);
 
