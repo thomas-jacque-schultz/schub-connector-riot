@@ -2,7 +2,6 @@ package schultz.thomas.schub.connector.riot.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -14,39 +13,41 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCombo;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQuery;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGrid;
-import schultz.thomas.schub.connector.riot.api.dto.TierCombos;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionComboDto;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQueryDto;
+import schultz.thomas.schub.connector.riot.api.dto.ChampionReferenceGridDto;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-import schultz.thomas.schub.connector.riot.api.dto.MatchPlayerMetrics;
-import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucket;
-import schultz.thomas.schub.connector.riot.api.dto.PatchStart;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverage;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
+import schultz.thomas.schub.connector.riot.api.dto.MatchInsightsDto;
+import schultz.thomas.schub.connector.riot.api.dto.MatchPlayerMetricsDto;
+import schultz.thomas.schub.connector.riot.api.dto.ParticipationBucketDto;
+import schultz.thomas.schub.connector.riot.api.dto.PatchStartDto;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerCoverageDto;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerReferencesDto;
 import schultz.thomas.schub.connector.riot.api.dto.PuuidListRequest;
-import schultz.thomas.schub.connector.riot.api.dto.ReferenceGrid;
-import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
-import schultz.thomas.schub.connector.riot.api.dto.SharedMatch;
-import schultz.thomas.schub.connector.riot.api.dto.SharedMatches;
+import schultz.thomas.schub.connector.riot.api.dto.ReferenceGridDto;
+import schultz.thomas.schub.connector.riot.api.dto.ReferencesQueryDto;
+import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesDto;
 import schultz.thomas.schub.connector.riot.api.dto.SharedMatchesQuery;
 import schultz.thomas.schub.connector.riot.api.dto.StatsQuery;
-import schultz.thomas.schub.connector.riot.api.dto.StatsScope;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.api.dto.TimelineHabits;
+import schultz.thomas.schub.connector.riot.api.dto.TierCombosDto;
+import schultz.thomas.schub.connector.riot.api.dto.TimelineHabitsDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
+import schultz.thomas.schub.connector.riot.business.model.SharedMatch;
+import schultz.thomas.schub.connector.riot.business.model.SharedMatches;
+import schultz.thomas.schub.connector.riot.business.model.StatsScope;
 import schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService;
 import schultz.thomas.schub.connector.riot.business.stats.ChampionComboService;
 import schultz.thomas.schub.connector.riot.business.stats.ChampionComboTable;
-import schultz.thomas.schub.connector.riot.business.stats.TimelineHabitService;
 import schultz.thomas.schub.connector.riot.business.stats.MatchMetricsService;
 import schultz.thomas.schub.connector.riot.business.stats.MetricScaleService;
 import schultz.thomas.schub.connector.riot.business.stats.ParticipationStatsService;
 import schultz.thomas.schub.connector.riot.business.stats.PatchCalendar;
 import schultz.thomas.schub.connector.riot.business.stats.ReferenceService;
+import schultz.thomas.schub.connector.riot.business.stats.TimelineHabitService;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 // POST pour des lectures : la liste de puuids ne tient pas dans une URL et n'a rien à faire dans un journal d'accès.
@@ -65,6 +66,7 @@ public class StatsController {
     private final MatchMetricsService matchMetrics;
     private final ChampionComboService championCombos;
     private final ChampionComboTable championComboTable;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Combos de champions, tous joueurs confondus",
             description = """
@@ -72,8 +74,8 @@ public class StatsController {
                     dans un même camp, avec ses parties et ses victoires. Sert de repère aux conseils de
                     draft. Pas de découpage par patch ni par palier. 400 si les postes se répètent.""")
     @PostMapping("/champion-combos")
-    public List<ChampionCombo> championCombos(@RequestBody ChampionCombosQuery query) {
-        return championCombos.combos(query);
+    public List<ChampionComboDto> championCombos(@RequestBody ChampionCombosQueryDto query) {
+        return dtos.toChampionComboDtos(championCombos.combos(dtos.fromDto(query)));
     }
 
     @Operation(summary = "Les meilleurs combos d'un groupe de paliers",
@@ -82,14 +84,15 @@ public class StatsController {
                     pour IRON_BRONZE, SILVER_GOLD, PLATINUM_EMERALD, DIAMOND ou MASTER_PLUS. Classés par la
                     borne basse de Wilson. 503 tant que la table du jour n'est pas calculée.""")
     @GetMapping("/tier-combos")
-    public ResponseEntity<TierCombos> tierCombos(@RequestParam String tier, @RequestParam String kind,
-                                                 @RequestParam(defaultValue = "3") int minGames,
-                                                 @RequestParam(defaultValue = "30") int limit) {
+    public ResponseEntity<TierCombosDto> tierCombos(@RequestParam String tier, @RequestParam String kind,
+                                                    @RequestParam(defaultValue = "3") int minGames,
+                                                    @RequestParam(defaultValue = "30") int limit) {
         if (!ChampionComboTable.TYPES_PAR_PALIER.containsKey(kind)
                 || !List.of("IRON_BRONZE", "SILVER_GOLD", "PLATINUM_EMERALD", "DIAMOND", "MASTER_PLUS").contains(tier)) {
             throw new IllegalArgumentException("Palier ou type de combo inconnu");
         }
         return championComboTable.tierCombos(tier, kind, minGames, Math.min(limit, 100))
+                .map(dtos::toDto)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
@@ -107,9 +110,9 @@ public class StatsController {
                     Un joueur sans participation n'a simplement aucun groupe dans la réponse —
                     pas une erreur, et `/stats/coverage` dit pourquoi.""")
     @PostMapping("/aggregate")
-    public List<ParticipationBucket> aggregate(@Valid @RequestBody StatsQuery query) {
-        return statsService.aggregate(query.puuids(), query.groupBy(),
-                query.scope() == null ? StatsScope.ALL : query.scope(), query.since(), query.matchIds());
+    public List<ParticipationBucketDto> aggregate(@Valid @RequestBody StatsQuery query) {
+        return dtos.toParticipationBucketDtos(statsService.aggregate(query.puuids(), query.groupBy(),
+                query.scope() == null ? StatsScope.ALL : query.scope(), query.since(), query.matchIds()));
     }
 
     @Operation(summary = "Sur quoi portent les chiffres de ces joueurs",
@@ -122,8 +125,8 @@ public class StatsController {
                     des lignes dès qu'il a croisé quelqu'un qu'on suit. Ses chiffres sont alors
                     vrais mais partiels, et `tracked = false` est la seule chose qui le dise.""")
     @PostMapping("/coverage")
-    public List<PlayerCoverage> coverage(@Valid @RequestBody PuuidListRequest request) {
-        return statsService.coverage(request.puuids());
+    public List<PlayerCoverageDto> coverage(@Valid @RequestBody PuuidListRequest request) {
+        return dtos.toPlayerCoverageDtos(statsService.coverage(request.puuids()));
     }
 
     @Operation(summary = "Les parties où plusieurs de ces joueurs se retrouvent",
@@ -138,34 +141,34 @@ public class StatsController {
                     `splitSides` et sans résultat commun — la compter en victoire ou en défaite
                     serait faux dans les deux sens.""")
     @PostMapping("/shared-matches")
-    public SharedMatches sharedMatches(@Valid @RequestBody SharedMatchesQuery query) {
+    public SharedMatchesDto sharedMatches(@Valid @RequestBody SharedMatchesQuery query) {
         SharedMatches communes = statsService.sharedMatches(
                 query.puuids(), query.minimumPlayers(), query.since(), query.limit(), query.matchIds());
         if (Boolean.TRUE.equals(query.enrich())) {
             enrichment.enqueueMissing(communes.matches().stream().map(SharedMatch::matchId).toList());
         }
-        return communes;
+        return dtos.toDto(communes);
     }
 
     @Operation(summary = "Rangs relevés et chiffres à 15 minutes de parties déjà collectées",
             description = "Aucun appel à Riot : ce qui manque est rendu absent, et se collecte via `enrich`.")
     @PostMapping("/match-insights")
-    public List<MatchInsights> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
-        return enrichment.insights(request.matchIds());
+    public List<MatchInsightsDto> matchInsights(@Valid @RequestBody MatchIdsRequest request) {
+        return dtos.toMatchInsightsDtos(enrichment.insights(request.matchIds()));
     }
 
     @Operation(summary = "Les indicateurs de chaque joueur sur une partie",
             description = "Mêmes expressions que la grille GAME : chaque valeur se place directement sur la répartition du poste.")
     @GetMapping("/matches/{matchId}/metrics")
-    public List<MatchPlayerMetrics> matchMetrics(@PathVariable String matchId) {
-        return matchMetrics.of(matchId);
+    public List<MatchPlayerMetricsDto> matchMetrics(@PathVariable String matchId) {
+        return dtos.toMatchPlayerMetricsDtos(matchMetrics.of(matchId));
     }
 
     @Operation(summary = "Les derniers patchs et la date de leur première partie collectée",
             description = "Le plus récent d'abord. Sert à traduire « les 2 derniers patchs » en date de début.")
     @GetMapping("/patches")
-    public List<PatchStart> patches(@RequestParam(defaultValue = "4") int count) {
-        return patches.recent(Math.clamp(count, 1, 20));
+    public List<PatchStartDto> patches(@RequestParam(defaultValue = "4") int count) {
+        return dtos.toPatchStartDtos(patches.recent(Math.clamp(count, 1, 20)));
     }
 
     @Operation(summary = "Répartition des chiffres d'un camp à 15 minutes, par palier moyen du camp",
@@ -173,13 +176,13 @@ public class StatsController {
                     Écarts d'or, d'XP et de kills à l'autre camp, objectifs pris, ganks décisifs faits et
                     subis. Une partie par ligne : c'est une partie d'équipe qui se situe dedans, pas une moyenne.""")
     @GetMapping("/references/team")
-    public ReferenceGrid teamGrid(@RequestParam(required = false) String patch,
+    public ReferenceGridDto teamGrid(@RequestParam(required = false) String patch,
                                   @RequestParam(required = false) String tier) {
-        return (patch == null
+        return dtos.toDto((patch == null
                 ? references.latest(ReferenceService.TEAM, ReferenceService.TEAM)
                 : references.forPatch(ReferenceService.TEAM, ReferenceService.TEAM, patch))
                 .map(reference -> references.toGrid(reference, tier))
-                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence d'équipe calculée."));
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence d'équipe calculée.")));
     }
 
     @Operation(summary = "Répartition des moyennes des joueurs d'un champion, dans le groupe de paliers donné",
@@ -187,9 +190,9 @@ public class StatsController {
                     `tier` est le palier du joueur à noter ; il est ramené à son groupe (Or → SILVER_GOLD).
                     Une métrique absente de la réponse : pas assez de joueurs, se rabattre sur le poste.""")
     @GetMapping("/references/champions/{championId}")
-    public ChampionReferenceGrid championGrid(@PathVariable int championId, @RequestParam String tier) {
-        return references.championGrid(championId, tier)
-                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce champion."));
+    public ChampionReferenceGridDto championGrid(@PathVariable int championId, @RequestParam String tier) {
+        return dtos.toDto(references.championGrid(championId, tier)
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce champion.")));
     }
 
     @Operation(summary = "Répartition des métriques à un poste, par palier et sur tout le ladder",
@@ -199,13 +202,13 @@ public class StatsController {
                     `tier`, seulement la grille de ce palier (plus celle du ladder) : c'est ce qu'il
                     faut pour noter un joueur, et vingt fois moins lourd.""")
     @GetMapping("/references/{position}")
-    public ReferenceGrid referenceGrid(@PathVariable TeamPosition position,
+    public ReferenceGridDto referenceGrid(@PathVariable TeamPosition position,
                                        @RequestParam(defaultValue = ReferenceService.MEAN) String scope,
                                        @RequestParam(required = false) String patch,
                                        @RequestParam(required = false) String tier) {
-        return (patch == null ? references.latest(scope, position.name()) : references.forPatch(scope, position.name(), patch))
+        return dtos.toDto((patch == null ? references.latest(scope, position.name()) : references.forPatch(scope, position.name(), patch))
                 .map(reference -> references.toGrid(reference, tier))
-                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce poste."));
+                .orElseThrow(() -> new RiotResourceNotFoundException("Aucune référence calculée pour ce poste.")));
     }
 
     @Operation(summary = "Palier et adversaires directs de joueurs à un poste",
@@ -216,17 +219,17 @@ public class StatsController {
 
                     Moins de dix adversaires : rendu absent plutôt que bruité.""")
     @PostMapping("/references")
-    public List<PlayerReferences> references(@Valid @RequestBody ReferencesQuery query) {
-        return metricScale.references(query.players());
+    public List<PlayerReferencesDto> references(@Valid @RequestBody ReferencesQueryDto query) {
+        return dtos.toPlayerReferencesDtos(metricScale.references(dtos.fromDto(query).players()));
     }
 
     @Operation(summary = "Habitudes de timeline d'un joueur",
             description = "Moyennes par partie des signaux de timeline (morts isolées, premier mort des combats…) sur ses "
                     + "30 dernières parties qui ont une timeline. Recalculées à chaque appel.")
     @GetMapping("/players/{puuid}/timeline-habits")
-    public TimelineHabits timelineHabits(@PathVariable String puuid,
+    public TimelineHabitsDto timelineHabits(@PathVariable String puuid,
                                          @RequestParam(required = false)
                                          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.Instant since) {
-        return timelineHabits.of(puuid, since);
+        return dtos.toDto(timelineHabits.of(puuid, since));
     }
 }

@@ -6,9 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
-
-import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
 import schultz.thomas.schub.connector.riot.business.exceptions.InvalidHistoryWindowException;
+import schultz.thomas.schub.connector.riot.business.model.HistoryWindow;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.HistoryWindowSetting;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;

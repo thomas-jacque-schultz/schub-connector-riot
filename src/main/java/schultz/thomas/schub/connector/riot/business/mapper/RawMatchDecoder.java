@@ -5,8 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
 import org.springframework.stereotype.Component;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetail;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 
 // ObjectMapper propre : le stocké porte bien plus de champs que RiotMatchResponse, l'inconnu doit être

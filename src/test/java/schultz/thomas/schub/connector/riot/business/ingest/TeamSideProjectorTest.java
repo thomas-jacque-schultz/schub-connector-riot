@@ -2,13 +2,12 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame;
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
+import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.model.TeamSide;
 
 import java.time.Instant;

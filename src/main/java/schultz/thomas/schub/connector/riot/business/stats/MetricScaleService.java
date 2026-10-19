@@ -7,13 +7,12 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.MetricReference;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerReferences;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.ReferencesQuery;
+import schultz.thomas.schub.connector.riot.business.model.MetricReference;
+import schultz.thomas.schub.connector.riot.business.model.PlayerReferences;
+import schultz.thomas.schub.connector.riot.business.model.ReferencesQuery;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
 
 import java.util.ArrayList;
 import java.util.Date;

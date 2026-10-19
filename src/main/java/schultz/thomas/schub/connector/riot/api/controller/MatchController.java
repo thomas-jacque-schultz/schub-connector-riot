@@ -2,7 +2,6 @@ package schultz.thomas.schub.connector.riot.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,12 +9,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetail;
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
+import schultz.thomas.schub.connector.riot.api.dto.MatchDetailDto;
+import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponseDto;
 import schultz.thomas.schub.connector.riot.api.dto.MatchIdsRequest;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 public class MatchController {
 
     private final MatchDetailService matchDetailService;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Le détail d'une partie",
             description = """
@@ -36,10 +38,10 @@ public class MatchController {
 
                     404 si Riot ne connaît pas cette partie.""")
     @GetMapping("/{matchId}")
-    public MatchDetail detail(@PathVariable String matchId) {
-        return matchDetailService.detail(matchId)
+    public MatchDetailDto detail(@PathVariable String matchId) {
+        return dtos.toDto(matchDetailService.detail(matchId)
                 .orElseThrow(() -> new RiotResourceNotFoundException(
-                        "Partie inconnue de Riot : " + matchId));
+                        "Partie inconnue de Riot : " + matchId)));
     }
 
     @Operation(summary = "Le détail de plusieurs parties",
@@ -55,7 +57,7 @@ public class MatchController {
 
                     `unavailable` liste ce que Riot refuse : partie inexistante ou purgée.""")
     @PostMapping("/by-ids")
-    public MatchDetailsResponse details(@Valid @RequestBody MatchIdsRequest request) {
-        return matchDetailService.details(request.matchIds());
+    public MatchDetailsResponseDto details(@Valid @RequestBody MatchIdsRequest request) {
+        return dtos.toDto(matchDetailService.details(request.matchIds()));
     }
 }

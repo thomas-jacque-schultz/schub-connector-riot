@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import schultz.thomas.schub.connector.riot.api.dto.SeoCreators;
+import schultz.thomas.schub.connector.riot.api.dto.SeoCreatorsDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.seo.SeoCreatorService;
 
 import java.util.List;
@@ -20,18 +21,19 @@ import java.util.List;
 public class SeoController {
 
     private final SeoCreatorService creators;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Les créateurs de contenu suivis")
     @GetMapping("/creators")
-    public SeoCreators creators() {
-        return creators.current();
+    public SeoCreatorsDto creators() {
+        return dtos.toDto(creators.current());
     }
 
     @Operation(summary = "Remplacer la liste des créateurs de contenu",
             description = "Chaque Riot ID est résolu chez Riot ; un nouveau venu voit son historique relevé. "
                     + "Les Riot ID inconnus sont rendus dans `unknown` et laissés hors de la liste.")
     @PutMapping("/creators")
-    public SeoCreators replace(@RequestBody List<String> riotIds) {
-        return creators.replace(riotIds);
+    public SeoCreatorsDto replace(@RequestBody List<String> riotIds) {
+        return dtos.toDto(creators.replace(riotIds));
     }
 }

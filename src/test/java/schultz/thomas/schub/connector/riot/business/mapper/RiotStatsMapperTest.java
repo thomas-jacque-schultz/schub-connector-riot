@@ -5,11 +5,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCard;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
+import schultz.thomas.schub.connector.riot.data.model.ChampionCard;
+import schultz.thomas.schub.connector.riot.data.model.ChampionMastery;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.RankedStanding;
 import schultz.thomas.schub.connector.riot.data.model.riot.DataDragonChampionList;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotChampionMasteryResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotLeagueEntryResponse;

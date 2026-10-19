@@ -9,28 +9,25 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCatalog;
-import schultz.thomas.schub.connector.riot.api.dto.MatchDetailsResponse;
-import schultz.thomas.schub.connector.riot.api.dto.MatchHistory;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerSuggestion;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapperImpl;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotKeyMissingException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotQuotaExceededException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
-import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
-import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
-import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
-import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestService;
+import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
+import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
-import schultz.thomas.schub.connector.riot.api.dto.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.business.model.MatchDetailsResponse;
+import schultz.thomas.schub.connector.riot.business.model.MatchHistory;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIngestStatus;
+import schultz.thomas.schub.connector.riot.business.model.PlayerSuggestion;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
 import schultz.thomas.schub.connector.riot.business.search.PlayerSearchService;
 import schultz.thomas.schub.connector.riot.business.services.ChampionCatalogService;
@@ -38,7 +35,11 @@ import schultz.thomas.schub.connector.riot.business.services.ChampionMasteryServ
 import schultz.thomas.schub.connector.riot.business.services.MatchDetailService;
 import schultz.thomas.schub.connector.riot.business.services.MatchHistoryService;
 import schultz.thomas.schub.connector.riot.business.services.PlayerIdentityService;
+import schultz.thomas.schub.connector.riot.business.services.PuuidValidityService;
 import schultz.thomas.schub.connector.riot.business.services.RankingService;
+import schultz.thomas.schub.connector.riot.data.model.ChampionCatalog;
+import schultz.thomas.schub.connector.riot.data.model.KnownAccountSource;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -78,17 +79,18 @@ class RiotConnectorApiTest {
     @Mock private IngestPause pause;
     @Mock private schultz.thomas.schub.connector.riot.business.seo.IndexablePlayers indexablePlayers;
 
+    private final RiotDtoMapper dtos = new RiotDtoMapperImpl();
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new PlayerController(identityService, historyService, rankingService,
-                                masteryService, ingestService, playerSearchService, indexablePlayers),
+                                masteryService, ingestService, playerSearchService, indexablePlayers, dtos),
                         new IngestController(ingestService, projector, knownAccounts, crawler, sampler, summaryService,
-                                historyWindow, pause),
-                        new MatchController(matchDetailService),
-                        new ChampionCatalogController(catalogService))
+                                historyWindow, pause, dtos),
+                        new MatchController(matchDetailService, dtos),
+                        new ChampionCatalogController(catalogService, dtos))
                 .setControllerAdvice(new RiotExceptionHandler(validity))
                 .build();
     }

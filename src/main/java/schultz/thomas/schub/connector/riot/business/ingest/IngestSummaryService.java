@@ -6,15 +6,14 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.AccountsByRank;
-import schultz.thomas.schub.connector.riot.api.dto.IngestSummary;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
+import schultz.thomas.schub.connector.riot.business.model.AccountsByRank;
+import schultz.thomas.schub.connector.riot.business.model.IngestSummary;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
 import schultz.thomas.schub.connector.riot.data.model.PlayerHistoryCursor;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 
 import java.util.ArrayList;

@@ -6,19 +6,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
+import schultz.thomas.schub.connector.riot.business.model.IngestStatus;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
-import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
-import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
 import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
+import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
+import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
 import schultz.thomas.schub.connector.riot.support.TestClock;
 
 import java.time.Duration;

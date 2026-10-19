@@ -3,8 +3,7 @@ package schultz.thomas.schub.connector.riot.business.services;
 import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
+import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 
 import java.util.List;
 import java.util.Map;

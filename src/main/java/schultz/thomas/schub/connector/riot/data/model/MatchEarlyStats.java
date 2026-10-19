@@ -3,9 +3,6 @@ package schultz.thomas.schub.connector.riot.data.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame;
-import schultz.thomas.schub.connector.riot.api.dto.MatchInsights;
-
 import java.util.List;
 import java.util.Map;
 

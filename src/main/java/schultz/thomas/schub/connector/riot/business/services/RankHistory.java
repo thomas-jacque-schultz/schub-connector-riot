@@ -10,12 +10,11 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
 import schultz.thomas.schub.connector.riot.data.model.CachedRanking;
 import schultz.thomas.schub.connector.riot.data.model.MatchRankSnapshot;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
+import schultz.thomas.schub.connector.riot.data.model.RankedStanding;
 
 import java.time.Duration;
 import java.time.Instant;

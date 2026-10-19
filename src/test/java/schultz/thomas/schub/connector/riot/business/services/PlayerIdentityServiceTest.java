@@ -6,19 +6,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotConnectorBusyException;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotResourceNotFoundException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
 import schultz.thomas.schub.connector.riot.data.model.KnownAccount;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
 
 import java.time.Duration;
 import java.time.Instant;
-
 import java.util.List;
 import java.util.Optional;
 

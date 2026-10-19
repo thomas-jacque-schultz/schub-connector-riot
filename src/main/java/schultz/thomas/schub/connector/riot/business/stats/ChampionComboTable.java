@@ -8,11 +8,11 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCombo;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQuery;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
-import schultz.thomas.schub.connector.riot.api.dto.TierCombos;
+import schultz.thomas.schub.connector.riot.business.model.ChampionCombo;
+import schultz.thomas.schub.connector.riot.business.model.ChampionCombosQuery;
+import schultz.thomas.schub.connector.riot.business.model.TierCombos;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.time.Instant;
 import java.util.ArrayList;

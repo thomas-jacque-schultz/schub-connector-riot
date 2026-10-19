@@ -3,15 +3,14 @@ package schultz.thomas.schub.connector.riot.business.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCard;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCatalog;
 import schultz.thomas.schub.connector.riot.business.client.DataDragonClient;
 import schultz.thomas.schub.connector.riot.business.exceptions.RiotApiException;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedChampionCatalog;
 import schultz.thomas.schub.connector.riot.data.model.CachedGameVersion;
+import schultz.thomas.schub.connector.riot.data.model.ChampionCard;
+import schultz.thomas.schub.connector.riot.data.model.ChampionCatalog;
 import schultz.thomas.schub.connector.riot.data.repository.CachedChampionCatalogRepository;
 import schultz.thomas.schub.connector.riot.data.repository.CachedGameVersionRepository;
 

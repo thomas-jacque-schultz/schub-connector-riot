@@ -3,20 +3,19 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import schultz.thomas.schub.connector.riot.api.dto.IngestEnqueueReport;
-import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
+import schultz.thomas.schub.connector.riot.business.model.IngestEnqueueReport;
+import schultz.thomas.schub.connector.riot.business.model.IngestStatus;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIngestStatus;
 import schultz.thomas.schub.connector.riot.business.quota.RiotRateLimiter;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.CachedMatch;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskState;
 import schultz.thomas.schub.connector.riot.data.model.IngestTaskType;
-import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
-import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
 import schultz.thomas.schub.connector.riot.data.model.PlayerBackfill;
+import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
 import schultz.thomas.schub.connector.riot.data.repository.IngestTaskRepository;
+import schultz.thomas.schub.connector.riot.data.repository.PlayerBackfillRepository;
 
 import java.time.Clock;
 import java.time.Duration;

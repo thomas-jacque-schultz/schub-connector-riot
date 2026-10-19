@@ -1,12 +1,11 @@
 package schultz.thomas.schub.connector.riot.business.mapper;
 
 import org.springframework.stereotype.Component;
-
-import schultz.thomas.schub.connector.riot.api.dto.ChampionCard;
-import schultz.thomas.schub.connector.riot.api.dto.ChampionMastery;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIdentity;
-import schultz.thomas.schub.connector.riot.api.dto.QueueKind;
-import schultz.thomas.schub.connector.riot.api.dto.RankedStanding;
+import schultz.thomas.schub.connector.riot.business.model.PlayerIdentity;
+import schultz.thomas.schub.connector.riot.data.model.ChampionCard;
+import schultz.thomas.schub.connector.riot.data.model.ChampionMastery;
+import schultz.thomas.schub.connector.riot.data.model.QueueKind;
+import schultz.thomas.schub.connector.riot.data.model.RankedStanding;
 import schultz.thomas.schub.connector.riot.data.model.riot.DataDragonChampionList;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotAccountResponse;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotChampionMasteryResponse;

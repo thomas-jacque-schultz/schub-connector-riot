@@ -1,10 +1,10 @@
 package schultz.thomas.schub.connector.riot.business.services;
 
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame;
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame.Lane;
-import schultz.thomas.schub.connector.riot.api.dto.EarlyGame.Outcome;
-import schultz.thomas.schub.connector.riot.api.dto.MatchParticipant;
-import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame.Lane;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame.Outcome;
+import schultz.thomas.schub.connector.riot.data.model.EarlyGame;
+import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
 import java.util.ArrayList;
 import java.util.Comparator;

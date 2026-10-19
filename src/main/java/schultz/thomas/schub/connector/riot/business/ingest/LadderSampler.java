@@ -3,10 +3,9 @@ package schultz.thomas.schub.connector.riot.business.ingest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.client.RiotApiClient;
 import schultz.thomas.schub.connector.riot.business.mapper.RiotStatsMapper;
+import schultz.thomas.schub.connector.riot.business.model.SamplingStatus;
 import schultz.thomas.schub.connector.riot.business.services.RankHistory;
 import schultz.thomas.schub.connector.riot.config.RiotProperties;
 import schultz.thomas.schub.connector.riot.data.model.IngestTask;

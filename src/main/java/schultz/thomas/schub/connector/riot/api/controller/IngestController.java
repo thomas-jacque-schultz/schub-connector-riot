@@ -10,19 +10,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import schultz.thomas.schub.connector.riot.api.dto.AccountsByRank;
-import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatus;
+import schultz.thomas.schub.connector.riot.api.dto.AccountsByRankDto;
+import schultz.thomas.schub.connector.riot.api.dto.CrawlerStatusDto;
 import schultz.thomas.schub.connector.riot.api.dto.CrawlerToggleRequest;
-import schultz.thomas.schub.connector.riot.api.dto.HistoryWindow;
+import schultz.thomas.schub.connector.riot.api.dto.HistoryWindowDto;
 import schultz.thomas.schub.connector.riot.api.dto.IngestPauseRequest;
-import schultz.thomas.schub.connector.riot.api.dto.IngestPauseStatus;
-import schultz.thomas.schub.connector.riot.api.dto.IngestStatus;
-import schultz.thomas.schub.connector.riot.api.dto.IngestSummary;
-import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReport;
-import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatus;
-import schultz.thomas.schub.connector.riot.api.dto.RebuildReport;
-import schultz.thomas.schub.connector.riot.api.dto.SamplingStatus;
+import schultz.thomas.schub.connector.riot.api.dto.IngestPauseStatusDto;
+import schultz.thomas.schub.connector.riot.api.dto.IngestStatusDto;
+import schultz.thomas.schub.connector.riot.api.dto.IngestSummaryDto;
+import schultz.thomas.schub.connector.riot.api.dto.IngestTaskDto;
+import schultz.thomas.schub.connector.riot.api.dto.KnownAccountRebuildReportDto;
+import schultz.thomas.schub.connector.riot.api.dto.PlayerIngestStatusDto;
+import schultz.thomas.schub.connector.riot.api.dto.RebuildReportDto;
+import schultz.thomas.schub.connector.riot.api.dto.SamplingStatusDto;
+import schultz.thomas.schub.connector.riot.api.mapper.RiotDtoMapper;
 import schultz.thomas.schub.connector.riot.business.ingest.BackgroundCrawler;
 import schultz.thomas.schub.connector.riot.business.ingest.HistoryWindowService;
 import schultz.thomas.schub.connector.riot.business.ingest.IngestPause;
@@ -31,7 +32,6 @@ import schultz.thomas.schub.connector.riot.business.ingest.IngestSummaryService;
 import schultz.thomas.schub.connector.riot.business.ingest.LadderSampler;
 import schultz.thomas.schub.connector.riot.business.ingest.ParticipationProjector;
 import schultz.thomas.schub.connector.riot.business.search.KnownAccountIndex;
-import schultz.thomas.schub.connector.riot.data.model.IngestTask;
 
 import java.util.List;
 
@@ -49,6 +49,7 @@ public class IngestController {
     private final IngestSummaryService summaryService;
     private final HistoryWindowService historyWindow;
     private final IngestPause pause;
+    private final RiotDtoMapper dtos;
 
     @Operation(summary = "Où en est la collecte",
             description = """
@@ -59,8 +60,8 @@ public class IngestController {
                     prêtes ? » : « 4 300 en attente » ne dit rien, « prêt dans 1 h 25 » si.
                     Une pénalité 429 en cours est ajoutée à l'estimation.""")
     @GetMapping
-    public IngestStatus status() {
-        return ingestService.status();
+    public IngestStatusDto status() {
+        return dtos.toDto(ingestService.status());
     }
 
     @Operation(summary = "Ce que la collecte a produit",
@@ -69,45 +70,45 @@ public class IngestController {
                     aucune tâche d'enrichissement (timeline, digest, rangs) ne l'attend ; un profil,
                     quand son historique a été relevé et que plus rien n'est en file pour lui.""")
     @GetMapping("/summary")
-    public IngestSummary summary() {
-        return summaryService.summary();
+    public IngestSummaryDto summary() {
+        return dtos.toDto(summaryService.summary());
     }
 
     @Operation(summary = "Comptes relevés par rang",
             description = "Le dernier rang solo/duo relevé de chaque compte suivi, et les graines du ladder. "
                     + "La somme des comptes relevés égale `trackedAccounts` de la collecte de fond.")
     @GetMapping("/accounts-by-rank")
-    public AccountsByRank accountsByRank() {
-        return summaryService.accountsByRank();
+    public AccountsByRankDto accountsByRank() {
+        return dtos.toDto(summaryService.accountsByRank());
     }
 
     @Operation(summary = "La collecte de fond",
             description = "Toujours active en prod ; en dev, `switchable` permet de la basculer. "
                     + "Elle se suspend d'elle-même au-delà du seuil de volume de la base.")
     @GetMapping("/crawler")
-    public CrawlerStatus crawler() {
-        return crawler.status();
+    public CrawlerStatusDto crawler() {
+        return dtos.toDto(crawler.status());
     }
 
     @Operation(summary = "L'échantillon par palier",
             description = "Graines tirées dans les classements, par palier, sur la fenêtre glissante. "
                     + "Suit la collecte de fond : suspendu quand elle l'est.")
     @GetMapping("/sampling")
-    public SamplingStatus sampling() {
-        return sampler.status();
+    public SamplingStatusDto sampling() {
+        return dtos.toDto(sampler.status());
     }
 
     @Operation(summary = "Basculer la collecte de fond", description = "409 là où elle n'est pas basculable.")
     @PutMapping("/crawler")
-    public CrawlerStatus toggleCrawler(@RequestBody CrawlerToggleRequest request) {
-        return crawler.toggle(request.enabled());
+    public CrawlerStatusDto toggleCrawler(@RequestBody CrawlerToggleRequest request) {
+        return dtos.toDto(crawler.toggle(request.enabled()));
     }
 
     @Operation(summary = "La pause de l'ingest",
             description = "`running` compte les tâches prises avant la pause et pas encore terminées.")
     @GetMapping("/pause")
-    public IngestPauseStatus pause() {
-        return pause.status();
+    public IngestPauseStatusDto pause() {
+        return dtos.toDto(pause.status());
     }
 
     @Operation(summary = "Mettre l'ingest en pause, ou le reprendre",
@@ -115,22 +116,22 @@ public class IngestController {
                     Toute la file, voie prioritaire comprise, en prod comme en dev. Les tâches en route
                     finissent ; les autres attendent la reprise. La pause survit à un redémarrage.""")
     @PutMapping("/pause")
-    public IngestPauseStatus updatePause(@RequestBody IngestPauseRequest request) {
-        return pause.set(request.paused());
+    public IngestPauseStatusDto updatePause(@RequestBody IngestPauseRequest request) {
+        return dtos.toDto(pause.set(request.paused()));
     }
 
     @Operation(summary = "La fenêtre du premier relevé d'un joueur")
     @GetMapping("/history-window")
-    public HistoryWindow historyWindow() {
-        return historyWindow.current();
+    public HistoryWindowDto historyWindow() {
+        return dtos.toDto(historyWindow.current());
     }
 
     @Operation(summary = "Régler la fenêtre du premier relevé",
             description = "Les détails de fond déjà en file sont abandonnés, et leurs joueurs relevés de nouveau "
                     + "dans la nouvelle fenêtre. 400 hors des bornes.")
     @PutMapping("/history-window")
-    public HistoryWindow updateHistoryWindow(@RequestBody HistoryWindow window) {
-        return historyWindow.update(window);
+    public HistoryWindowDto updateHistoryWindow(@RequestBody HistoryWindowDto window) {
+        return dtos.toDto(historyWindow.update(dtos.fromDto(window)));
     }
 
     @Operation(summary = "Où en est la collecte d'un joueur",
@@ -142,16 +143,16 @@ public class IngestController {
                     inconnu répond comme un joueur sans travail en attente : tout est à zéro,
                     plutôt qu'un 404 que l'appelant devrait traduire.""")
     @GetMapping("/players/{puuid}")
-    public PlayerIngestStatus playerStatus(@PathVariable String puuid) {
-        return ingestService.statusOf(puuid);
+    public PlayerIngestStatusDto playerStatus(@PathVariable String puuid) {
+        return dtos.toDto(ingestService.statusOf(puuid));
     }
 
     @Operation(summary = "Les tâches abandonnées",
             description = "Une tâche épuisée en tentatives n'est jamais reprise d'elle-même. "
                     + "Elle est donc ici, avec sa dernière erreur, plutôt que perdue.")
     @GetMapping("/failures")
-    public List<IngestTask> failures() {
-        return ingestService.failures();
+    public List<IngestTaskDto> failures() {
+        return dtos.toIngestTaskDtos(ingestService.failures());
     }
 
     @Operation(summary = "Réarmer les tâches abandonnées",
@@ -171,8 +172,8 @@ public class IngestController {
                     `unusableMatches` compte les parties stockées avant le passage au brut :
                     elles ne produisent aucune participation et doivent être recollectées.""")
     @PostMapping("/participations/rebuild")
-    public RebuildReport rebuild() {
-        return projector.rebuildAll();
+    public RebuildReportDto rebuild() {
+        return dtos.toDto(projector.rebuildAll());
     }
 
     @Operation(summary = "Reprojeter les participations dans l'index des comptes connus",
@@ -186,7 +187,7 @@ public class IngestController {
                     Une entrée n'est réécrite que si l'observation rejouée est plus récente que
                     celle en place, donc rejouer deux fois ne change rien.""")
     @PostMapping("/known-accounts/rebuild")
-    public KnownAccountRebuildReport rebuildKnownAccounts() {
-        return knownAccounts.rebuildFromParticipations();
+    public KnownAccountRebuildReportDto rebuildKnownAccounts() {
+        return dtos.toDto(knownAccounts.rebuildFromParticipations());
     }
 }
