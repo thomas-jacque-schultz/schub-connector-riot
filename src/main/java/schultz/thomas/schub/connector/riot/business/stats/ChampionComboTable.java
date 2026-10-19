@@ -11,14 +11,17 @@ import org.springframework.stereotype.Service;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionCombo;
 import schultz.thomas.schub.connector.riot.api.dto.ChampionCombosQuery;
 import schultz.thomas.schub.connector.riot.api.dto.TeamPosition;
+import schultz.thomas.schub.connector.riot.api.dto.TierCombos;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -34,29 +37,59 @@ public class ChampionComboTable {
     static final List<TeamPosition> TRIO = List.of(TeamPosition.JUNGLE, TeamPosition.MIDDLE, TeamPosition.UTILITY);
     // Un identifiant de champion tient sur 12 bits, un poste sur 3.
     private static final int BITS = 15;
+    // Pages publiques par palier (Schub#112) : le palier d'un camp est la moyenne des rangs relevés à la collecte.
+    public static final Map<String, List<TeamPosition>> TYPES_PAR_PALIER = Map.of(
+            "ADC_SUP", List.of(TeamPosition.BOTTOM, TeamPosition.UTILITY),
+            "JGL_MID", List.of(TeamPosition.JUNGLE, TeamPosition.MIDDLE),
+            "JGL_MID_SUP", TRIO);
+    private static final List<String> PALIERS = List.of("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
+            "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER");
+    // Même borne que DraftAdviceService du cœur : un 3/3 ne passe pas devant un 15/20.
+    private static final double Z = 1.96;
 
     private final MongoTemplate mongo;
 
     private volatile Map<Long, long[]> table;
+    private volatile ParPalier parPalier;
+
+    private record ParPalier(Instant computedAt, Map<String, Long> camps, Map<String, Map<List<Integer>, long[]>> combos) {
+    }
 
     public void refresh() {
         long debut = System.currentTimeMillis();
         Map<Long, long[]> comptes = new HashMap<>();
+        Map<String, Long> campsParPalier = new HashMap<>();
+        Map<String, Map<List<Integer>, long[]>> parType = new HashMap<>();
         Aggregation agregation = Aggregation.newAggregation(
                         Aggregation.match(Criteria.where("position").in(POSTES)),
                         Aggregation.group("matchId", "side")
                                 .first("win").as("win")
-                                .push(new Document("c", "$championId").append("p", "$position")).as("joueurs"))
+                                .push(new Document("c", "$championId").append("p", "$position")
+                                        .append("t", "$rank.tier")).as("joueurs"))
                 .withOptions(AggregationOptions.builder().allowDiskUse(true).build());
         try (Stream<Document> camps = mongo.aggregateStream(agregation, MatchParticipation.COLLECTION, Document.class)) {
             camps.forEach(camp -> {
                 int[] parPoste = new int[POSTES.size()];
                 Arrays.fill(parPoste, -1);
-                for (Document joueur : camp.getList("joueurs", Document.class)) {
+                List<Document> joueurs = camp.getList("joueurs", Document.class);
+                for (Document joueur : joueurs) {
                     int poste = POSTES.indexOf(TeamPosition.valueOf(joueur.getString("p")));
                     parPoste[poste] = joueur.getInteger("c");
                 }
                 boolean victoire = Boolean.TRUE.equals(camp.getBoolean("win"));
+                String groupe = groupeDuCamp(joueurs);
+                if (groupe != null) {
+                    campsParPalier.merge(groupe, 1L, Long::sum);
+                    TYPES_PAR_PALIER.forEach((type, postes) -> {
+                        List<Integer> champions = postes.stream().map(poste -> parPoste[POSTES.indexOf(poste)]).toList();
+                        if (champions.stream().allMatch(c -> c >= 0)) {
+                            long[] compte = parType.computeIfAbsent(groupe + "/" + type, k -> new HashMap<>())
+                                    .computeIfAbsent(champions, k -> new long[2]);
+                            compte[0]++;
+                            compte[1] += victoire ? 1 : 0;
+                        }
+                    });
+                }
                 for (int i = 0; i < parPoste.length; i++) {
                     for (int j = i + 1; j < parPoste.length; j++) {
                         if (parPoste[i] >= 0 && parPoste[j] >= 0) {
@@ -71,8 +104,45 @@ public class ChampionComboTable {
             });
         }
         table = comptes;
-        log.info("Combos de champions : {} entrées comptées en {} s", comptes.size(),
-                (System.currentTimeMillis() - debut) / 1000);
+        parPalier = new ParPalier(Instant.now(), campsParPalier, parType);
+        log.info("Combos de champions : {} entrées comptées en {} s, dont {} camps à palier connu", comptes.size(),
+                (System.currentTimeMillis() - debut) / 1000, campsParPalier.values().stream().mapToLong(Long::longValue).sum());
+    }
+
+    static String groupeDuCamp(List<Document> joueurs) {
+        double moyenne = joueurs.stream()
+                .map(joueur -> joueur.getString("t"))
+                .filter(Objects::nonNull)
+                .mapToInt(PALIERS::indexOf)
+                .filter(indice -> indice >= 0)
+                .average()
+                .orElse(-1);
+        return moyenne < 0 ? null : ReferenceService.groupeChampion(PALIERS.get((int) Math.round(moyenne)));
+    }
+
+    // Vide tant que la table du jour n'est pas calculée.
+    public Optional<TierCombos> tierCombos(String tier, String kind, int minGames, int limit) {
+        ParPalier courant = parPalier;
+        if (courant == null) {
+            return Optional.empty();
+        }
+        List<TierCombos.Ranked> classes = courant.combos().getOrDefault(tier + "/" + kind, Map.of()).entrySet().stream()
+                .filter(e -> e.getValue()[0] >= Math.max(1, minGames))
+                .map(e -> new TierCombos.Ranked(e.getKey(), e.getValue()[0], e.getValue()[1],
+                        borneBasse(e.getValue()[1], e.getValue()[0])))
+                .sorted(Comparator.comparingDouble(TierCombos.Ranked::lowerBound).reversed())
+                .limit(limit)
+                .toList();
+        return Optional.of(new TierCombos(tier, kind, courant.computedAt(), courant.camps().getOrDefault(tier, 0L),
+                classes));
+    }
+
+    static double borneBasse(long victoires, long parties) {
+        double p = (double) victoires / parties;
+        double z2 = Z * Z;
+        double centre = p + z2 / (2.0 * parties);
+        double marge = Z * Math.sqrt(p * (1 - p) / parties + z2 / (4.0 * parties * parties));
+        return (centre - marge) / (1 + z2 / parties);
     }
 
     private static void compte(Map<Long, long[]> comptes, long cle, boolean victoire) {
