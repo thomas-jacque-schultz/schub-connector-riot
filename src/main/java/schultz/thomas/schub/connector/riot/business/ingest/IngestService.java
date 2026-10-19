@@ -79,6 +79,16 @@ public class IngestService {
     }
 
     public int enqueueDetails(String puuid, Collection<String> matchIds, boolean background) {
+        Instant releve = clock.instant();
+        return enqueueDetails(puuid, matchIds, sequence -> background
+                ? IngestTask.backgroundPriority(releve, sequence) : IngestTask.activePriority(sequence));
+    }
+
+    public int enqueueBackfillDetails(String puuid, Collection<String> matchIds) {
+        return enqueueDetails(puuid, matchIds, IngestTask::backfillPriority);
+    }
+
+    private int enqueueDetails(String puuid, Collection<String> matchIds, java.util.function.LongUnaryOperator priorite) {
         Set<String> wanted = new LinkedHashSet<>(matchIds);
         if (wanted.isEmpty()) {
             return 0;
@@ -88,15 +98,13 @@ public class IngestService {
                 .map(CachedMatch::matchId)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
-        Instant releve = clock.instant();
         int queued = 0;
         for (String matchId : wanted) {
             if (alreadyStored.contains(matchId)) {
                 continue;
             }
-            long sequence = IngestTask.sequenceOf(matchId);
-            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid, background
-                    ? IngestTask.backgroundPriority(releve, sequence) : IngestTask.activePriority(sequence))) {
+            if (queue.enqueue(IngestTaskType.MATCH_DETAIL, matchId, puuid,
+                    priorite.applyAsLong(IngestTask.sequenceOf(matchId)))) {
                 queued++;
             }
         }
@@ -117,7 +125,7 @@ public class IngestService {
             return false;
         }
         backfills.save(new PlayerBackfill(puuid, depuis, clock.instant(), List.of(), null));
-        return queue.enqueue(IngestTaskType.PLAYER_BACKFILL, puuid, puuid, IngestTask.BACKGROUND_PLAYER_PRIORITY);
+        return queue.enqueue(IngestTaskType.PLAYER_BACKFILL, puuid, puuid, IngestTask.BACKFILL_IDS_PRIORITY);
     }
 
     private PlayerIngestStatus.Backfill rattrapage(String puuid) {
