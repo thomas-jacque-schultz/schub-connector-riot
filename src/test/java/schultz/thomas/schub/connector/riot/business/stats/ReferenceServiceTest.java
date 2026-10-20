@@ -103,7 +103,7 @@ class ReferenceServiceTest {
 
     private static StoredReference reference(StoredReference.Grid grille) {
         return new StoredReference("id", List.of("16.19"), "GAME", "TOP", MAINTENANT, List.of(0.0, 1.0),
-                Map.of("csPerMinute", grille));
+                Map.of("csPerMinute", grille), null);
     }
 
     @Test
@@ -120,10 +120,11 @@ class ReferenceServiceTest {
         StoredReference moyennes = new StoredReference("MEAN/TOP/16.18+16.17", List.of("16.18", "16.17"), "MEAN",
                 "TOP", MAINTENANT, List.of(0.0, 1.0), Map.of("deathShare", new StoredReference.Grid(Map.of(
                 "GOLD", new StoredReference.TierGrid(40, List.of(0.1, 0.3)),
-                "SILVER", new StoredReference.TierGrid(50, List.of(0.1, 0.4))), List.of())));
+                "SILVER", new StoredReference.TierGrid(50, List.of(0.1, 0.4))), List.of())), null);
         StoredReference parPartie = new StoredReference("GAME/TOP/16.18+16.17", List.of("16.18", "16.17"), "GAME",
                 "TOP", MAINTENANT, List.of(0.0, 0.25, 0.5, 0.75, 1.0), Map.of("deathShare", new StoredReference.Grid(
-                Map.of("SILVER", quartiles(0.30), "GOLD", quartiles(0.25), "PLATINUM", quartiles(0.20)), List.of())));
+                Map.of("SILVER", quartiles(0.30), "GOLD", quartiles(0.25), "PLATINUM", quartiles(0.20)), List.of())),
+                Map.of("deaths", new StoredReference.Distribution(1, 10, List.of(2L, 5L, 3L))));
         when(store.findByScopeAndPositionAndPatchesContainingOrderByComputedAtDesc("GAME", "TOP", "16.18"))
                 .thenReturn(List.of(parPartie));
 
@@ -133,6 +134,7 @@ class ReferenceServiceTest {
         assertThat(metrique.rankMeans().keySet()).containsExactly("SILVER", "GOLD", "PLATINUM");
         assertThat(metrique.rankMeans().get("GOLD")).isCloseTo(0.25, within(1e-9));
         assertThat(metrique.polarity()).isEqualTo("LOWER");
+        assertThat(service.toGrid(moyennes, "GOLD").distributions().get("deaths").counts()).containsExactly(2L, 5L, 3L);
     }
 
     private static StoredReference.TierGrid quartiles(double mediane) {

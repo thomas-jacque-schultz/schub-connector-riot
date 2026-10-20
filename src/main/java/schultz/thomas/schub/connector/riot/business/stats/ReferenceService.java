@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -96,7 +97,8 @@ public class ReferenceService {
             metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, moyennes, grille.missingTiers()));
         });
         return new ReferenceGrid(reference.patches(), reference.scope(), reference.position(),
-                reference.computedAt(), reference.percentiles(), metriques);
+                reference.computedAt(), reference.percentiles(), metriques,
+                parPartie == null || parPartie.distributions() == null ? null : repartitions(parPartie.distributions()));
     }
 
     public Optional<ChampionReferenceGrid> championGrid(int championId, String tier) {
@@ -172,6 +174,7 @@ public class ReferenceService {
         retamponne(patchs);
         Instant maintenant = clock.instant();
         List<StoredReference> rendus = new ArrayList<>();
+        Map<String, Map<String, StoredReference.Distribution>> repartitions = repartitions(patchs);
         for (String scope : List.of(GAME, MEAN)) {
             Map<String, Map<String, Map<String, StoredReference.TierGrid>>> parPoste = grilles(scope, patchs);
             for (String poste : POSTES) {
@@ -184,7 +187,8 @@ public class ReferenceService {
                     metriques.put(metrique.key(), grille(scope, parMetrique.getOrDefault(metrique.key(), Map.of())));
                 }
                 rendus.add(new StoredReference(String.join("/", scope, poste, String.join("+", patchs)), patchs,
-                        scope, poste, maintenant, PERCENTILES, metriques));
+                        scope, poste, maintenant, PERCENTILES, metriques,
+                        scope.equals(GAME) ? repartitions.getOrDefault(poste, Map.of()) : null));
             }
         }
         rendus.add(equipe(patchs, maintenant));
@@ -213,7 +217,36 @@ public class ReferenceService {
         ReferenceMetric.EQUIPE.forEach(metrique -> metriques.put(metrique.key(),
                 grille(GAME, parMetrique.getOrDefault(metrique.key(), Map.of()))));
         return new StoredReference(String.join("/", TEAM, TEAM, String.join("+", patchs)), patchs, TEAM, TEAM,
-                maintenant, PERCENTILES, metriques);
+                maintenant, PERCENTILES, metriques, null);
+    }
+
+    private static Map<String, ReferenceGrid.Distribution> repartitions(Map<String, StoredReference.Distribution> stockees) {
+        Map<String, ReferenceGrid.Distribution> rendues = new LinkedHashMap<>();
+        stockees.forEach((cle, r) -> rendues.put(cle, new ReferenceGrid.Distribution(r.step(), r.count(), r.counts())));
+        return rendues;
+    }
+
+    Map<String, Map<String, StoredReference.Distribution>> repartitions(List<String> patchs) {
+        Map<String, Map<String, StoredReference.Distribution>> parPoste = new HashMap<>();
+        Document facettes = mongo.getCollection(MatchParticipation.COLLECTION)
+                .aggregate(ReferencePipeline.repartitions(patchs, DistributionMetric.CATALOGUE)).allowDiskUse(true).first();
+        if (facettes == null) {
+            return parPoste;
+        }
+        for (DistributionMetric metrique : DistributionMetric.CATALOGUE) {
+            Map<String, long[]> cases = new HashMap<>();
+            for (Document ligne : facettes.getList(metrique.key(), Document.class, List.of())) {
+                Document id = ligne.get("_id", Document.class);
+                if (id.get("case") instanceof Number indice && indice.intValue() >= 0) {
+                    cases.computeIfAbsent(id.getString("position"), poste -> new long[metrique.buckets()])[indice.intValue()] +=
+                            nombre(ligne.get("n")).longValue();
+                }
+            }
+            cases.forEach((poste, compte) -> parPoste.computeIfAbsent(poste, cle -> new LinkedHashMap<>())
+                    .put(metrique.key(), new StoredReference.Distribution(metrique.step(),
+                            Arrays.stream(compte).sum(), Arrays.stream(compte).boxed().toList())));
+        }
+        return parPoste;
     }
 
     private List<StoredChampionReference> champions(List<String> patchs, Instant maintenant) {
