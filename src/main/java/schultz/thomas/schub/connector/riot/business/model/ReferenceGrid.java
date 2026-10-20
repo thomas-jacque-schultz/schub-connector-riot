@@ -10,8 +10,12 @@ public record ReferenceGrid(
         String position,
         Instant computedAt,
         List<Double> percentiles,
-        Map<String, Metric> metrics
+        Map<String, Metric> metrics,
+        Map<String, Distribution> distributions
 ) {
+
+    public record Distribution(double step, long count, List<Long> counts) {
+    }
 
     public record Metric(
             String polarity,

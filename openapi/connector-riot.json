@@ -3033,12 +3033,40 @@
         },
         "description" : "Reconstruction de la couche d'analyse depuis le stockÃ©, sans aucun appel Ã  Riot."
       },
+      "ReferenceGridDistribution" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "counts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "step" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        },
+        "description" : "Kills, morts et KDA d'une partie, au poste, tous paliers confondus : le nombre de parties dans chaque\ncase de largeur `step`, la derniÃ¨re case comptant tout ce qui dÃ©passe. Absente si non calculÃ©e."
+      },
       "ReferenceGridDto" : {
         "type" : "object",
         "properties" : {
           "computedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "distributions" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/ReferenceGridDistribution"
+            },
+            "description" : "Kills, morts et KDA d'une partie, au poste, tous paliers confondus : le nombre de parties dans chaque\ncase de largeur `step`, la derniÃ¨re case comptant tout ce qui dÃ©passe. Absente si non calculÃ©e."
           },
           "metrics" : {
             "type" : "object",

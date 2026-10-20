@@ -21,4 +21,15 @@ class ReferencePipelineTest {
         Document valeurs = pipeline.get(2).get("$project", Document.class);
         assertThat(valeurs).containsKeys("csPerMinute", "goldDiffAt15", "puuid", "rank").doesNotContainKey("winRate");
     }
+
+    @Test
+    @DisplayName("la répartition compte les parties par poste et par case, la dernière case bornée (Schub#129)")
+    void repartitions() {
+        List<Document> pipeline = ReferencePipeline.repartitions(List.of("16.19"), DistributionMetric.CATALOGUE);
+
+        assertThat(pipeline.getFirst().get("$match", Document.class)).containsKeys("patch", "queueId", "position");
+        Document facettes = pipeline.get(1).get("$facet", Document.class);
+        assertThat(facettes).containsOnlyKeys("kills", "deaths", "kda");
+        assertThat(facettes.toJson()).contains("\"$min\"", "20");
+    }
 }
