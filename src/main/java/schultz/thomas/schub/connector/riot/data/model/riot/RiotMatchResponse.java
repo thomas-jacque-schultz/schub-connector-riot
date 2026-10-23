@@ -71,7 +71,7 @@ public record RiotMatchResponse(Metadata metadata, Info info) {
     }
 
     // challenges est absent de certains modes, et Riot en change le contenu sans prévenir.
-    public record Challenges(Integer turretPlatesTaken) {
+    public record Challenges(Integer turretPlatesTaken, Integer soloKills) {
     }
 
     public record Team(int teamId, boolean win, List<Ban> bans, Map<String, Objective> objectives) {

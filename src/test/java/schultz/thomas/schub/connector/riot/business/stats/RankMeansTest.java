@@ -91,6 +91,18 @@ class RankMeansTest {
     }
 
     @Test
+    @DisplayName("tous paliers confondus, chaque palier assez fourni pèse son nombre de parties, rang ou pas")
+    void tousPaliers() {
+        Map<String, StoredReference.TierGrid> tiers = new LinkedHashMap<>();
+        tiers.put("IRON", grille(ASSEZ, 1, 4));
+        tiers.put("GOLD", grille(ASSEZ - 1, 1, 100));
+        tiers.put("DIAMOND", grille(3 * ASSEZ, 1, 8));
+
+        assertThat(RankMeans.tousPaliers(P, tiers, ASSEZ)).isCloseTo(7, within(1e-9));
+        assertThat(RankMeans.tousPaliers(P, Map.of("GOLD", grille(ASSEZ - 1, 1, 6)), ASSEZ)).isNull();
+    }
+
+    @Test
     @DisplayName("une métrique neutre n'a pas de rang")
     void neutre() {
         assertThat(RankMeans.of(P, paliers(1, 1, 2, 3, 4, 5, 6, 7, 8), ASSEZ, ReferenceMetric.Polarity.NEUTRAL))

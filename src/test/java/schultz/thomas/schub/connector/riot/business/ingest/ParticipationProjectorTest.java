@@ -142,13 +142,14 @@ class ParticipationProjectorTest {
     }
 
     @Test
-    @DisplayName("vision, survie et objectifs sont projetés bruts, avec les dégâts de toute l'équipe pour la part")
+    @DisplayName("vision, survie, objectifs et solo kills sont projetés bruts, avec les dégâts de toute l'équipe pour la part")
     void projetteLaPerformance() {
         projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
 
         MatchParticipation top = ligne(TOP_BLEU);
         assertThat(top.performance()).isEqualTo(new MatchParticipation.Performance(12, 4, 3, 95, 5200, 2, 1800,
-                15272 + 22035 + 20062 + 15985 + 12754, 5));
+                15272 + 22035 + 20062 + 15985 + 12754, 5, 3));
+        assertThat(ligne(TOP_ROUGE).performance().soloKills()).isNull();
     }
 
     @Test
@@ -163,7 +164,7 @@ class ParticipationProjectorTest {
     }
 
     @Test
-    @DisplayName("avec les chiffres à 15 min des deux, les écarts d'or, de CS, d'xp et de kills sont projetés")
+    @DisplayName("avec les chiffres à 15 min des deux, les écarts d'or, de CS, d'xp et de kills, et les assists, sont projetés")
     void projetteLesEcartsA15() {
         when(earlyStats.findById(MATCH)).thenReturn(Optional.of(new MatchEarlyStats(MATCH, Map.of(
                 TOP_BLEU, new MatchInsights.At15(6000, 7000, 130, 4000, 2, 1, 0),
@@ -178,6 +179,7 @@ class ParticipationProjectorTest {
         assertThat(laning.csDiffAt15()).isEqualTo(12);
         assertThat(laning.xpDiffAt15()).isEqualTo(500);
         assertThat(laning.killsDiffAt15()).isEqualTo(1);
+        assertThat(laning.killsAt15() + laning.assistsAt15()).isEqualTo(2);
     }
 
     @Test
@@ -217,7 +219,7 @@ class ParticipationProjectorTest {
                 joueur.append("wardsPlaced", 12).append("wardsKilled", 4).append("detectorWardsPlaced", 3)
                         .append("totalTimeSpentDead", 95).append("damageDealtToTurrets", 5200)
                         .append("turretTakedowns", 2).append("damageDealtToEpicMonsters", 1800)
-                        .append("challenges", new Document("turretPlatesTaken", 5));
+                        .append("challenges", new Document("turretPlatesTaken", 5).append("soloKills", 3));
                 joueur.put("puuid", TOP_BLEU);
             } else if (joueur.getString("puuid").startsWith(TOP_ROUGE)) {
                 joueur.append("challenges", new Document("turretPlatesTaken", 2));

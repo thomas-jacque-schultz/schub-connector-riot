@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationExpression;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 // Les adversaires directs d'un joueur : une population de quelques dizaines, calculée à la demande, bornée p5–p95.
@@ -80,7 +82,16 @@ public class MetricScaleService {
                         .sum("visionScore").as("visionScore")
                         .sum("teamKills").as("teamKills")
                         .sum("teamDeaths").as("teamDeaths")
-                        .sum("durationSeconds").as("secondsPlayed"),
+                        .sum("durationSeconds").as("secondsPlayed")
+                        .sum("performance.teamDamageToChampions").as("teamDamageToChampions")
+                        .sum(siNombre("laning.goldDiffAt15")).as("laningGames")
+                        .sum("laning.goldDiffAt15").as("goldDiffAt15")
+                        .sum("laning.csDiffAt15").as("csDiffAt15")
+                        .sum(siNombre("laning.assistsAt15")).as("earlyGames")
+                        .sum(context -> new Document("$add", List.of("$laning.killsAt15", "$laning.assistsAt15")))
+                        .as("killsAssistsAt15")
+                        .sum(siNombre("performance.soloKills")).as("soloKillsGames")
+                        .sum("performance.soloKills").as("soloKills"),
                 Aggregation.match(Criteria.where("games").gte(MINIMUM_GAMES)));
         List<Joueur> population = mongo.aggregate(sommes, MatchParticipation.class, Document.class)
                 .getMappedResults().stream()
@@ -110,12 +121,35 @@ public class MetricScaleService {
         bornes.put("visionPerMinute", borne(joueurs, Joueur::visionPerMinute));
         bornes.put("killParticipation", borne(joueurs, Joueur::killParticipation));
         bornes.put("deathShare", borne(joueurs, Joueur::deathShare));
+        // Les axes du radar de Schub#146 : un adversaire sans timeline ou sans challenges n'y compte pas.
+        Map.<String, Function<Joueur, Double>>of(
+                "damageShare", Joueur::damageShare,
+                "goldDiffAt15", Joueur::goldDiffAt15,
+                "csDiffAt15", Joueur::csDiffAt15,
+                "killsAssistsAt15", Joueur::killsAssistsAt15,
+                "soloKills", Joueur::soloKills
+        ).forEach((cle, valeur) -> {
+            double[] connues = joueurs.stream().map(valeur).filter(Objects::nonNull).mapToDouble(Double::doubleValue)
+                    .sorted().toArray();
+            if (connues.length >= POPULATION_MINIMUM) {
+                bornes.put(cle, new MetricReference.Bound(quantile(connues, BAS), quantile(connues, HAUT)));
+            }
+        });
         return bornes;
     }
 
     private static MetricReference.Bound borne(List<Joueur> joueurs, ToDoubleFunction<Joueur> valeur) {
         double[] valeurs = joueurs.stream().mapToDouble(valeur).sorted().toArray();
         return new MetricReference.Bound(quantile(valeurs, BAS), quantile(valeurs, HAUT));
+    }
+
+    private static AggregationExpression siNombre(String champ) {
+        return context -> new Document("$cond", List.of(new Document("$isNumber", "$" + champ), 1, 0));
+    }
+
+    private static Double parPartie(Document row, String somme, String parties) {
+        double n = nombre(row, parties);
+        return n == 0 ? null : nombre(row, somme) / n;
     }
 
     static double quantile(double[] tries, double q) {
@@ -135,7 +169,8 @@ public class MetricScaleService {
 
     record Joueur(double winRate, double kda, double csPerMinute, double goldPerMinute,
                   double damagePerMinute, double damageTakenPerMinute, double visionPerMinute,
-                  double killParticipation, double deathShare) {
+                  double killParticipation, double deathShare, Double damageShare, Double goldDiffAt15,
+                  Double csDiffAt15, Double killsAssistsAt15, Double soloKills) {
 
         static Joueur of(Document row) {
             double minutes = nombre(row, "secondsPlayed") / 60.0;
@@ -155,7 +190,12 @@ public class MetricScaleService {
                     nombre(row, "damageTaken") / minutes,
                     nombre(row, "visionScore") / minutes,
                     killsEquipe == 0 ? 0 : positif / killsEquipe,
-                    mortsEquipe == 0 ? 0 : morts / mortsEquipe);
+                    mortsEquipe == 0 ? 0 : morts / mortsEquipe,
+                    parPartie(row, "damageToChampions", "teamDamageToChampions"),
+                    parPartie(row, "goldDiffAt15", "laningGames"),
+                    parPartie(row, "csDiffAt15", "laningGames"),
+                    parPartie(row, "killsAssistsAt15", "earlyGames"),
+                    parPartie(row, "soloKills", "soloKillsGames"));
         }
     }
 }

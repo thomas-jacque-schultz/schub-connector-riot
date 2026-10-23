@@ -17,8 +17,16 @@ public record ReferenceGridDto(
         @Schema(description = "Un poste, ou TEAM pour un camp entier.") String position,
         Instant computedAt,
         @Schema(description = "Les rangs des quantiles de chaque grille, de 0 à 1.") List<Double> percentiles,
-        Map<String, Metric> metrics
+        Map<String, Metric> metrics,
+        @Schema(description = """
+                Kills, morts et KDA d'une partie, au poste, tous paliers confondus : le nombre de parties dans chaque
+                case de largeur `step`, la dernière case comptant tout ce qui dépasse. Absente si non calculée.""")
+        Map<String, Distribution> distributions
 ) {
+
+    @Schema(name = "ReferenceGridDistribution")
+    public record Distribution(double step, long count, List<Long> counts) {
+    }
 
     @Schema(name = "ReferenceGridMetric")
     public record Metric(
@@ -30,6 +38,10 @@ public record ReferenceGridDto(
                     métrique ne suit pas le rang : moyennes qui ne montent pas d'un palier à l'autre, ou trop peu
                     face à l'écart ordinaire au sein d'un palier.""")
             Map<String, Double> rankMeans,
+            @Schema(description = """
+                    Moyenne par partie tous paliers confondus, chaque palier pesant son nombre de parties, même
+                    troncature que rankMeans. Présente même quand la métrique ne suit pas le rang.""")
+            Double allTiersMean,
             List<String> missingTiers
     ) {
     }

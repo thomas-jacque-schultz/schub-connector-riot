@@ -131,13 +131,30 @@ final class ReferencePipeline {
                 new Document("$group", groupe));
     }
 
-    private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques, boolean moyenne) {
-        Document filtre = new Document("patch", new Document("$in", patchs))
+    // Une facette par métrique : le nombre de parties par poste et par case.
+    static List<Document> repartitions(List<String> patchs, List<DistributionMetric> metriques) {
+        Document facettes = new Document();
+        for (DistributionMetric metrique : metriques) {
+            Document cas = new Document("$min", List.of(new Document("$floor", new Document("$divide",
+                    List.of(metrique.value(), metrique.step()))), metrique.buckets() - 1));
+            facettes.append(metrique.key(), List.of(new Document("$group",
+                    new Document("_id", new Document("position", "$position").append("case", cas))
+                            .append("n", new Document("$sum", 1)))));
+        }
+        return List.of(new Document("$match", filtre(patchs)), new Document("$facet", facettes));
+    }
+
+    private static Document filtre(List<String> patchs) {
+        return new Document("patch", new Document("$in", patchs))
                 .append("queueId", new Document("$in", ReferenceService.FILES_CLASSEES))
                 .append("afk", false)
                 .append("durationSeconds", new Document("$gte", ReferenceService.DUREE_MINIMUM))
                 .append("position", new Document("$in", ReferenceService.POSTES))
                 .append("rank.tier", new Document("$ne", null));
+    }
+
+    private static List<Document> base(List<String> patchs, List<ReferenceMetric> metriques, boolean moyenne) {
+        Document filtre = filtre(patchs);
         Document projection = new Document("puuid", 1).append("position", 1).append("startedAt", 1).append("championId", 1)
                 .append("tier", new Document("$cond", List.of(
                         new Document("$in", List.of("$rank.tier", List.of("MASTER", "GRANDMASTER", "CHALLENGER"))),

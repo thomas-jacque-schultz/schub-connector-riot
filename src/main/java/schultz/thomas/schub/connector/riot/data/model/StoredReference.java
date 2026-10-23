@@ -18,8 +18,13 @@ public record StoredReference(
         String position,
         Instant computedAt,
         List<Double> percentiles,
-        Map<String, Grid> metrics
+        Map<String, Grid> metrics,
+        // Par partie seulement (GAME) ; absente des références calculées avant Schub#129.
+        Map<String, Distribution> distributions
 ) {
+
+    public record Distribution(double step, long count, List<Long> counts) {
+    }
 
     public record Grid(Map<String, TierGrid> tiers, List<String> missingTiers) {
     }

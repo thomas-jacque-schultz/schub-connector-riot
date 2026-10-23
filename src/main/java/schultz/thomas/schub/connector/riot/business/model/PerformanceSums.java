@@ -15,7 +15,11 @@ public record PerformanceSums(
         long goldDiffAt15,
         long csDiffAt15,
         long xpDiffAt15,
-        long killsDiffAt15
+        long killsDiffAt15,
+        long earlyGames,
+        long killsAssistsAt15,
+        long soloKillsGames,
+        long soloKills
 ) {
 
     public PerformanceSums plus(PerformanceSums autre) {
@@ -25,6 +29,8 @@ public record PerformanceSums(
                 epicMonsterDamage + autre.epicMonsterDamage, teamDamageToChampions + autre.teamDamageToChampions,
                 platesGames + autre.platesGames, platesDiff + autre.platesDiff, laningGames + autre.laningGames,
                 goldDiffAt15 + autre.goldDiffAt15, csDiffAt15 + autre.csDiffAt15, xpDiffAt15 + autre.xpDiffAt15,
-                killsDiffAt15 + autre.killsDiffAt15);
+                killsDiffAt15 + autre.killsDiffAt15, earlyGames + autre.earlyGames,
+                killsAssistsAt15 + autre.killsAssistsAt15, soloKillsGames + autre.soloKillsGames,
+                soloKills + autre.soloKills);
     }
 }
