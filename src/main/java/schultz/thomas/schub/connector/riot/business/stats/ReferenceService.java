@@ -94,7 +94,10 @@ public class ReferenceService {
             StoredReference.Grid parties = parPartie == null ? null : parPartie.metrics().get(cle);
             Map<String, Double> moyennes = parties == null ? null : RankMeans.of(parPartie.percentiles(),
                     parties.tiers(), minimum(parPartie.scope()), polarite(cle));
-            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, moyennes, grille.missingTiers()));
+            Double tousPaliers = parties == null ? null : RankMeans.tousPaliers(parPartie.percentiles(),
+                    parties.tiers(), minimum(parPartie.scope()));
+            metriques.put(cle, new ReferenceGrid.Metric(polarite(cle).name(), paliers, moyennes, tousPaliers,
+                    grille.missingTiers()));
         });
         return new ReferenceGrid(reference.patches(), reference.scope(), reference.position(),
                 reference.computedAt(), reference.percentiles(), metriques,

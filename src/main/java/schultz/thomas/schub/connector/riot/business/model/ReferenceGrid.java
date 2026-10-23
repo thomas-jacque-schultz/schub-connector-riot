@@ -21,6 +21,7 @@ public record ReferenceGrid(
             String polarity,
             Map<String, Tier> tiers,
             Map<String, Double> rankMeans,
+            Double allTiersMean,
             List<String> missingTiers
     ) {
     }

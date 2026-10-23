@@ -220,7 +220,8 @@ public class ParticipationProjector {
         }
         return new MatchParticipation.Performance(brut.wardsPlaced(), brut.wardsKilled(), brut.detectorWardsPlaced(),
                 brut.totalTimeSpentDead(), brut.damageDealtToTurrets(), brut.turretTakedowns(),
-                brut.damageDealtToEpicMonsters(), degatsEquipe, plaques(brut));
+                brut.damageDealtToEpicMonsters(), degatsEquipe, plaques(brut),
+                brut.challenges() == null ? null : brut.challenges().soloKills());
     }
 
     private static MatchParticipation.Laning laning(Contexte contexte, MatchParticipant moi) {
@@ -240,6 +241,7 @@ public class ParticipationProjector {
                 mien == null ? null : mien.xp(),
                 mien == null ? null : mien.kills(),
                 mien == null ? null : mien.deaths(),
+                mien == null ? null : mien.assists(),
                 face ? mien.gold() - sien.gold() : null,
                 face ? mien.cs() - sien.cs() : null,
                 face ? mien.xp() - sien.xp() : null,

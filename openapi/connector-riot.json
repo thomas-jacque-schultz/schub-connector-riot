@@ -2678,11 +2678,20 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "earlyGames" : {
+            "type" : "integer",
+            "description" : "Parties oÃ¹ les kills et assists Ã  15 min sont connus (timeline, projection v4).",
+            "format" : "int64"
+          },
           "epicMonsterDamage" : {
             "type" : "integer",
             "format" : "int64"
           },
           "goldDiffAt15" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "killsAssistsAt15" : {
             "type" : "integer",
             "format" : "int64"
           },
@@ -2702,6 +2711,15 @@
           "platesGames" : {
             "type" : "integer",
             "description" : "Parties oÃ¹ l'Ã©cart de plaques est connu.",
+            "format" : "int64"
+          },
+          "soloKills" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "soloKillsGames" : {
+            "type" : "integer",
+            "description" : "Parties oÃ¹ Riot a servi les solo kills (challenges, projection v4).",
             "format" : "int64"
           },
           "teamDamageToChampions" : {
@@ -2733,7 +2751,7 @@
             "format" : "int64"
           }
         },
-        "description" : "Sommes des mÃ©triques de partie de la projection v3. Les Ã©carts Ã  15 min n'existent que pour les\nparties Ã  timeline : leur dÃ©nominateur est laningGames, pas games."
+        "description" : "Sommes des mÃ©triques de partie de la projection v4. Les Ã©carts Ã  15 min n'existent que pour les\nparties Ã  timeline : leur dÃ©nominateur est laningGames, pas games."
       },
       "Player" : {
         "required" : [ "position", "puuid" ],
@@ -3103,6 +3121,11 @@
       "ReferenceGridMetric" : {
         "type" : "object",
         "properties" : {
+          "allTiersMean" : {
+            "type" : "number",
+            "description" : "Moyenne par partie tous paliers confondus, chaque palier pesant son nombre de parties, mÃªme\ntroncature que rankMeans. PrÃ©sente mÃªme quand la mÃ©trique ne suit pas le rang.",
+            "format" : "double"
+          },
           "missingTiers" : {
             "type" : "array",
             "items" : {
