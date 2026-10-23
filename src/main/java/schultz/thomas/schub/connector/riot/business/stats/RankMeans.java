@@ -46,6 +46,19 @@ final class RankMeans {
         return ecart >= ECART_MINIMUM && spearman(orientees) >= CORRELATION_MINIMUM ? moyennes : null;
     }
 
+    // Le joueur moyen de tous les paliers (Schub#146) : chaque palier assez fourni pèse son nombre de parties.
+    static Double tousPaliers(List<Double> percentiles, Map<String, StoredReference.TierGrid> tiers, long minimum) {
+        double somme = 0;
+        long parties = 0;
+        for (StoredReference.TierGrid grille : tiers.values()) {
+            if (grille.count() >= minimum) {
+                somme += grille.count() * moyenne(percentiles, grille.values());
+                parties += grille.count();
+            }
+        }
+        return parties == 0 ? null : somme / parties;
+    }
+
     // Aire sous la fonction quantile entre 5 % et 95 % : une médiane de 0 balise cache une moyenne qui monte, et
     // sans troncature, les parties sans mort (KDA de 20 à 30) tirent la moyenne du KDA à elles seules.
     static double moyenne(List<Double> percentiles, List<Double> valeurs) {

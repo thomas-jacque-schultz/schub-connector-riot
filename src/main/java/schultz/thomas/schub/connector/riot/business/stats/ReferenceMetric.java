@@ -44,6 +44,10 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
             parPartie("csDiffAt15", "$laning.csDiffAt15"),
             parPartie("xpDiffAt15", "$laning.xpDiffAt15"),
             parPartie("killsDiffAt15", "$laning.killsDiffAt15"),
+            new ReferenceMetric("killsAssistsAt15",
+                    new Document("$add", List.of("$laning.killsAt15", "$laning.assistsAt15")), PARTIE,
+                    Polarity.HIGHER, true),
+            parPartie("soloKills", "$performance.soloKills"),
             new ReferenceMetric("winRate", new Document("$cond", List.of("$win", 1, 0)), PARTIE, Polarity.HIGHER, false));
 
     // Un camp d'une partie à 15 minutes : écarts à l'autre camp, objectifs pris, ganks décisifs faits et subis.

@@ -38,6 +38,10 @@ public record ReferenceGridDto(
                     métrique ne suit pas le rang : moyennes qui ne montent pas d'un palier à l'autre, ou trop peu
                     face à l'écart ordinaire au sein d'un palier.""")
             Map<String, Double> rankMeans,
+            @Schema(description = """
+                    Moyenne par partie tous paliers confondus, chaque palier pesant son nombre de parties, même
+                    troncature que rankMeans. Présente même quand la métrique ne suit pas le rang.""")
+            Double allTiersMean,
             List<String> missingTiers
     ) {
     }

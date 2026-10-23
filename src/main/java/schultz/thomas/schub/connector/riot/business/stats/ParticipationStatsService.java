@@ -90,7 +90,12 @@ public class ParticipationStatsService {
                 .sum("laning.goldDiffAt15").as("goldDiffAt15")
                 .sum("laning.csDiffAt15").as("csDiffAt15")
                 .sum("laning.xpDiffAt15").as("xpDiffAt15")
-                .sum("laning.killsDiffAt15").as("killsDiffAt15");
+                .sum("laning.killsDiffAt15").as("killsDiffAt15")
+                .sum(siNombre("laning.assistsAt15")).as("earlyGames")
+                .sum(context -> new Document("$add", List.of("$laning.killsAt15", "$laning.assistsAt15")))
+                .as("killsAssistsAt15")
+                .sum(siNombre("performance.soloKills")).as("soloKillsGames")
+                .sum("performance.soloKills").as("soloKills");
         if (groupBy == StatsGrouping.CHAMPION) {
             group = group.first("championName").as("championName");
         }
@@ -338,7 +343,8 @@ public class ParticipationStatsService {
                 entier(row, "turretTakedowns"), entier(row, "epicMonsterDamage"), entier(row, "teamDamageToChampions"),
                 entier(row, "platesGames"), entier(row, "platesDiff"), entier(row, "laningGames"),
                 entier(row, "goldDiffAt15"), entier(row, "csDiffAt15"), entier(row, "xpDiffAt15"),
-                entier(row, "killsDiffAt15"));
+                entier(row, "killsDiffAt15"), entier(row, "earlyGames"), entier(row, "killsAssistsAt15"),
+                entier(row, "soloKillsGames"), entier(row, "soloKills"));
     }
 
     private static AggregationExpression siVrai(String champ) {
