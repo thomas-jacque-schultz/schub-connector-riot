@@ -2,7 +2,8 @@ package schultz.thomas.schub.connector.riot.data.model;
 
 import java.util.List;
 
-public record EarlyGame(List<Gank> ganks, List<JunglePresence> junglers, List<Objectives> objectives) {
+public record EarlyGame(List<Gank> ganks, List<JunglePresence> junglers, List<Objectives> objectives,
+                        Proximity proximity) {
 
     public enum Lane {
         TOP,
@@ -39,5 +40,15 @@ public record EarlyGame(List<Gank> ganks, List<JunglePresence> junglers, List<Ob
     }
 
     public record Objectives(int side, int dragons, int grubs, int heralds) {
+    }
+
+    // Les paires d'un même camp (Schub#151) ; a et b indexent puuids, dans l'ordre de la timeline.
+    // early : minutes comptées de 2 à 15 min, late : après ; together : à moins de 2 000 unités.
+    // departures : passer d'ensemble à séparés avant 15 min, les roams d'un support.
+    public record Proximity(List<String> puuids, List<Pair> pairs) {
+
+        public record Pair(int a, int b, int early, int earlyTogether, int late, int lateTogether,
+                           int meanDistance, int departures) {
+        }
     }
 }

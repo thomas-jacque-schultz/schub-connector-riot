@@ -13,7 +13,7 @@ public record MatchEarlyStats(@Id String matchId, Map<String, MatchInsights.At15
                               List<MatchInsights.EndObjectives> endObjectives, Integer version) {
 
     // À incrémenter quand le calcul change : les parties déjà dérivées sont recalculées depuis la timeline stockée.
-    public static final int CURRENT_VERSION = 6;
+    public static final int CURRENT_VERSION = 7;
 
     public boolean current() {
         return version != null && version == CURRENT_VERSION;

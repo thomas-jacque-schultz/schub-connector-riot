@@ -33,7 +33,7 @@ class TeamSideProjectorTest {
                 new MatchInsights.At15(i < 5 ? 5000 : 4800, 6000, 100, 2000, i == 0 ? 2 : 0, 0, 0)));
         EarlyGame early = new EarlyGame(List.of(
                 gank(100, true), gank(100, false), gank(200, true)), List.of(),
-                List.of(new EarlyGame.Objectives(100, 1, 3, 0), new EarlyGame.Objectives(200, 0, 3, 1)));
+                List.of(new EarlyGame.Objectives(100, 1, 3, 0), new EarlyGame.Objectives(200, 0, 3, 1)), null);
 
         List<TeamSide> camps = TeamSideProjector.camps(new MatchEarlyStats("EUW1_1", a15, early, null, null, 6), lignes);
 

@@ -143,6 +143,37 @@ class EarlyGameAnalyzerTest {
     }
 
     @Test
+    @DisplayName("Proximité : minutes ensemble avant et après 15 min, départs, fontaine et mort écartées")
+    void proximite() {
+        List<Document> images = minutes(20);
+        for (int minute : List.of(3, 4, 5, 16, 17)) {
+            Map<Integer, int[]> ensemble = repos();
+            ensemble.put(2, new int[] {9_500, 1_500});
+            images.set(minute, image(minute * 60_000L, ensemble, new ArrayList<>()));
+        }
+        Map<Integer, int[]> fontaine = repos();
+        fontaine.put(2, new int[] {500, 600});
+        images.set(7, image(420_000, fontaine, new ArrayList<>()));
+        Map<Integer, int[]> mort = repos();
+        mort.put(2, new int[] {9_500, 1_500});
+        images.set(8, image(480_000, mort, List.of(kill(470_000, 6, 5, List.of(), 9_000, 1_200))));
+
+        EarlyGame early = EarlyGameAnalyzer.analyse(partie(images), PARTICIPANTS);
+
+        assertThat(early.proximity().puuids()).isEqualTo(PUUIDS);
+        assertThat(early.proximity().pairs()).hasSize(6);
+        assertThat(early.proximity().pairs()).filteredOn(p -> p.a() == 1 && p.b() == 4).singleElement()
+                .satisfies(paire -> {
+                    assertThat(paire.early()).isEqualTo(12);
+                    assertThat(paire.earlyTogether()).isEqualTo(3);
+                    assertThat(paire.departures()).isEqualTo(1);
+                    assertThat(paire.late()).isEqualTo(5);
+                    assertThat(paire.lateTogether()).isEqualTo(2);
+                });
+        assertThat(early.proximity().pairs()).noneMatch(p -> p.a() == 0 && p.b() == 2);
+    }
+
+    @Test
     @DisplayName("Un poste inconnu : aucun gank ne s'attribue, l'analyse est absente")
     void posteInconnu() {
         List<MatchParticipant> participants = new ArrayList<>(PARTICIPANTS);

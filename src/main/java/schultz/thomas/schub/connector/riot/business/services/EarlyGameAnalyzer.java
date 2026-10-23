@@ -31,6 +31,11 @@ final class EarlyGameAnalyzer {
     private static final long SUITE_OBJECTIF_MS = 90_000L;
     private static final double BANDE_MID = 1_500;
     private static final Set<String> COTE_HAUT = Set.of("HORDE", "RIFTHERALD");
+    private static final long DEBUT_PROXIMITE_MS = 2 * 60_000L;
+    private static final double FONTAINE_RAYON = 2_500;
+    // La timeline ne dit pas qui est mort au moment de l'image : une mort dans les 30 s qui la précèdent l'écarte.
+    private static final long MORT_MS = 30_000L;
+    private static final Map<Integer, Point> FONTAINES = Map.of(100, new Point(400, 400), 200, new Point(14_400, 14_400));
 
     private EarlyGameAnalyzer() {
     }
@@ -66,6 +71,7 @@ final class EarlyGameAnalyzer {
         List<Image> images = new ArrayList<>();
         List<Kill> kills = new ArrayList<>();
         List<Monstre> monstres = new ArrayList<>();
+        List<Mort> deces = new ArrayList<>();
         for (Object brut : frames) {
             Map<String, Object> frame = enObjet(brut);
             long ts = nombre(frame, "timestamp");
@@ -80,6 +86,9 @@ final class EarlyGameAnalyzer {
             for (Object e : liste(frame, "events")) {
                 Map<String, Object> event = enObjet(e);
                 long t = nombre(event, "timestamp");
+                if ("CHAMPION_KILL".equals(event.get("type"))) {
+                    deces.add(new Mort(t, (int) nombre(event, "victimId")));
+                }
                 if ("CHAMPION_KILL".equals(event.get("type")) && t <= FIN_MS) {
                     Map<String, Object> position = objet(event, "position");
                     List<Integer> aides = new ArrayList<>();
@@ -119,7 +128,7 @@ final class EarlyGameAnalyzer {
             objectifs.add(objectifs(side, monstres));
         }
         ganks.sort(Comparator.comparingInt(EarlyGame.Gank::second));
-        return new EarlyGame(ganks, presences, objectifs);
+        return new EarlyGame(ganks, presences, objectifs, proximite(puuids, parId, images, deces));
     }
 
     private static List<EarlyGame.Gank> ganksSur(Lane lane, int side, int jungler, List<Integer> cibles,
@@ -196,6 +205,62 @@ final class EarlyGameAnalyzer {
             i = j;
         }
         return ganks;
+    }
+
+    private static EarlyGame.Proximity proximite(List<Object> puuids, Map<Integer, MatchParticipant> parId,
+                                                 List<Image> images, List<Mort> deces) {
+        List<EarlyGame.Proximity.Pair> paires = new ArrayList<>();
+        List<Integer> ids = parId.keySet().stream().sorted().toList();
+        for (int i = 0; i < ids.size(); i++) {
+            for (int j = i + 1; j < ids.size(); j++) {
+                int a = ids.get(i);
+                int b = ids.get(j);
+                if (parId.get(a).teamId() == parId.get(b).teamId()) {
+                    paires.add(paire(a, b, parId.get(a).teamId(), images, deces));
+                }
+            }
+        }
+        return new EarlyGame.Proximity(puuids.stream().map(String::valueOf).toList(), paires);
+    }
+
+    private static EarlyGame.Proximity.Pair paire(int a, int b, int side, List<Image> images, List<Mort> deces) {
+        int tot = 0;
+        int totEnsemble = 0;
+        int tard = 0;
+        int tardEnsemble = 0;
+        int departs = 0;
+        double distances = 0;
+        Boolean ensembleAvant = null;
+        for (Image image : images) {
+            Point pa = image.positions().get(a);
+            Point pb = image.positions().get(b);
+            if (image.ts() < DEBUT_PROXIMITE_MS || pa == null || pb == null
+                    || horsJeu(a, side, pa, image.ts(), deces) || horsJeu(b, side, pb, image.ts(), deces)) {
+                continue;
+            }
+            double distance = pa.distance(pb);
+            boolean ensemble = distance < PORTEE;
+            distances += distance;
+            if (image.ts() <= FIN_MS) {
+                tot++;
+                totEnsemble += ensemble ? 1 : 0;
+                if (Boolean.TRUE.equals(ensembleAvant) && !ensemble) {
+                    departs++;
+                }
+                ensembleAvant = ensemble;
+            } else {
+                tard++;
+                tardEnsemble += ensemble ? 1 : 0;
+            }
+        }
+        int comptees = tot + tard;
+        return new EarlyGame.Proximity.Pair(a - 1, b - 1, tot, totEnsemble, tard, tardEnsemble,
+                comptees == 0 ? 0 : (int) Math.round(distances / comptees), departs);
+    }
+
+    private static boolean horsJeu(int id, int side, Point position, long ts, List<Mort> deces) {
+        return position.distance(FONTAINES.get(side)) < FONTAINE_RAYON
+                || deces.stream().anyMatch(mort -> mort.victime() == id && mort.t() <= ts && ts - mort.t() < MORT_MS);
     }
 
     private static Outcome issue(int pertesDefense, int pertesAttaque) {
@@ -285,5 +350,8 @@ final class EarlyGameAnalyzer {
     }
 
     private record Monstre(long t, int equipe, String type) {
+    }
+
+    private record Mort(long t, int victime) {
     }
 }
