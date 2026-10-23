@@ -92,6 +92,18 @@ public interface RiotDtoMapper {
     @Mapping(target = "decisive", expression = "java(gank.decisive())")
     EarlyGameDto.Gank toDto(EarlyGame.Gank gank);
 
+    default List<EarlyGameDto.Proximity> toDto(EarlyGame.Proximity proximity) {
+        if (proximity == null) {
+            return null;
+        }
+        List<String> puuids = proximity.puuids();
+        return proximity.pairs().stream()
+                .map(paire -> new EarlyGameDto.Proximity(puuids.get(paire.a()), puuids.get(paire.b()), paire.early(),
+                        paire.earlyTogether(), paire.late(), paire.lateTogether(), paire.meanDistance(),
+                        paire.departures()))
+                .toList();
+    }
+
     AccountsByRankDto toDto(AccountsByRank value);
 
     ChampionCatalogDto toDto(ChampionCatalog value);

@@ -5,7 +5,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 @Schema(description = "Les quinze premières minutes lues dans la timeline : ganks, présence des junglers, objectifs.")
-public record EarlyGameDto(List<Gank> ganks, List<JunglePresence> junglers, List<Objectives> objectives) {
+public record EarlyGameDto(List<Gank> ganks, List<JunglePresence> junglers, List<Objectives> objectives,
+                           @Schema(description = "Absent pour une partie analysée avant la version 7.")
+                           List<Proximity> proximity) {
 
     public enum Lane {
         TOP,
@@ -45,5 +47,21 @@ public record EarlyGameDto(List<Gank> ganks, List<JunglePresence> junglers, List
 
     @Schema(description = "Objectifs neutres pris avant 15 minutes.")
     public record Objectives(int side, int dragons, int grubs, int heralds) {
+    }
+
+    @Schema(description = "Deux coéquipiers, minute par minute à partir de 2 min. Une minute ne compte pas si l'un des "
+            + "deux est à sa fontaine ou mort depuis moins de 30 s ; ensemble = à moins de 2 000 unités.")
+    public record Proximity(
+            String puuidA,
+            String puuidB,
+            @Schema(description = "Minutes comptées de 2 à 15 min.") int early,
+            int earlyTogether,
+            @Schema(description = "Minutes comptées après 15 min.") int late,
+            int lateTogether,
+            @Schema(description = "Distance moyenne sur toutes les minutes comptées, en unités de la carte.")
+            int meanDistance,
+            @Schema(description = "Passages d'ensemble à séparés avant 15 min : les roams d'un support.")
+            int departures
+    ) {
     }
 }

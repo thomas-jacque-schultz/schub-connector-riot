@@ -1852,6 +1852,13 @@
             "items" : {
               "$ref" : "#/components/schemas/Objectives"
             }
+          },
+          "proximity" : {
+            "type" : "array",
+            "description" : "Absent pour une partie analysÃ©e avant la version 7.",
+            "items" : {
+              "$ref" : "#/components/schemas/Proximity"
+            }
           }
         },
         "description" : "Les quinze premiÃ¨res minutes lues dans la timeline : ganks, prÃ©sence des junglers, objectifs."
@@ -2944,6 +2951,46 @@
           }
         },
         "description" : "Un poste et le nombre de parties qu'on y a vu ce joueur."
+      },
+      "Proximity" : {
+        "type" : "object",
+        "properties" : {
+          "departures" : {
+            "type" : "integer",
+            "description" : "Passages d'ensemble Ã  sÃ©parÃ©s avant 15 min : les roams d'un support.",
+            "format" : "int32"
+          },
+          "early" : {
+            "type" : "integer",
+            "description" : "Minutes comptÃ©es de 2 Ã  15 min.",
+            "format" : "int32"
+          },
+          "earlyTogether" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "late" : {
+            "type" : "integer",
+            "description" : "Minutes comptÃ©es aprÃ¨s 15 min.",
+            "format" : "int32"
+          },
+          "lateTogether" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "meanDistance" : {
+            "type" : "integer",
+            "description" : "Distance moyenne sur toutes les minutes comptÃ©es, en unitÃ©s de la carte.",
+            "format" : "int32"
+          },
+          "puuidA" : {
+            "type" : "string"
+          },
+          "puuidB" : {
+            "type" : "string"
+          }
+        },
+        "description" : "Deux coÃ©quipiers, minute par minute Ã  partir de 2 min. Une minute ne compte pas si l'un des deux est Ã  sa fontaine ou mort depuis moins de 30 s ; ensemble = Ã  moins de 2 000 unitÃ©s."
       },
       "PuuidListRequest" : {
         "required" : [ "puuids" ],
