@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -33,10 +34,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -116,29 +115,30 @@ public class ParticipationProjector {
         return termine(bilan, startedAt);
     }
 
-    // Seules les lignes d'une version antérieure sont relues : interrompue, elle reprend où elle s'était arrêtée.
+    // Seules les lignes d'une version antérieure sont relues, en avançant par _id : une seule passe sur la collection, par
+    // l'index de _id. Chercher les périmées sans borne relisait depuis le début, à chaque lot, toutes les lignes déjà à
+    // jour (4 M de documents par lot de 5 000 sur le dev) : sur le disque de la prod, des jours de lecture à plein.
+    // Une partie sans brut est dépassée, pas relue ; interrompue, la mise à niveau repart du début en une passe.
     public RebuildReport upgradeOutdated() {
         Instant startedAt = clock.instant();
         Bilan bilan = new Bilan();
-        Set<String> sansBrut = new HashSet<>();
+        String apres = "";
         while (true) {
-            Query perimees = Query.query(Criteria.where("projectionVersion").ne(MatchParticipation.PROJECTION_VERSION)
-                    .and("matchId").nin(sansBrut)).limit(REBUILD_PAGE * 10);
+            Query perimees = Query.query(Criteria.where("_id").gt(apres)
+                            .and("projectionVersion").ne(MatchParticipation.PROJECTION_VERSION))
+                    .with(Sort.by("_id"))
+                    .limit(REBUILD_PAGE * 10);
             perimees.fields().include("matchId");
-            List<String> ids = mongo.find(perimees, Document.class, MatchParticipation.COLLECTION).stream()
-                    .map(ligne -> ligne.getString("matchId"))
-                    .distinct()
-                    .toList();
-            if (ids.isEmpty()) {
+            List<Document> lignes = mongo.find(perimees, Document.class, MatchParticipation.COLLECTION);
+            if (lignes.isEmpty()) {
                 break;
             }
+            apres = lignes.getLast().getString("_id");
+            List<String> ids = lignes.stream().map(ligne -> ligne.getString("matchId")).distinct().toList();
             Map<String, CachedMatch> stockees = new HashMap<>();
             matches.findByMatchIdIn(ids).forEach(cached -> stockees.put(cached.matchId(), cached));
             for (String id : ids) {
-                CachedMatch cached = stockees.getOrDefault(id, new CachedMatch(id, null, null));
-                if (bilan.projette(cached) == 0) {
-                    sansBrut.add(id);
-                }
+                bilan.projette(stockees.getOrDefault(id, new CachedMatch(id, null, null)));
             }
         }
         return termine(bilan, startedAt);

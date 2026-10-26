@@ -127,10 +127,12 @@ class ParticipationProjectorTest {
     }
 
     @Test
-    @DisplayName("la mise à niveau ne relit que les lignes périmées, et une partie sans brut ne tourne pas en boucle")
+    @DisplayName("la mise à niveau avance par _id dans les lignes périmées, et une partie sans brut est dépassée, pas relue")
     void metANiveauSansBoucler() {
-        when(mongo.find(any(Query.class), eq(Document.class), eq(MatchParticipation.COLLECTION)))
-                .thenReturn(List.of(new Document("matchId", "EUW1_7987650481"), new Document("matchId", "EUW1_PERDUE")))
+        ArgumentCaptor<Query> requetes = ArgumentCaptor.forClass(Query.class);
+        when(mongo.find(requetes.capture(), eq(Document.class), eq(MatchParticipation.COLLECTION)))
+                .thenReturn(List.of(new Document("_id", "a#EUW1_7987650481").append("matchId", "EUW1_7987650481"),
+                        new Document("_id", "b#EUW1_PERDUE").append("matchId", "EUW1_PERDUE")))
                 .thenReturn(List.of());
         when(matches.findByMatchIdIn(List.of("EUW1_7987650481", "EUW1_PERDUE"))).thenReturn(List.of(
                 new CachedMatch("EUW1_7987650481", Fixtures.document("match-ranked-solo.json"), MAINTENANT)));
@@ -140,6 +142,9 @@ class ParticipationProjectorTest {
         assertThat(rapport.participationsWritten()).isEqualTo(10);
         assertThat(rapport.unusableMatches()).isEqualTo(1);
         verify(participations, never()).deleteAll();
+        Query suivante = requetes.getAllValues().get(1);
+        assertThat(suivante.getQueryObject().get("_id")).isEqualTo(new Document("$gt", "b#EUW1_PERDUE"));
+        assertThat(suivante.getSortObject()).isEqualTo(new Document("_id", 1));
     }
 
     @Test
