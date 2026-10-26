@@ -5,17 +5,23 @@ import org.bson.Document;
 import java.util.List;
 
 // Une métrique = numérateur / dénominateur par ligne : par partie on divise, sur une moyenne on divise les sommes.
+// position : la seule grille de poste qui la porte ; absente, toutes.
 public record ReferenceMetric(String key, Object numerator, Object denominator, Polarity polarity, boolean perGame,
-                              Object meanDenominator) {
+                              Object meanDenominator, String position) {
 
     public ReferenceMetric(String key, Object numerator, Object denominator, Polarity polarity, boolean perGame) {
-        this(key, numerator, denominator, polarity, perGame, denominator);
+        this(key, numerator, denominator, polarity, perGame, denominator, null);
+    }
+
+    public boolean appliesTo(String poste) {
+        return position == null || position.equals(poste);
     }
 
     public enum Polarity { HIGHER, LOWER, NEUTRAL }
 
     private static final Object MINUTES = new Document("$divide", List.of("$durationSeconds", 60));
     private static final Object PARTIE = 1;
+    private static final Object POUR_CENT = 100;
 
     public static final List<ReferenceMetric> CATALOGUE = List.of(
             parMinute("csPerMinute", "$minionsKilled"),
@@ -34,7 +40,7 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
                     Polarity.LOWER, true),
             // Par partie, une partie sans mort compte pour une ; en moyenne, (K + A) / D sur les sommes, comme le cœur.
             new ReferenceMetric("kda", new Document("$add", List.of("$kills", "$assists")),
-                    new Document("$max", List.of("$deaths", 1)), Polarity.HIGHER, true, "$deaths"),
+                    new Document("$max", List.of("$deaths", 1)), Polarity.HIGHER, true, "$deaths", null),
             new ReferenceMetric("timeDeadShare", "$performance.timeDeadSeconds", "$durationSeconds", Polarity.LOWER, true),
             parMinute("turretDamagePerMinute", "$performance.turretDamage"),
             new ReferenceMetric("turretTakedowns", "$performance.turretTakedowns", PARTIE, Polarity.HIGHER, true),
@@ -48,6 +54,9 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
                     new Document("$add", List.of("$laning.killsAt15", "$laning.assistsAt15")), PARTIE,
                     Polarity.HIGHER, true),
             parPartie("soloKills", "$performance.soloKills"),
+            auSupport("adcEarlyShare", POUR_CENT),
+            auSupport("junglerLateShare", POUR_CENT),
+            auSupport("roams", PARTIE),
             new ReferenceMetric("winRate", new Document("$cond", List.of("$win", 1, 0)), PARTIE, Polarity.HIGHER, false));
 
     // Un camp d'une partie à 15 minutes : écarts à l'autre camp, objectifs pris, ganks décisifs faits et subis.
@@ -63,6 +72,13 @@ public record ReferenceMetric(String key, Object numerator, Object denominator, 
 
     private static ReferenceMetric parMinute(String key, String champ) {
         return new ReferenceMetric(key, champ, MINUTES, Polarity.HIGHER, true);
+    }
+
+    // Rester collé à l'ADC ou partir en roam : aucun des deux n'est mieux en soi. Parts stockées en pour cent,
+    // servies de 0 à 1 comme damageShare.
+    private static ReferenceMetric auSupport(String key, Object denominateur) {
+        return new ReferenceMetric(key, "$support." + key, denominateur, Polarity.NEUTRAL, true, denominateur,
+                "UTILITY");
     }
 
     private static ReferenceMetric parPartie(String key, String champ) {

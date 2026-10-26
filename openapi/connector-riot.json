@@ -2677,6 +2677,11 @@
       "PerformanceSumsDto" : {
         "type" : "object",
         "properties" : {
+          "adcEarlyShare" : {
+            "type" : "integer",
+            "description" : "Somme des parts, en pour cent.",
+            "format" : "int64"
+          },
           "controlWardsPlaced" : {
             "type" : "integer",
             "format" : "int64"
@@ -2696,6 +2701,11 @@
           },
           "goldDiffAt15" : {
             "type" : "integer",
+            "format" : "int64"
+          },
+          "junglerLateShare" : {
+            "type" : "integer",
+            "description" : "Somme des parts, en pour cent.",
             "format" : "int64"
           },
           "killsAssistsAt15" : {
@@ -2720,6 +2730,11 @@
             "description" : "Parties oÃ¹ l'Ã©cart de plaques est connu.",
             "format" : "int64"
           },
+          "roams" : {
+            "type" : "integer",
+            "description" : "DÃ©parts d'auprÃ¨s de l'ADC avant 15 min, sur supportEarlyGames.",
+            "format" : "int64"
+          },
           "soloKills" : {
             "type" : "integer",
             "format" : "int64"
@@ -2727,6 +2742,16 @@
           "soloKillsGames" : {
             "type" : "integer",
             "description" : "Parties oÃ¹ Riot a servi les solo kills (challenges, projection v4).",
+            "format" : "int64"
+          },
+          "supportEarlyGames" : {
+            "type" : "integer",
+            "description" : "Parties au support oÃ¹ la part d'images avec l'ADC avant 15 min est connue (Schub#153).",
+            "format" : "int64"
+          },
+          "supportLateGames" : {
+            "type" : "integer",
+            "description" : "Parties au support oÃ¹ la part d'images avec le jungler aprÃ¨s 15 min est connue.",
             "format" : "int64"
           },
           "teamDamageToChampions" : {

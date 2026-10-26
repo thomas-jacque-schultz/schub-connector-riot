@@ -20,6 +20,7 @@ import schultz.thomas.schub.connector.riot.data.model.KnownAccountSource;
 import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.Proximity;
 import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 import schultz.thomas.schub.connector.riot.data.model.riot.RiotMatchResponse;
 import schultz.thomas.schub.connector.riot.data.repository.CachedMatchRepository;
@@ -44,6 +45,8 @@ public class ParticipationProjector {
 
     private static final int REBUILD_PAGE = 200;
     public static final Duration RANG_TOLERANCE = Duration.ofDays(30);
+    // En deçà, une part ne veut rien dire : une partie finie à 16 min n'a presque rien après 15.
+    private static final int IMAGES_MINIMUM = 5;
 
     private final CachedMatchRepository matches;
     private final MatchParticipationRepository participations;
@@ -69,8 +72,9 @@ public class ParticipationProjector {
         if (response.info().participants() != null) {
             response.info().participants().forEach(brut -> bruts.put(brut.puuid(), brut));
         }
-        Contexte contexte = new Contexte(detail, equipes, bruts,
-                earlyStats.findById(detail.matchId()).map(MatchEarlyStats::byPuuid).orElse(Map.of()),
+        MatchEarlyStats debut = earlyStats.findById(detail.matchId()).orElse(null);
+        Contexte contexte = new Contexte(detail, equipes, bruts, debut == null ? Map.of() : debut.byPuuid(),
+                debut == null || debut.proximities() == null ? List.of() : debut.proximities(),
                 adversaires(detail.participants()), rangs(detail), clock.instant());
         List<MatchParticipation> rows = detail.participants().stream()
                 .map(participant -> toParticipation(contexte, participant))
@@ -209,6 +213,7 @@ public class ParticipationProjector {
                 participant.afk(),
                 performance(contexte.bruts().get(participant.puuid()), equipe[2]),
                 laning(contexte, participant),
+                support(contexte, participant),
                 contexte.rangs().get(participant.puuid()),
                 MatchParticipation.PROJECTION_VERSION,
                 contexte.now());
@@ -246,6 +251,40 @@ public class ParticipationProjector {
                 face ? mien.cs() - sien.cs() : null,
                 face ? mien.xp() - sien.xp() : null,
                 face ? mien.kills() - sien.kills() : null);
+    }
+
+    // Un seul ADC et un seul jungler dans le camp, sinon rien : postes inconnus ou en double.
+    private static MatchParticipation.Support support(Contexte contexte, MatchParticipant moi) {
+        if (moi.position() != TeamPosition.UTILITY || contexte.proximites().isEmpty()) {
+            return null;
+        }
+        Proximity adc = avec(contexte, moi, TeamPosition.BOTTOM);
+        Proximity jungler = avec(contexte, moi, TeamPosition.JUNGLE);
+        Integer partAdc = adc == null ? null : part(adc.earlyTogether(), adc.earlyMinutes());
+        Integer partJungler = jungler == null ? null : part(jungler.lateTogether(), jungler.lateMinutes());
+        if (partAdc == null && partJungler == null) {
+            return null;
+        }
+        return new MatchParticipation.Support(partAdc, partJungler, partAdc == null ? null : adc.earlyDepartures());
+    }
+
+    private static Proximity avec(Contexte contexte, MatchParticipant moi, TeamPosition poste) {
+        List<MatchParticipant> candidats = contexte.detail().participants().stream()
+                .filter(autre -> autre.teamId() == moi.teamId() && autre.position() == poste)
+                .toList();
+        if (candidats.size() != 1) {
+            return null;
+        }
+        String lui = candidats.getFirst().puuid();
+        return contexte.proximites().stream()
+                .filter(p -> p.puuid().equals(moi.puuid()) && p.matePuuid().equals(lui)
+                        || p.puuid().equals(lui) && p.matePuuid().equals(moi.puuid()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static Integer part(int ensemble, int images) {
+        return images < IMAGES_MINIMUM ? null : Math.round(100f * ensemble / images);
     }
 
     private Map<String, MatchParticipation.RankAtGame> rangs(MatchDetail detail) {
@@ -289,6 +328,7 @@ public class ParticipationProjector {
 
     private record Contexte(MatchDetail detail, Map<Integer, int[]> equipes,
                             Map<String, RiotMatchResponse.Participant> bruts, Map<String, MatchInsights.At15> a15,
+                            List<Proximity> proximites,
                             Map<String, MatchParticipant> adversaires,
                             Map<String, MatchParticipation.RankAtGame> rangs, Instant now) {
     }

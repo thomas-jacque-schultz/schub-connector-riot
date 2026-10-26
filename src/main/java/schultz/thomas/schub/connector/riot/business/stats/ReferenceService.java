@@ -184,7 +184,7 @@ public class ReferenceService {
                 Map<String, Map<String, StoredReference.TierGrid>> parMetrique = parPoste.getOrDefault(poste, Map.of());
                 Map<String, StoredReference.Grid> metriques = new LinkedHashMap<>();
                 for (ReferenceMetric metrique : ReferenceMetric.CATALOGUE) {
-                    if (scope.equals(GAME) && !metrique.perGame()) {
+                    if (scope.equals(GAME) && !metrique.perGame() || !metrique.appliesTo(poste)) {
                         continue;
                     }
                     metriques.put(metrique.key(), grille(scope, parMetrique.getOrDefault(metrique.key(), Map.of())));

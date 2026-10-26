@@ -19,7 +19,12 @@ public record PerformanceSums(
         long earlyGames,
         long killsAssistsAt15,
         long soloKillsGames,
-        long soloKills
+        long soloKills,
+        long supportEarlyGames,
+        long adcEarlyShare,
+        long roams,
+        long supportLateGames,
+        long junglerLateShare
 ) {
 
     public PerformanceSums plus(PerformanceSums autre) {
@@ -31,6 +36,8 @@ public record PerformanceSums(
                 goldDiffAt15 + autre.goldDiffAt15, csDiffAt15 + autre.csDiffAt15, xpDiffAt15 + autre.xpDiffAt15,
                 killsDiffAt15 + autre.killsDiffAt15, earlyGames + autre.earlyGames,
                 killsAssistsAt15 + autre.killsAssistsAt15, soloKillsGames + autre.soloKillsGames,
-                soloKills + autre.soloKills);
+                soloKills + autre.soloKills, supportEarlyGames + autre.supportEarlyGames,
+                adcEarlyShare + autre.adcEarlyShare, roams + autre.roams, supportLateGames + autre.supportLateGames,
+                junglerLateShare + autre.junglerLateShare);
     }
 }

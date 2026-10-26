@@ -78,7 +78,7 @@ class TeamSideProjectorTest {
     private static MatchParticipation ligne(String puuid, int side, String tier) {
         return new MatchParticipation(MatchParticipation.idOf(puuid, "EUW1_1"), puuid, "EUW1_1", "P", "T", "p", 1,
                 "X", TeamPosition.TOP, side == 100, side, 1800, 420, QueueKind.RANKED_SOLO, "16.18.1", "16.18",
-                "EUW1", QUAND, true, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, null, null,
+                "EUW1", QUAND, true, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, null, null, null,
                 tier == null ? null : new MatchParticipation.RankAtGame(tier, "I", false),
                 MatchParticipation.PROJECTION_VERSION, QUAND);
     }

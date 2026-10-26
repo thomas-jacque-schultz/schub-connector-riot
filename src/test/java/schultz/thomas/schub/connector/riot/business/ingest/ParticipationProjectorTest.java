@@ -22,6 +22,7 @@ import schultz.thomas.schub.connector.riot.data.model.MatchEarlyStats;
 import schultz.thomas.schub.connector.riot.data.model.MatchInsights;
 import schultz.thomas.schub.connector.riot.data.model.MatchLobby;
 import schultz.thomas.schub.connector.riot.data.model.MatchParticipation;
+import schultz.thomas.schub.connector.riot.data.model.Proximity;
 import schultz.thomas.schub.connector.riot.data.model.QueueKind;
 import schultz.thomas.schub.connector.riot.data.model.RankSpan;
 import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
@@ -205,6 +206,31 @@ class ParticipationProjectorTest {
 
         assertThat(ligne(TOP_BLEU).rank()).isEqualTo(new MatchParticipation.RankAtGame("PLATINUM", "II", false));
         assertThat(ligne(TOP_ROUGE).rank()).isEqualTo(new MatchParticipation.RankAtGame("GOLD", "I", true));
+    }
+
+    @Test
+    @DisplayName("au support, les parts d'images avec son ADC avant 15 min et son jungler après, et ses roams ; rien aux autres postes")
+    void projetteLeSupport() {
+        Document brut = partieEnrichie();
+        brut.get("info", Document.class).getList("participants", Document.class).forEach(joueur -> {
+            if (joueur.getInteger("teamId") == 100) {
+                switch (joueur.getString("teamPosition")) {
+                    case "UTILITY" -> joueur.put("puuid", "SUP");
+                    case "BOTTOM" -> joueur.put("puuid", "ADC");
+                    case "JUNGLE" -> joueur.put("puuid", "JGL");
+                    default -> { }
+                }
+            }
+        });
+        when(earlyStats.findById(MATCH)).thenReturn(Optional.of(new MatchEarlyStats(MATCH, Map.of(), null, null, null,
+                List.of(new Proximity("ADC", "SUP", 100, 12, 9, 10, 1, 1800, 2),
+                        new Proximity("JGL", "SUP", 100, 12, 3, 3, 3, 4000, 1)),
+                MatchEarlyStats.CURRENT_VERSION)));
+
+        projector.project(new CachedMatch(MATCH, brut, MAINTENANT));
+
+        assertThat(ligne("SUP").support()).isEqualTo(new MatchParticipation.Support(75, null, 2));
+        assertThat(ligne("ADC").support()).isNull();
     }
 
     private static final String MATCH = "EUW1_7987650481";
