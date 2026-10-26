@@ -92,7 +92,7 @@ final class ContestAnalyzer {
                 if (campVictime == null) {
                     continue;
                 }
-                if (campVictime == proprietaire) {
+                if (campVictime.equals(proprietaire)) {
                     defaites++;
                 } else {
                     victoires++;
