@@ -10,7 +10,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class MatchEnrichmentServiceTest {
+class TimelineFiguresTest {
 
     private static Document image(long timestamp, int or1, int or2, List<Document> events) {
         return new Document("timestamp", timestamp)
@@ -39,7 +39,7 @@ class MatchEnrichmentServiceTest {
                         image(900_000, 6100, 5300, List.of(kill(899_000, 2, 1, List.of(1)))),
                         image(960_000, 6700, 5900, List.of(kill(930_000, 1, 2, List.of()))))));
 
-        Map<String, MatchInsights.At15> a15 = MatchEnrichmentService.a15(raw);
+        Map<String, MatchInsights.At15> a15 = TimelineFigures.a15(raw);
 
         assertThat(a15.get("p1")).isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 1, 1));
         assertThat(a15.get("p2")).isEqualTo(new MatchInsights.At15(5300, 6500, 95, 4100, 1, 1, 0));
@@ -51,7 +51,7 @@ class MatchEnrichmentServiceTest {
         Document raw = new Document("metadata", new Document("participants", List.of("p1", "p2")))
                 .append("info", new Document("frames", List.of(image(0, 500, 500, List.of()))));
 
-        assertThat(MatchEnrichmentService.a15(raw)).isEmpty();
+        assertThat(TimelineFigures.a15(raw)).isEmpty();
     }
 
     @Test
@@ -65,7 +65,7 @@ class MatchEnrichmentServiceTest {
         Map<String, Object> raw = Map.of("metadata", Map.of("participants", List.of("p1")),
                 "info", Map.of("frames", List.of(image)));
 
-        assertThat(MatchEnrichmentService.a15(raw).get("p1"))
+        assertThat(TimelineFigures.a15(raw).get("p1"))
                 .isEqualTo(new MatchInsights.At15(6100, 7000, 114, 5200, 1, 0, 0));
     }
 
@@ -82,9 +82,9 @@ class MatchEnrichmentServiceTest {
                         image(1_620_000, 12_400, 11_000, List.of(kill(1_400_000, 1, 2, List.of()),
                                 kill(1_500_000, 1, 2, List.of()), heraut, dragon)))));
 
-        assertThat(MatchEnrichmentService.aLaFin(raw)).containsEntry("p1", new MatchInsights.AtEnd(12_400, 7000, 2))
+        assertThat(TimelineFigures.aLaFin(raw)).containsEntry("p1", new MatchInsights.AtEnd(12_400, 7000, 2))
                 .containsEntry("p2", new MatchInsights.AtEnd(11_000, 6500, 1));
-        assertThat(MatchEnrichmentService.objectifsDeFin(raw)).containsExactly(
+        assertThat(TimelineFigures.objectifsDeFin(raw)).containsExactly(
                 new MatchInsights.EndObjectives(100, 0, 1), new MatchInsights.EndObjectives(200, 1, 0));
     }
 }
