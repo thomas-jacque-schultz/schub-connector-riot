@@ -153,10 +153,17 @@ public class ReferenceService {
     }
 
     // Tant qu'un palier manque à une grille de poste, ses moyennes sont incomplètes : on recalcule chaque heure.
+    // Une métrique entrée au catalogue depuis le dernier calcul manque aussi.
     public boolean incomplete() {
         return POSTES.stream().anyMatch(poste -> Stream.of(GAME, MEAN).anyMatch(scope -> latest(scope, poste)
-                .map(reference -> reference.metrics().values().stream().anyMatch(grille -> !grille.missingTiers().isEmpty()))
+                .map(reference -> ReferenceMetric.CATALOGUE.stream()
+                        .anyMatch(m -> grillee(m, scope, poste) && !reference.metrics().containsKey(m.key()))
+                        || reference.metrics().values().stream().anyMatch(grille -> !grille.missingTiers().isEmpty()))
                 .orElse(true)));
+    }
+
+    private static boolean grillee(ReferenceMetric metrique, String scope, String poste) {
+        return (metrique.perGame() || !scope.equals(GAME)) && metrique.appliesTo(poste);
     }
 
     public void refreshIfIncomplete() {
@@ -184,7 +191,7 @@ public class ReferenceService {
                 Map<String, Map<String, StoredReference.TierGrid>> parMetrique = parPoste.getOrDefault(poste, Map.of());
                 Map<String, StoredReference.Grid> metriques = new LinkedHashMap<>();
                 for (ReferenceMetric metrique : ReferenceMetric.CATALOGUE) {
-                    if (scope.equals(GAME) && !metrique.perGame() || !metrique.appliesTo(poste)) {
+                    if (!grillee(metrique, scope, poste)) {
                         continue;
                     }
                     metriques.put(metrique.key(), grille(scope, parMetrique.getOrDefault(metrique.key(), Map.of())));

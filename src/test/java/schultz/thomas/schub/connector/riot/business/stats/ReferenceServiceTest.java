@@ -101,9 +101,30 @@ class ReferenceServiceTest {
         assertThat(service.incomplete()).isTrue();
     }
 
+    @Test
+    @DisplayName("une métrique entrée au catalogue depuis le dernier calcul rend les référentiels incomplets")
+    void metriqueNouvelle() {
+        StoredReference.Grid pleine = new StoredReference.Grid(Map.of(), List.of());
+        Map<String, StoredReference.Grid> sansSupport = new java.util.HashMap<>(reference(pleine).metrics());
+        sansSupport.remove("roams");
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc(anyString(), anyString()))
+                .thenReturn(Optional.of(reference(pleine)));
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc("MEAN", "TOP"))
+                .thenReturn(Optional.of(new StoredReference("id", List.of("16.19"), "MEAN", "TOP", MAINTENANT,
+                        List.of(0.0, 1.0), sansSupport, null)));
+        assertThat(service.incomplete()).isFalse();
+
+        when(store.findFirstByScopeAndPositionOrderByComputedAtDesc("MEAN", "UTILITY"))
+                .thenReturn(Optional.of(new StoredReference("id", List.of("16.19"), "MEAN", "UTILITY", MAINTENANT,
+                        List.of(0.0, 1.0), sansSupport, null)));
+        assertThat(service.incomplete()).isTrue();
+    }
+
     private static StoredReference reference(StoredReference.Grid grille) {
+        Map<String, StoredReference.Grid> metriques = new java.util.HashMap<>();
+        ReferenceMetric.CATALOGUE.forEach(metrique -> metriques.put(metrique.key(), grille));
         return new StoredReference("id", List.of("16.19"), "GAME", "TOP", MAINTENANT, List.of(0.0, 1.0),
-                Map.of("csPerMinute", grille), null);
+                metriques, null);
     }
 
     @Test
