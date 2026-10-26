@@ -18,10 +18,14 @@ import static schultz.thomas.schub.connector.riot.business.services.TimelineJson
 import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.objet;
 
 // Qui était là aux objectifs neutres et aux combats dans les jungles (Schub#156). Les positions ne sont connues
-// qu'à la minute : est présent qui est à portée sur l'image d'avant ou sur celle d'après.
+// qu'à la minute : à un objectif, on se regroupe avant et on reste après, l'image d'avant ou d'après suffit ; un
+// combat est bref, seule compte l'image la plus proche, si elle l'est vraiment. S'y ajoutent les joueurs nommés
+// par l'événement.
 final class ContestAnalyzer {
 
-    static final double PRESENCE = MatchSignalsService.OBJECTIF_GROUPE;
+    static final double FOSSE = MatchSignalsService.OBJECTIF_GROUPE;
+    static final double COMBAT = ProximityAnalyzer.ENSEMBLE;
+    private static final long IMAGE_PROCHE_MS = 20_000L;
     private static final long LARVES_MS = 90_000L;
     private static final double DIAGONALE = 14_800;
     private static final double BANDE_RIVIERE = 1_500;
@@ -58,8 +62,14 @@ final class ContestAnalyzer {
                             aides, List.of()));
                 } else if ("ELITE_MONSTER_KILL".equals(event.get("type"))
                         && OBJECTIFS.contains(String.valueOf(event.get("monsterType")))) {
+                    List<Integer> impliques = new ArrayList<>(List.of((int) nombre(event, "killerId")));
+                    liste(event, "assistingParticipantIds").forEach(id -> {
+                        if (id instanceof Number n) {
+                            impliques.add(n.intValue());
+                        }
+                    });
                     monstres.add(new Monstre(t, String.valueOf(event.get("monsterType")),
-                            (int) nombre(event, "killerTeamId"), x, y));
+                            (int) nombre(event, "killerTeamId"), x, y, impliques));
                 }
             }
         }
@@ -91,7 +101,7 @@ final class ContestAnalyzer {
                 ajoute(presents, lecture, kill.killer());
                 kill.assists().forEach(id -> ajoute(presents, lecture, id));
             }
-            presents.addAll(aPortee(lecture, combat.getFirst().t(), combat.getLast().t(), x, y));
+            presents.addAll(autourDuCombat(lecture, combat.getFirst().t(), combat.getLast().t(), x, y));
             contests.add(new Contest((int) (combat.getFirst().t() / 1000), Contest.JUNGLE_FIGHT, proprietaire,
                     victoires, defaites, List.copyOf(presents)));
         }
@@ -116,7 +126,8 @@ final class ContestAnalyzer {
             Set<String> presents = new LinkedHashSet<>();
             for (Monstre m : groupe) {
                 parCamp.merge(m.camp(), 1, Integer::sum);
-                presents.addAll(aPortee(lecture, m.t(), m.t(), m.x(), m.y()));
+                m.impliques().forEach(id -> ajoute(presents, lecture, id));
+                presents.addAll(autourDeLaFosse(lecture, m.t(), m.x(), m.y()));
             }
             int preneur = parCamp.getOrDefault(100, 0) > parCamp.getOrDefault(200, 0) ? 100
                     : parCamp.getOrDefault(200, 0) > parCamp.getOrDefault(100, 0) ? 200 : groupe.getLast().camp();
@@ -139,25 +150,45 @@ final class ContestAnalyzer {
         return ecart < 0 ? 100 : 200;
     }
 
-    private static Set<String> aPortee(ProximityAnalyzer.Lecture lecture, long debut, long fin, double x, double y) {
+    private static Set<String> autourDeLaFosse(ProximityAnalyzer.Lecture lecture, long t, double x, double y) {
         ProximityAnalyzer.Image avant = null;
         ProximityAnalyzer.Image apres = null;
         for (ProximityAnalyzer.Image image : lecture.images()) {
-            if (image.ts() <= debut) {
+            if (image.ts() <= t) {
                 avant = image;
-            } else if (image.ts() > fin && apres == null) {
+            } else if (apres == null) {
                 apres = image;
             }
         }
         Set<String> presents = new LinkedHashSet<>();
-        for (ProximityAnalyzer.Image image : new ProximityAnalyzer.Image[] {avant, apres}) {
-            if (image != null) {
-                image.enJeu().forEach((id, p) -> {
-                    if (Math.hypot(p[0] - x, p[1] - y) <= PRESENCE) {
-                        presents.add(lecture.puuids().get(id));
-                    }
-                });
+        presents.addAll(aPortee(lecture, avant, x, y, FOSSE));
+        presents.addAll(aPortee(lecture, apres, x, y, FOSSE));
+        return presents;
+    }
+
+    private static Set<String> autourDuCombat(ProximityAnalyzer.Lecture lecture, long debut, long fin, double x,
+                                              double y) {
+        ProximityAnalyzer.Image proche = null;
+        long ecart = Long.MAX_VALUE;
+        for (ProximityAnalyzer.Image image : lecture.images()) {
+            long e = image.ts() < debut ? debut - image.ts() : Math.max(0, image.ts() - fin);
+            if (e < ecart) {
+                ecart = e;
+                proche = image;
             }
+        }
+        return ecart <= IMAGE_PROCHE_MS ? aPortee(lecture, proche, x, y, COMBAT) : Set.of();
+    }
+
+    private static Set<String> aPortee(ProximityAnalyzer.Lecture lecture, ProximityAnalyzer.Image image, double x,
+                                       double y, double rayon) {
+        Set<String> presents = new LinkedHashSet<>();
+        if (image != null) {
+            image.enJeu().forEach((id, p) -> {
+                if (Math.hypot(p[0] - x, p[1] - y) <= rayon) {
+                    presents.add(lecture.puuids().get(id));
+                }
+            });
         }
         return presents;
     }
@@ -169,6 +200,6 @@ final class ContestAnalyzer {
         }
     }
 
-    private record Monstre(long t, String type, int camp, double x, double y) {
+    private record Monstre(long t, String type, int camp, double x, double y, List<Integer> impliques) {
     }
 }

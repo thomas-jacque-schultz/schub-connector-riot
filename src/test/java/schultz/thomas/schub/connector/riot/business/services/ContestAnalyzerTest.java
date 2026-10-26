@@ -43,7 +43,7 @@ class ContestAnalyzerTest {
     }
 
     @Test
-    @DisplayName("Les larves d'une apparition font un seul objectif, au camp qui en a pris le plus ; présents des deux camps")
+    @DisplayName("Les larves d'une apparition font un seul objectif, au camp qui en a pris le plus ; présents des deux camps, tueurs compris")
     void objectifs() {
         List<Document> images = new ArrayList<>();
         for (int m = 0; m <= 12; m++) {
@@ -73,11 +73,11 @@ class ContestAnalyzerTest {
         assertThat(contests.getFirst().present()).containsExactlyInAnyOrder("p2", "p5", "p7");
         assertThat(contests.get(1).kind()).isEqualTo("DRAGON");
         assertThat(contests.get(1).side()).isEqualTo(200);
-        assertThat(contests.get(1).present()).isEmpty();
+        assertThat(contests.get(1).present()).containsExactly("p7");
     }
 
     @Test
-    @DisplayName("Un combat dans la jungle bleue : kills et morts du camp bleu, impliqués et joueurs à portée ; rien en couloir")
+    @DisplayName("Un combat dans la jungle bleue : kills et morts du camp bleu, impliqués et joueurs à portée sur l'image proche ; rien en couloir")
     void combatDansLaJungle() {
         List<Document> images = new ArrayList<>();
         for (int m = 0; m <= 14; m++) {
@@ -87,6 +87,7 @@ class ContestAnalyzerTest {
                 positions.put(5, new int[] {8_000, 6_000});
             }
             if (m == 13) {
+                positions.put(1, new int[] {7_000, 5_500});
                 events.add(kill(12 * 60_000L + 10_000, 6, 2, List.of(7), 6_900, 5_400));
                 events.add(kill(12 * 60_000L + 20_000, 3, 6, List.of(), 7_000, 5_600));
                 events.add(kill(12 * 60_000L + 40_000, 9, 4, List.of(), 13_900, 6_000));
