@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.enObjet;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.liste;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.objet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.enObjet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.liste;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.objet;
 
 // Même forme que la timeline, pour que ses analyses tournent dessus. Mesuré sur 275 parties : 41 ko sur disque contre 169.
 public final class TimelineDigest {
@@ -43,7 +43,7 @@ public final class TimelineDigest {
         return new Document("timestamp", frame.get("timestamp"))
                 .append("participantFrames", joueurs)
                 .append("events", liste(frame, "events").stream()
-                        .map(MatchEnrichmentService::enObjet)
+                        .map(TimelineJson::enObjet)
                         .filter(event -> !ECARTES.contains(String.valueOf(event.get("type"))))
                         .map(event -> "CHAMPION_KILL".equals(event.get("type")) ? garde(event, KILL) : new Document(event))
                         .toList());

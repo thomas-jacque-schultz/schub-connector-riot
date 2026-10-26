@@ -8,10 +8,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.enObjet;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.liste;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.nombre;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.objet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.enObjet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.liste;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.nombre;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.objet;
 
 final class ProximityAnalyzer {
 

@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.enObjet;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.liste;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.nombre;
-import static schultz.thomas.schub.connector.riot.business.services.MatchEnrichmentService.objet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.enObjet;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.liste;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.nombre;
+import static schultz.thomas.schub.connector.riot.business.services.TimelineJson.objet;
 
 // Coordonnées de la Faille : 0 à ~14 800 sur les deux axes, base bleue en bas à gauche, mid sur la diagonale.
 final class EarlyGameAnalyzer {
