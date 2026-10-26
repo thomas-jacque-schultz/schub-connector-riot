@@ -10,10 +10,11 @@ import java.util.Map;
 @Document("riot_match_early")
 public record MatchEarlyStats(@Id String matchId, Map<String, MatchInsights.At15> byPuuid, EarlyGame game,
                               Map<String, MatchInsights.AtEnd> endByPuuid,
-                              List<MatchInsights.EndObjectives> endObjectives, Integer version) {
+                              List<MatchInsights.EndObjectives> endObjectives, List<Proximity> proximities,
+                              Integer version) {
 
     // À incrémenter quand le calcul change : les parties déjà dérivées sont recalculées depuis la timeline stockée.
-    public static final int CURRENT_VERSION = 6;
+    public static final int CURRENT_VERSION = 8;
 
     public boolean current() {
         return version != null && version == CURRENT_VERSION;
