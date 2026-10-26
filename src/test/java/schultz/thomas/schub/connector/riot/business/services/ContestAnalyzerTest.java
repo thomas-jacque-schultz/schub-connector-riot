@@ -108,6 +108,29 @@ class ContestAnalyzerTest {
     }
 
     @Test
+    @DisplayName("Dans la jungle rouge, un mort rouge est une défaite du camp rouge : 200 ne se compare pas par référence")
+    void combatDansLaJungleRouge() {
+        List<Document> images = new ArrayList<>();
+        for (int m = 0; m <= 14; m++) {
+            Map<Integer, int[]> positions = aLaFontaine();
+            List<Document> events = new ArrayList<>();
+            if (m == 13) {
+                positions.put(2, new int[] {10_900, 7_000});
+                positions.put(7, new int[] {11_100, 7_100});
+                events.add(kill(12 * 60_000L + 10_000, 2, 7, List.of(), 11_000, 7_000));
+                events.add(kill(12 * 60_000L + 20_000, 8, 3, List.of(), 11_050, 7_050));
+            }
+            images.add(image(m * 60_000L, positions, events));
+        }
+
+        Contest combat = analyse(images).getFirst();
+
+        assertThat(combat.side()).isEqualTo(200);
+        assertThat(combat.sideKills()).isEqualTo(1);
+        assertThat(combat.sideDeaths()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("La jungle d'un camp : ni couloir, ni rivière, ni base")
     void jungle() {
         assertThat(ContestAnalyzer.jungle(6_900, 5_400)).isEqualTo(100);

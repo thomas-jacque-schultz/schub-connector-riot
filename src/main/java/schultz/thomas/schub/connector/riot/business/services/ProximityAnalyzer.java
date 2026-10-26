@@ -65,7 +65,7 @@ final class ProximityAnalyzer {
                     continue;
                 }
                 boolean seul = image.enJeu().entrySet().stream()
-                        .noneMatch(e -> e.getKey() != id && lecture.camps().get(e.getKey()) == camp
+                        .noneMatch(e -> !e.getKey().equals(id) && lecture.camps().get(e.getKey()) == camp
                                 && Math.hypot(e.getValue()[0] - moi[0], e.getValue()[1] - moi[1]) < ENSEMBLE);
                 int periode = image.ts() < QUINZE_MS ? 0 : 2;
                 compte[periode]++;
