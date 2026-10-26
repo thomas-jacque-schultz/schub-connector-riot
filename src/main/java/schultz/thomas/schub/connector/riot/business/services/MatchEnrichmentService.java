@@ -141,8 +141,10 @@ public class MatchEnrichmentService {
                 .filter(cached -> cached.raw() != null)
                 .map(cached -> decoder.toDetail(cached.raw()).participants())
                 .orElse(List.of());
+        ProximityAnalyzer.Lecture lecture = ProximityAnalyzer.lire(timeline, participants);
         return new MatchEarlyStats(matchId, TimelineFigures.a15(timeline), EarlyGameAnalyzer.analyse(timeline, participants),
-                TimelineFigures.aLaFin(timeline), TimelineFigures.objectifsDeFin(timeline), ProximityAnalyzer.analyse(timeline, participants),
+                TimelineFigures.aLaFin(timeline), TimelineFigures.objectifsDeFin(timeline), ProximityAnalyzer.analyse(lecture),
+                ProximityAnalyzer.isolements(lecture), ContestAnalyzer.analyse(timeline, lecture),
                 MatchEarlyStats.CURRENT_VERSION);
     }
 
@@ -188,6 +190,8 @@ public class MatchEnrichmentService {
                     debut == null ? null : debut.game(),
                     debut == null ? null : debut.endObjectives(),
                     debut == null ? null : debut.proximities(),
+                    debut == null ? null : debut.isolations(),
+                    debut == null ? null : debut.contests(),
                     partie.getValue().stream()
                             .map(place -> {
                                 List<RankedStanding> siens = rangs == null ? List.of()

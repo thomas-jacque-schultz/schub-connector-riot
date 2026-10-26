@@ -169,7 +169,7 @@ class ParticipationProjectorTest {
     void projetteLesEcartsA15() {
         when(earlyStats.findById(MATCH)).thenReturn(Optional.of(new MatchEarlyStats(MATCH, Map.of(
                 TOP_BLEU, new MatchInsights.At15(6000, 7000, 130, 4000, 2, 1, 0),
-                TOP_ROUGE, new MatchInsights.At15(5200, 6500, 118, 3000, 1, 2, 1)), null, null, null, null,
+                TOP_ROUGE, new MatchInsights.At15(5200, 6500, 118, 3000, 1, 2, 1)), null, null, null, null, null, null,
                 MatchEarlyStats.CURRENT_VERSION)));
 
         projector.project(new CachedMatch(MATCH, partieEnrichie(), MAINTENANT));
@@ -225,7 +225,7 @@ class ParticipationProjectorTest {
         when(earlyStats.findById(MATCH)).thenReturn(Optional.of(new MatchEarlyStats(MATCH, Map.of(), null, null, null,
                 List.of(new Proximity("ADC", "SUP", 100, 12, 9, 10, 1, 1800, 2),
                         new Proximity("JGL", "SUP", 100, 12, 3, 3, 3, 4000, 1)),
-                MatchEarlyStats.CURRENT_VERSION)));
+                null, null, MatchEarlyStats.CURRENT_VERSION)));
 
         projector.project(new CachedMatch(MATCH, brut, MAINTENANT));
 

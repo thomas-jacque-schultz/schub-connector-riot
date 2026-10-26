@@ -1757,6 +1757,40 @@
         },
         "description" : "Moyennes des joueurs d'un champion (au moins 5 parties sur la fenÃªtre), dans un groupe de paliers :\nIRON_BRONZE, SILVER_GOLD, PLATINUM_EMERALD, DIAMOND, MASTER_PLUS. Une mÃ©trique absente : moins de\n30 joueurs dans le groupe, l'appelant se rabat sur le rÃ©fÃ©rentiel du poste."
       },
+      "Contest" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "present" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "second" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "side" : {
+            "type" : "integer",
+            "description" : "Objectif : le camp qui l'a pris. Combat : le camp dont c'est la jungle.",
+            "format" : "int32"
+          },
+          "sideDeaths" : {
+            "type" : "integer",
+            "description" : "Combat : morts du camp side. 0 pour un objectif.",
+            "format" : "int32"
+          },
+          "sideKills" : {
+            "type" : "integer",
+            "description" : "Combat : kills du camp side. 0 pour un objectif.",
+            "format" : "int32"
+          }
+        },
+        "description" : "Un objectif neutre (kind = monsterType ; les larves d'une mÃªme apparition n'en font qu'un), ou un combat\ndans une jungle (kind = JUNGLE_FIGHT : kills Ã  moins de 20 s et 3 000 unitÃ©s, hors couloirs, riviÃ¨re et\nbases). PrÃ©sents : les deux camps, Ã  moins de 3 000 unitÃ©s sur l'image d'avant ou d'aprÃ¨s, et pour un\ncombat les joueurs impliquÃ©s dans un kill."
+      },
       "Counts" : {
         "type" : "object",
         "properties" : {
@@ -2133,6 +2167,35 @@
           }
         }
       },
+      "Isolation" : {
+        "type" : "object",
+        "properties" : {
+          "earlyAlone" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "earlyMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lateAlone" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lateMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "puuid" : {
+            "type" : "string"
+          },
+          "side" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Un joueur sur les mÃªmes images que les paires : seul = aucun coÃ©quipier en jeu Ã  moins de 2 000 unitÃ©s."
+      },
       "JunglePresence" : {
         "type" : "object",
         "properties" : {
@@ -2304,6 +2367,13 @@
       "MatchInsightsDto" : {
         "type" : "object",
         "properties" : {
+          "contests" : {
+            "type" : "array",
+            "description" : "Objectifs neutres et combats dans les jungles, dans l'ordre. Absent : pas de timeline.",
+            "items" : {
+              "$ref" : "#/components/schemas/Contest"
+            }
+          },
           "early" : {
             "$ref" : "#/components/schemas/EarlyGameDto"
           },
@@ -2312,6 +2382,13 @@
             "description" : "Objectifs pris sur toute la partie. Absent : pas de timeline.",
             "items" : {
               "$ref" : "#/components/schemas/EndObjectives"
+            }
+          },
+          "isolations" : {
+            "type" : "array",
+            "description" : "Un joueur par ligne, les dix. Absent : pas de timeline.",
+            "items" : {
+              "$ref" : "#/components/schemas/Isolation"
             }
           },
           "matchId" : {

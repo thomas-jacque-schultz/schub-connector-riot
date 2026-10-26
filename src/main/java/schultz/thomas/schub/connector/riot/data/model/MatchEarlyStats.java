@@ -11,10 +11,10 @@ import java.util.Map;
 public record MatchEarlyStats(@Id String matchId, Map<String, MatchInsights.At15> byPuuid, EarlyGame game,
                               Map<String, MatchInsights.AtEnd> endByPuuid,
                               List<MatchInsights.EndObjectives> endObjectives, List<Proximity> proximities,
-                              Integer version) {
+                              List<Isolation> isolations, List<Contest> contests, Integer version) {
 
     // À incrémenter quand le calcul change : les parties déjà dérivées sont recalculées depuis la timeline stockée.
-    public static final int CURRENT_VERSION = 8;
+    public static final int CURRENT_VERSION = 9;
 
     public boolean current() {
         return version != null && version == CURRENT_VERSION;

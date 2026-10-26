@@ -10,6 +10,8 @@ public record MatchInsights(
         EarlyGame early,
         List<EndObjectives> endObjectives,
         List<Proximity> proximities,
+        List<Isolation> isolations,
+        List<Contest> contests,
         List<Participant> participants
 ) {
 
