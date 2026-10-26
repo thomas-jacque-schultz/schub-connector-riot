@@ -14,6 +14,8 @@ public record MatchInsightsDto(
         @Schema(description = "Absent : pas de timeline, ou postes de la partie inconnus.") EarlyGameDto early,
         @Schema(description = "Objectifs pris sur toute la partie. Absent : pas de timeline.")
         List<EndObjectives> endObjectives,
+        @Schema(description = "Les paires de coéquipiers d'un même camp, dix par camp. Absent : pas de timeline.")
+        List<Proximity> proximities,
         List<Participant> participants
 ) {
 
@@ -34,6 +36,24 @@ public record MatchInsightsDto(
     }
 
     public record EndObjectives(int side, int dragons, int heralds) {
+    }
+
+    @Schema(description = """
+            Deux coéquipiers sur les images de la timeline, une par minute. Une image ne compte pas si l'un des deux
+            est à sa fontaine ou mort (temps de réapparition estimé à son niveau). Ensemble : moins de 2 000 unités.""")
+    public record Proximity(
+            String puuid,
+            String matePuuid,
+            int side,
+            @Schema(description = "Images comptées avant 15 minutes.") int earlyMinutes,
+            int earlyTogether,
+            @Schema(description = "Images comptées à partir de 15 minutes.") int lateMinutes,
+            int lateTogether,
+            @Schema(description = "Distance moyenne sur toutes les images comptées. Absente : aucune.")
+            Integer meanDistance,
+            @Schema(description = "Avant 15 minutes, passages d'ensemble à séparés entre deux images comptées.")
+            int earlyDepartures
+    ) {
     }
 
     public record At15(int gold, int xp, int cs, int damageToChampions, int kills, int deaths, int assists) {

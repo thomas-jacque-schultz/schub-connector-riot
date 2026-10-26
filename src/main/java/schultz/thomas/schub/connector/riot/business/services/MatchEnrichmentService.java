@@ -145,7 +145,8 @@ public class MatchEnrichmentService {
                 .map(cached -> decoder.toDetail(cached.raw()).participants())
                 .orElse(List.of());
         return new MatchEarlyStats(matchId, a15(timeline), EarlyGameAnalyzer.analyse(timeline, participants),
-                aLaFin(timeline), objectifsDeFin(timeline), MatchEarlyStats.CURRENT_VERSION);
+                aLaFin(timeline), objectifsDeFin(timeline), ProximityAnalyzer.analyse(timeline, participants),
+                MatchEarlyStats.CURRENT_VERSION);
     }
 
     public void collectRanks(String matchId) {
@@ -189,6 +190,7 @@ public class MatchEnrichmentService {
                     rangs == null ? null : rangs.observedAt(),
                     debut == null ? null : debut.game(),
                     debut == null ? null : debut.endObjectives(),
+                    debut == null ? null : debut.proximities(),
                     partie.getValue().stream()
                             .map(place -> {
                                 List<RankedStanding> siens = rangs == null ? List.of()

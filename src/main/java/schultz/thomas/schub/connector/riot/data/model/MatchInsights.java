@@ -9,6 +9,7 @@ public record MatchInsights(
         Instant ranksObservedAt,
         EarlyGame early,
         List<EndObjectives> endObjectives,
+        List<Proximity> proximities,
         List<Participant> participants
 ) {
 
