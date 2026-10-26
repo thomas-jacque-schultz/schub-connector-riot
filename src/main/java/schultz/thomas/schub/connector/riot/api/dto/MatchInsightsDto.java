@@ -74,8 +74,9 @@ public record MatchInsightsDto(
     @Schema(description = """
             Un objectif neutre (kind = monsterType ; les larves d'une même apparition n'en font qu'un), ou un combat
             dans une jungle (kind = JUNGLE_FIGHT : kills à moins de 20 s et 3 000 unités, hors couloirs, rivière et
-            bases). Présents : les deux camps, à moins de 3 000 unités sur l'image d'avant ou d'après, et pour un
-            combat les joueurs impliqués dans un kill.""")
+            bases). Présents, des deux camps : pour un objectif, le tueur, ceux qui l'ont frappé et ceux à moins de
+            3 000 unités de la fosse sur l'image d'avant ou d'après ; pour un combat, les joueurs impliqués dans un
+            kill et ceux à moins de 2 000 unités sur l'image la plus proche, si elle est à moins de 20 s.""")
     public record Contest(
             int second,
             String kind,

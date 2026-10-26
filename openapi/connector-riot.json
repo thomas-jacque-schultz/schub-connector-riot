@@ -1789,7 +1789,7 @@
             "format" : "int32"
           }
         },
-        "description" : "Un objectif neutre (kind = monsterType ; les larves d'une mÃªme apparition n'en font qu'un), ou un combat\ndans une jungle (kind = JUNGLE_FIGHT : kills Ã  moins de 20 s et 3 000 unitÃ©s, hors couloirs, riviÃ¨re et\nbases). PrÃ©sents : les deux camps, Ã  moins de 3 000 unitÃ©s sur l'image d'avant ou d'aprÃ¨s, et pour un\ncombat les joueurs impliquÃ©s dans un kill."
+        "description" : "Un objectif neutre (kind = monsterType ; les larves d'une mÃªme apparition n'en font qu'un), ou un combat\ndans une jungle (kind = JUNGLE_FIGHT : kills Ã  moins de 20 s et 3 000 unitÃ©s, hors couloirs, riviÃ¨re et\nbases). PrÃ©sents, des deux camps : pour un objectif, le tueur, ceux qui l'ont frappÃ© et ceux Ã  moins de\n3 000 unitÃ©s de la fosse sur l'image d'avant ou d'aprÃ¨s ; pour un combat, les joueurs impliquÃ©s dans un\nkill et ceux Ã  moins de 2 000 unitÃ©s sur l'image la plus proche, si elle est Ã  moins de 20 s."
       },
       "Counts" : {
         "type" : "object",
