@@ -4,6 +4,7 @@ import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.data.model.Isolation;
 import schultz.thomas.schub.connector.riot.data.model.Proximity;
 import schultz.thomas.schub.connector.riot.data.model.TeamPosition;
 
@@ -19,24 +20,24 @@ class ProximityAnalyzerTest {
 
     // 1 à 5 en bleu, 6 à 10 en rouge ; 4 = ADC bleu, 5 = support bleu.
     private static final List<String> PUUIDS = IntStream.rangeClosed(1, 10).mapToObj(i -> "p" + i).toList();
-    private static final List<MatchParticipant> PARTICIPANTS = IntStream.rangeClosed(1, 10)
+    static final List<MatchParticipant> PARTICIPANTS = IntStream.rangeClosed(1, 10)
             .mapToObj(i -> joueur("p" + i, i <= 5 ? 100 : 200))
             .toList();
 
-    private static Map<Integer, int[]> eparpilles() {
+    static Map<Integer, int[]> eparpilles() {
         Map<Integer, int[]> positions = new HashMap<>();
         IntStream.rangeClosed(1, 10).forEach(i -> positions.put(i, new int[] {3_000 + 1_000 * i, 3_000 + 2_500 * (i % 4)}));
         return positions;
     }
 
-    private static Document image(long ts, Map<Integer, int[]> positions, List<Document> events) {
+    static Document image(long ts, Map<Integer, int[]> positions, List<Document> events) {
         Document frames = new Document();
         positions.forEach((id, p) -> frames.append(String.valueOf(id),
                 new Document("position", new Document("x", p[0]).append("y", p[1])).append("level", 9)));
         return new Document("timestamp", ts).append("participantFrames", frames).append("events", events);
     }
 
-    private static Document partie(List<Document> images) {
+    static Document partie(List<Document> images) {
         return new Document("metadata", new Document("participants", PUUIDS))
                 .append("info", new Document("frames", images));
     }
@@ -109,6 +110,25 @@ class ProximityAnalyzerTest {
         assertThat(duo.earlyMinutes()).isEqualTo(8);
         assertThat(duo.earlyTogether()).isEqualTo(8);
         assertThat(duo.earlyDepartures()).isZero();
+    }
+
+    @Test
+    @DisplayName("Seul : aucun coéquipier en jeu à portée ; l'ADC quitté par son support après 15 min")
+    void isolement() {
+        List<Document> images = new ArrayList<>();
+        images.add(image(0, eparpilles(), List.of()));
+        for (int m = 1; m <= 20; m++) {
+            images.add(image(m * 60_000L, duoBot(m < 15), List.of()));
+        }
+
+        Isolation adc = ProximityAnalyzer.isolements(ProximityAnalyzer.lire(partie(images), PARTICIPANTS)).stream()
+                .filter(i -> i.puuid().equals("p4")).findFirst().orElseThrow();
+
+        assertThat(adc.side()).isEqualTo(100);
+        assertThat(adc.earlyMinutes()).isEqualTo(14);
+        assertThat(adc.earlyAlone()).isZero();
+        assertThat(adc.lateMinutes()).isEqualTo(6);
+        assertThat(adc.lateAlone()).isEqualTo(6);
     }
 
     @Test

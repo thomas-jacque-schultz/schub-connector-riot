@@ -1,6 +1,7 @@
 package schultz.thomas.schub.connector.riot.business.services;
 
 import schultz.thomas.schub.connector.riot.business.model.MatchParticipant;
+import schultz.thomas.schub.connector.riot.data.model.Isolation;
 import schultz.thomas.schub.connector.riot.data.model.Proximity;
 
 import java.util.ArrayList;
@@ -29,10 +30,58 @@ final class ProximityAnalyzer {
     }
 
     static List<Proximity> analyse(Map<String, Object> raw, List<MatchParticipant> participants) {
+        return analyse(lire(raw, participants));
+    }
+
+    static List<Proximity> analyse(Lecture lecture) {
+        if (lecture == null) {
+            return List.of();
+        }
+        List<Proximity> paires = new ArrayList<>();
+        List<Integer> ids = lecture.puuids().keySet().stream().sorted().toList();
+        for (int i = 0; i < ids.size(); i++) {
+            for (int j = i + 1; j < ids.size(); j++) {
+                int a = ids.get(i);
+                int b = ids.get(j);
+                if (lecture.camps().get(a).equals(lecture.camps().get(b))) {
+                    paires.add(paire(a, b, lecture.puuids(), lecture.camps().get(a), lecture.images()));
+                }
+            }
+        }
+        return paires;
+    }
+
+    static List<Isolation> isolements(Lecture lecture) {
+        if (lecture == null) {
+            return List.of();
+        }
+        List<Isolation> isolements = new ArrayList<>();
+        lecture.puuids().keySet().stream().sorted().forEach(id -> {
+            int camp = lecture.camps().get(id);
+            int[] compte = new int[4];
+            for (Image image : lecture.images()) {
+                double[] moi = image.enJeu().get(id);
+                if (moi == null) {
+                    continue;
+                }
+                boolean seul = image.enJeu().entrySet().stream()
+                        .noneMatch(e -> e.getKey() != id && lecture.camps().get(e.getKey()) == camp
+                                && Math.hypot(e.getValue()[0] - moi[0], e.getValue()[1] - moi[1]) < ENSEMBLE);
+                int periode = image.ts() < QUINZE_MS ? 0 : 2;
+                compte[periode]++;
+                compte[periode + 1] += seul ? 1 : 0;
+            }
+            isolements.add(new Isolation(lecture.puuids().get(id), camp, compte[0], compte[1], compte[2], compte[3]));
+        });
+        return isolements;
+    }
+
+    // null : timeline vide, ou un joueur de la timeline absent du détail.
+    static Lecture lire(Map<String, Object> raw, List<MatchParticipant> participants) {
         List<Object> puuids = liste(objet(raw, "metadata"), "participants");
         List<Object> frames = liste(objet(raw, "info"), "frames");
         if (puuids.isEmpty() || frames.isEmpty()) {
-            return List.of();
+            return null;
         }
         Map<String, Integer> camps = new HashMap<>();
         participants.forEach(participant -> camps.put(participant.puuid(), participant.teamId()));
@@ -42,7 +91,7 @@ final class ProximityAnalyzer {
             String puuid = String.valueOf(puuids.get(index));
             Integer camp = camps.get(puuid);
             if (camp == null) {
-                return List.of();
+                return null;
             }
             puuidParId.put(index + 1, puuid);
             campParId.put(index + 1, camp);
@@ -85,19 +134,7 @@ final class ProximityAnalyzer {
             });
             images.add(new Image(ts, enJeu));
         }
-
-        List<Proximity> paires = new ArrayList<>();
-        List<Integer> ids = puuidParId.keySet().stream().sorted().toList();
-        for (int i = 0; i < ids.size(); i++) {
-            for (int j = i + 1; j < ids.size(); j++) {
-                int a = ids.get(i);
-                int b = ids.get(j);
-                if (campParId.get(a).equals(campParId.get(b))) {
-                    paires.add(paire(a, b, puuidParId, campParId.get(a), images));
-                }
-            }
-        }
-        return paires;
+        return new Lecture(puuidParId, campParId, images);
     }
 
     private static Proximity paire(int a, int b, Map<Integer, String> puuids, int camp, List<Image> images) {
@@ -146,6 +183,10 @@ final class ProximityAnalyzer {
         return morts.stream().anyMatch(t -> t <= ts && ts - t < attente);
     }
 
-    private record Image(long ts, Map<Integer, double[]> enJeu) {
+    // Les joueurs en jeu à chaque image : ni morts, ni à leur fontaine.
+    record Lecture(Map<Integer, String> puuids, Map<Integer, Integer> camps, List<Image> images) {
+    }
+
+    record Image(long ts, Map<Integer, double[]> enJeu) {
     }
 }

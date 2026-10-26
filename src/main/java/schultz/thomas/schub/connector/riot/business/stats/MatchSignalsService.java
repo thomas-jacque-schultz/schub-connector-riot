@@ -33,7 +33,7 @@ public class MatchSignalsService {
     static final long COMBAT_ECART_MS = 20_000;
     static final double COMBAT_RAYON = 3000;
     static final int COMBAT_MINIMUM = 3;
-    static final double OBJECTIF_GROUPE = 3000;
+    public static final double OBJECTIF_GROUPE = 3000;
     static final long ECHANGE_MS = 60_000;
     static final long GANK_AVANT_MS = 15 * 60_000L;
     static final double ARMURE_COMBATTANT = 60;
@@ -108,7 +108,7 @@ public class MatchSignalsService {
 
     // --- Comportement (R&D #14 et #26) -------------------------------------------------------------------
 
-    record Kill(int killer, int victim, long t, double x, double y, List<Integer> assists, List<Document> recus) {
+    public record Kill(int killer, int victim, long t, double x, double y, List<Integer> assists, List<Document> recus) {
     }
 
     static void comportement(List<Document> joueurs, Document timeline, boolean complete,
@@ -305,6 +305,10 @@ public class MatchSignalsService {
     }
 
     static List<List<Kill>> combats(List<Kill> kills) {
+        return combats(kills, COMBAT_MINIMUM);
+    }
+
+    public static List<List<Kill>> combats(List<Kill> kills, int minimum) {
         List<List<Kill>> combats = new ArrayList<>();
         List<Kill> courant = new ArrayList<>();
         for (Kill k : kills) {
@@ -316,13 +320,13 @@ public class MatchSignalsService {
                     courant.add(k);
                     continue;
                 }
-                if (courant.size() >= COMBAT_MINIMUM) {
+                if (courant.size() >= minimum) {
                     combats.add(courant);
                 }
             }
             courant = new ArrayList<>(List.of(k));
         }
-        if (courant.size() >= COMBAT_MINIMUM) {
+        if (courant.size() >= minimum) {
             combats.add(courant);
         }
         return combats;

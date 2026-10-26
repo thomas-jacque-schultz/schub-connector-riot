@@ -16,6 +16,10 @@ public record MatchInsightsDto(
         List<EndObjectives> endObjectives,
         @Schema(description = "Les paires de coéquipiers d'un même camp, dix par camp. Absent : pas de timeline.")
         List<Proximity> proximities,
+        @Schema(description = "Un joueur par ligne, les dix. Absent : pas de timeline.")
+        List<Isolation> isolations,
+        @Schema(description = "Objectifs neutres et combats dans les jungles, dans l'ordre. Absent : pas de timeline.")
+        List<Contest> contests,
         List<Participant> participants
 ) {
 
@@ -53,6 +57,32 @@ public record MatchInsightsDto(
             Integer meanDistance,
             @Schema(description = "Avant 15 minutes, passages d'ensemble à séparés entre deux images comptées.")
             int earlyDepartures
+    ) {
+    }
+
+    @Schema(description = "Un joueur sur les mêmes images que les paires : seul = aucun coéquipier en jeu à moins de 2 000 unités.")
+    public record Isolation(
+            String puuid,
+            int side,
+            int earlyMinutes,
+            int earlyAlone,
+            int lateMinutes,
+            int lateAlone
+    ) {
+    }
+
+    @Schema(description = """
+            Un objectif neutre (kind = monsterType ; les larves d'une même apparition n'en font qu'un), ou un combat
+            dans une jungle (kind = JUNGLE_FIGHT : kills à moins de 20 s et 3 000 unités, hors couloirs, rivière et
+            bases). Présents : les deux camps, à moins de 3 000 unités sur l'image d'avant ou d'après, et pour un
+            combat les joueurs impliqués dans un kill.""")
+    public record Contest(
+            int second,
+            String kind,
+            @Schema(description = "Objectif : le camp qui l'a pris. Combat : le camp dont c'est la jungle.") int side,
+            @Schema(description = "Combat : kills du camp side. 0 pour un objectif.") int sideKills,
+            @Schema(description = "Combat : morts du camp side. 0 pour un objectif.") int sideDeaths,
+            List<String> present
     ) {
     }
 
