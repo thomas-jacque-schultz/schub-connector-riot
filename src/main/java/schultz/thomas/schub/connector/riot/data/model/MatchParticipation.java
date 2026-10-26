@@ -48,6 +48,7 @@ public record MatchParticipation(
         boolean afk,
         Performance performance,
         Laning laning,
+        Support support,
         RankAtGame rank,
         Integer projectionVersion,
         Instant projectedAt
@@ -72,6 +73,10 @@ public record MatchParticipation(
                          Integer killsAt15, Integer deathsAt15, Integer assistsAt15, Integer goldDiffAt15,
                          Integer csDiffAt15,
                          Integer xpDiffAt15, Integer killsDiffAt15) {
+    }
+
+    // Au poste support, avec l'ADC et le jungler de son camp (Schub#153) : parts d'images ensemble, en pour cent.
+    public record Support(Integer adcEarlyShare, Integer junglerLateShare, Integer roams) {
     }
 
     public static String idOf(String puuid, String matchId) {

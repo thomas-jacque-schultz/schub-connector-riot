@@ -25,6 +25,13 @@ public record PerformanceSumsDto(
         long earlyGames,
         long killsAssistsAt15,
         @Schema(description = "Parties où Riot a servi les solo kills (challenges, projection v4).") long soloKillsGames,
-        long soloKills
+        long soloKills,
+        @Schema(description = "Parties au support où la part d'images avec l'ADC avant 15 min est connue (Schub#153).")
+        long supportEarlyGames,
+        @Schema(description = "Somme des parts, en pour cent.") long adcEarlyShare,
+        @Schema(description = "Départs d'auprès de l'ADC avant 15 min, sur supportEarlyGames.") long roams,
+        @Schema(description = "Parties au support où la part d'images avec le jungler après 15 min est connue.")
+        long supportLateGames,
+        @Schema(description = "Somme des parts, en pour cent.") long junglerLateShare
 ) {
 }

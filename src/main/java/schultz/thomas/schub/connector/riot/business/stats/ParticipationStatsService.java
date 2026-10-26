@@ -95,7 +95,12 @@ public class ParticipationStatsService {
                 .sum(context -> new Document("$add", List.of("$laning.killsAt15", "$laning.assistsAt15")))
                 .as("killsAssistsAt15")
                 .sum(siNombre("performance.soloKills")).as("soloKillsGames")
-                .sum("performance.soloKills").as("soloKills");
+                .sum("performance.soloKills").as("soloKills")
+                .sum(siNombre("support.adcEarlyShare")).as("supportEarlyGames")
+                .sum("support.adcEarlyShare").as("adcEarlyShare")
+                .sum("support.roams").as("roams")
+                .sum(siNombre("support.junglerLateShare")).as("supportLateGames")
+                .sum("support.junglerLateShare").as("junglerLateShare");
         if (groupBy == StatsGrouping.CHAMPION) {
             group = group.first("championName").as("championName");
         }
@@ -344,7 +349,9 @@ public class ParticipationStatsService {
                 entier(row, "platesGames"), entier(row, "platesDiff"), entier(row, "laningGames"),
                 entier(row, "goldDiffAt15"), entier(row, "csDiffAt15"), entier(row, "xpDiffAt15"),
                 entier(row, "killsDiffAt15"), entier(row, "earlyGames"), entier(row, "killsAssistsAt15"),
-                entier(row, "soloKillsGames"), entier(row, "soloKills"));
+                entier(row, "soloKillsGames"), entier(row, "soloKills"), entier(row, "supportEarlyGames"),
+                entier(row, "adcEarlyShare"), entier(row, "roams"), entier(row, "supportLateGames"),
+                entier(row, "junglerLateShare"));
     }
 
     private static AggregationExpression siVrai(String champ) {
