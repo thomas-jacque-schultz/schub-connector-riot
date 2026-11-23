@@ -137,15 +137,13 @@ public class MatchEnrichmentService {
     }
 
     private MatchEarlyStats debut(String matchId, Map<String, Object> timeline) {
-        List<MatchParticipant> participants = matches.findById(matchId)
-                .filter(cached -> cached.raw() != null)
-                .map(cached -> decoder.toDetail(cached.raw()).participants())
-                .orElse(List.of());
+        Document partie = matches.findById(matchId).map(CachedMatch::raw).orElse(null);
+        List<MatchParticipant> participants = partie == null ? List.of() : decoder.toDetail(partie).participants();
         ProximityAnalyzer.Lecture lecture = ProximityAnalyzer.lire(timeline, participants);
         return new MatchEarlyStats(matchId, TimelineFigures.a15(timeline), EarlyGameAnalyzer.analyse(timeline, participants),
                 TimelineFigures.aLaFin(timeline), TimelineFigures.objectifsDeFin(timeline), ProximityAnalyzer.analyse(lecture),
                 ProximityAnalyzer.isolements(lecture), ContestAnalyzer.analyse(timeline, lecture),
-                MatchEarlyStats.CURRENT_VERSION);
+                partie == null ? Map.of() : GoldAnalyzer.analyse(timeline, partie), MatchEarlyStats.CURRENT_VERSION);
     }
 
     public void collectRanks(String matchId) {
@@ -183,6 +181,8 @@ public class MatchEnrichmentService {
             Map<String, MatchInsights.At15> a15 = debut == null ? Map.of() : debut.byPuuid();
             Map<String, MatchInsights.AtEnd> fin = debut == null || debut.endByPuuid() == null ? Map.of()
                     : debut.endByPuuid();
+            Map<String, MatchInsights.Gold> or = debut == null || debut.goldByPuuid() == null ? Map.of()
+                    : debut.goldByPuuid();
             rendus.add(new MatchInsights(
                     partie.getKey(),
                     debut != null,
@@ -199,7 +199,7 @@ public class MatchEnrichmentService {
                                 return new MatchInsights.Participant(place.puuid(), place.side(), place.position(),
                                         place.championId(), file(siens, QueueKind.RANKED_SOLO),
                                         file(siens, QueueKind.RANKED_FLEX), a15.get(place.puuid()),
-                                        fin.get(place.puuid()));
+                                        fin.get(place.puuid()), or.get(place.puuid()));
                             })
                             .toList()));
         }

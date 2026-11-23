@@ -23,6 +23,28 @@ final class TimelineJson {
         return parent.get(champ) instanceof List<?> liste ? (List<Object>) liste : List.of();
     }
 
+    /*
+     * Le puuid de chaque participantId, rangé par participantId (indice 0 = participantId 1). info.participants porte
+     * la correspondance ; metadata.participants n'est pas toujours dans cet ordre (1 timeline sur 40 le 23/11).
+     */
+    static List<Object> puuids(Map<String, Object> timeline) {
+        List<Object> metadata = liste(objet(timeline, "metadata"), "participants");
+        List<Object> correspondance = liste(objet(timeline, "info"), "participants");
+        if (correspondance.size() != metadata.size()) {
+            return metadata;
+        }
+        Object[] ranges = new Object[metadata.size()];
+        for (Object brut : correspondance) {
+            Map<String, Object> participant = enObjet(brut);
+            int id = (int) nombre(participant, "participantId");
+            if (id < 1 || id > ranges.length || ranges[id - 1] != null || participant.get("puuid") == null) {
+                return metadata;
+            }
+            ranges[id - 1] = participant.get("puuid");
+        }
+        return List.of(ranges);
+    }
+
     static long nombre(Map<String, Object> objet, String champ) {
         return objet.get(champ) instanceof Number n ? n.longValue() : 0L;
     }

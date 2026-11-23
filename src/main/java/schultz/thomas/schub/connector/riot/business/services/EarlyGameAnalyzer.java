@@ -37,7 +37,7 @@ final class EarlyGameAnalyzer {
 
     // null : postes inconnus, ou pas exactement un jungler par camp — un gank ne s'attribue alors à personne.
     static EarlyGame analyse(Map<String, Object> raw, List<MatchParticipant> participants) {
-        List<Object> puuids = liste(objet(raw, "metadata"), "participants");
+        List<Object> puuids = TimelineJson.puuids(raw);
         List<Object> frames = liste(objet(raw, "info"), "frames");
         if (puuids.isEmpty() || frames.isEmpty()) {
             return null;

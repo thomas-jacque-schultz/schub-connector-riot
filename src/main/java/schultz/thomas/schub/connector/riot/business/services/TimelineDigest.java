@@ -44,9 +44,15 @@ public final class TimelineDigest {
                 .append("participantFrames", joueurs)
                 .append("events", liste(frame, "events").stream()
                         .map(TimelineJson::enObjet)
-                        .filter(event -> !ECARTES.contains(String.valueOf(event.get("type"))))
+                        .filter(event -> !ECARTES.contains(String.valueOf(event.get("type"))) || queteDuTireur(event))
                         .map(event -> "CHAMPION_KILL".equals(event.get("type")) ? garde(event, KILL) : new Document(event))
                         .toList());
+    }
+
+    // Sa destruction dit que la quête est finie, et elle rapporte de l'or (Schub#179).
+    private static boolean queteDuTireur(Map<String, Object> event) {
+        return "ITEM_DESTROYED".equals(event.get("type")) && event.get("itemId") instanceof Number id
+                && id.intValue() == 1202;
     }
 
     private static Document garde(Map<String, Object> source, List<String> champs) {

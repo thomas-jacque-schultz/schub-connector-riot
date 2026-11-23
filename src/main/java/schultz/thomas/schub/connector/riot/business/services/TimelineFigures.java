@@ -21,9 +21,8 @@ final class TimelineFigures {
 
     // participantId 1 à 10 dans l'ordre de metadata.participants ; une image par minute.
     static Map<String, MatchInsights.At15> a15(Map<String, Object> raw) {
-        Map<String, Object> metadata = objet(raw, "metadata");
         Map<String, Object> info = objet(raw, "info");
-        List<Object> puuids = liste(metadata, "participants");
+        List<Object> puuids = TimelineJson.puuids(raw);
         List<Object> frames = liste(info, "frames");
         if (puuids.isEmpty() || frames.isEmpty()) {
             return Map.of();
@@ -76,7 +75,7 @@ final class TimelineFigures {
 
     // La dernière image de la timeline tombe sur la fin de la partie.
     static Map<String, MatchInsights.AtEnd> aLaFin(Map<String, Object> raw) {
-        List<Object> puuids = liste(objet(raw, "metadata"), "participants");
+        List<Object> puuids = TimelineJson.puuids(raw);
         List<Object> frames = liste(objet(raw, "info"), "frames");
         if (puuids.isEmpty() || frames.isEmpty()) {
             return Map.of();

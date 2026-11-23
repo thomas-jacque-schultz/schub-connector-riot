@@ -78,7 +78,7 @@ final class ProximityAnalyzer {
 
     // null : timeline vide, ou un joueur de la timeline absent du détail.
     static Lecture lire(Map<String, Object> raw, List<MatchParticipant> participants) {
-        List<Object> puuids = liste(objet(raw, "metadata"), "participants");
+        List<Object> puuids = TimelineJson.puuids(raw);
         List<Object> frames = liste(objet(raw, "info"), "frames");
         if (puuids.isEmpty() || frames.isEmpty()) {
             return null;

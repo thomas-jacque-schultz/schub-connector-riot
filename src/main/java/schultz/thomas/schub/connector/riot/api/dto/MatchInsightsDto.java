@@ -31,12 +31,29 @@ public record MatchInsightsDto(
             RankedStandingDto solo,
             RankedStandingDto flex,
             @Schema(description = "Absent : pas de timeline, ou partie finie avant 15 minutes.") At15 at15,
-            @Schema(description = "Absent : pas de timeline.") AtEnd atEnd
+            @Schema(description = "Absent : pas de timeline.") AtEnd atEnd,
+            @Schema(description = "Absent : pas de timeline, ou partie analysée avant le calcul de l'or.") Gold gold
     ) {
     }
 
     @Schema(description = "Or et XP de la dernière image de la timeline, kills de toute la partie.")
     public record AtEnd(int gold, int xp, int kills) {
+    }
+
+    @Schema(description = """
+            D'où vient l'or du joueur sur toute la partie, et ce que ses morts ont donné (Schub#179). La somme des
+            lignes vaut earned. Exactes : start, passive, roleQuest, kills, streaksTaken (primes de série prises).
+            Estimées à partir des unités (sbires, camps, plaques, structures, objectifs) puis mises à l'échelle pour
+            que le total tombe juste. cededBase : primes données au tueur et aux assistants ; cededStreak : primes
+            de série données en mourant.""")
+    public record Gold(int earned, int start, int passive, int minions, int allyJungle, int enemyJungle,
+                       int riverJungle, int supportItem, int roleQuest, int plates, int towers, int inhibitors,
+                       int objectives, int kills, int streaksTaken, int assists, int cededBase, int cededStreak,
+                       List<Death> deaths) {
+
+        @Schema(description = "Une mort : seconde de jeu, or donné en tout, dont prime de série.")
+        public record Death(int second, int gold, int streak) {
+        }
     }
 
     public record EndObjectives(int side, int dragons, int heralds) {
