@@ -56,7 +56,7 @@ final class GoldAnalyzer {
 
     /** Par puuid. Vide sans timeline ou sans la partie. */
     static Map<String, Gold> analyse(Map<String, Object> timeline, Map<String, Object> match) {
-        List<Object> puuids = liste(objet(timeline, "metadata"), "participants");
+        List<Object> puuids = TimelineJson.puuids(timeline);
         List<Map<String, Object>> images = liste(objet(timeline, "info"), "frames").stream()
                 .map(TimelineJson::enObjet).toList();
         List<Object> joueurs = liste(objet(match, "info"), "participants");
@@ -109,7 +109,7 @@ final class GoldAnalyzer {
         int minutes = images.size() - 1;
         Map<String, Gold> parPuuid = new HashMap<>();
         for (int id = 1; id <= n; id++) {
-            Map<String, Object> joueur = enObjet(joueurs.get(id - 1));
+            Map<String, Object> joueur = joueurDe(joueurs, id);
             Lignes l = lignes[id];
             if ("UTILITY".equals(joueur.get("teamPosition"))) {
                 l.support = OBJET_DE_SUPPORT_PAR_MINUTE * minutes;
@@ -122,6 +122,13 @@ final class GoldAnalyzer {
                     l.enOr((int) gagne, joueur, morts.getOrDefault(id, List.of())));
         }
         return parPuuid;
+    }
+
+    private static Map<String, Object> joueurDe(List<Object> joueurs, int id) {
+        return joueurs.stream().map(TimelineJson::enObjet)
+                .filter(joueur -> nombre(joueur, "participantId") == id)
+                .findFirst()
+                .orElseGet(() -> enObjet(joueurs.get(id - 1)));
     }
 
     private static int palier(long timestamp) {

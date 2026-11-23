@@ -46,6 +46,21 @@ class TimelineFiguresTest {
     }
 
     @Test
+    @DisplayName("Le puuid d'un participantId se lit dans info.participants : metadata n'est pas toujours dans l'ordre")
+    void metadataDansLeDesordre() {
+        Document raw = new Document("metadata", new Document("participants", List.of("p2", "p1")))
+                .append("info", new Document("participants", List.of(
+                                new Document("participantId", 1).append("puuid", "p1"),
+                                new Document("participantId", 2).append("puuid", "p2")))
+                        .append("frames", List.of(image(0, 500, 500, List.of()), image(900_000, 6100, 5300, List.of()))));
+
+        Map<String, MatchInsights.At15> a15 = TimelineFigures.a15(raw);
+
+        assertThat(a15.get("p1").gold()).isEqualTo(6100);
+        assertThat(a15.get("p2").gold()).isEqualTo(5300);
+    }
+
+    @Test
     @DisplayName("Une partie finie avant 15 minutes n'a pas de chiffres à 15 minutes, et pas des zéros")
     void partieCourte() {
         Document raw = new Document("metadata", new Document("participants", List.of("p1", "p2")))
