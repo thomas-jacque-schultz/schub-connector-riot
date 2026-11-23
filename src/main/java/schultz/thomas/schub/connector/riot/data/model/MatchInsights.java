@@ -23,11 +23,22 @@ public record MatchInsights(
             RankedStanding solo,
             RankedStanding flex,
             At15 at15,
-            AtEnd atEnd
+            AtEnd atEnd,
+            Gold gold
     ) {
     }
 
     public record AtEnd(int gold, int xp, int kills) {
+    }
+
+    // Somme des lignes = earned. Exactes : start, passive, roleQuest, kills, streaksTaken ; le reste est estimé.
+    public record Gold(int earned, int start, int passive, int minions, int allyJungle, int enemyJungle,
+                       int riverJungle, int supportItem, int roleQuest, int plates, int towers, int inhibitors,
+                       int objectives, int kills, int streaksTaken, int assists, int cededBase, int cededStreak,
+                       List<Death> deaths) {
+
+        public record Death(int second, int gold, int streak) {
+        }
     }
 
     public record EndObjectives(int side, int dragons, int heralds) {

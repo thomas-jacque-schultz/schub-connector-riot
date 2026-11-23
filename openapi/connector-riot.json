@@ -1866,6 +1866,24 @@
           }
         }
       },
+      "Death" : {
+        "type" : "object",
+        "properties" : {
+          "gold" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "second" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "streak" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Une mort : seconde de jeu, or donnÃ© en tout, dont prime de sÃ©rie."
+      },
       "EarlyGameDto" : {
         "type" : "object",
         "properties" : {
@@ -1964,6 +1982,90 @@
           }
         },
         "description" : "Une venue du jungler sur un couloir adverse. Sans kill, elle n'est vue qu'aux images de la timeline, une par minute : une venue brÃ¨ve entre deux images Ã©chappe."
+      },
+      "Gold" : {
+        "type" : "object",
+        "properties" : {
+          "allyJungle" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "assists" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "cededBase" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "cededStreak" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deaths" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Death"
+            }
+          },
+          "earned" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "enemyJungle" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "inhibitors" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "kills" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "objectives" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "passive" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "plates" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "riverJungle" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "roleQuest" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "start" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "streaksTaken" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "supportItem" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "towers" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "D'oÃ¹ vient l'or du joueur sur toute la partie, et ce que ses morts ont donnÃ© (Schub#179). La somme des\nlignes vaut earned. Exactes : start, passive, roleQuest, kills, streaksTaken (primes de sÃ©rie prises).\nEstimÃ©es Ã  partir des unitÃ©s (sbires, camps, plaques, structures, objectifs) puis mises Ã  l'Ã©chelle pour\nque le total tombe juste. cededBase : primes donnÃ©es au tueur et aux assistants ; cededStreak : primes\nde sÃ©rie donnÃ©es en mourant."
       },
       "HistorySyncReportDto" : {
         "type" : "object",
@@ -2635,6 +2737,9 @@
           },
           "flex" : {
             "$ref" : "#/components/schemas/RankedStandingDto"
+          },
+          "gold" : {
+            "$ref" : "#/components/schemas/Gold"
           },
           "position" : {
             "type" : "string",
